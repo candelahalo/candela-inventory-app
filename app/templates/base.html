@@ -22,9 +22,6 @@
       <a href="/products" class="{{ 'active' if active == 'products' else '' }}">Products</a>
       <a href="/customers" class="{{ 'active' if active == 'customers' else '' }}">Customers</a>
     </nav>
-    <div class="sidebar-foot">
-      <a href="/docs" target="_blank">API reference ↗</a>
-    </div>
   </aside>
   <main class="content">
     {% block content %}{% endblock %}

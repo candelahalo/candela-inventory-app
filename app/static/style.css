@@ -63,10 +63,6 @@ a { color: inherit; text-decoration: none; }
 .nav a:hover { background: var(--charcoal-2); color: var(--white); }
 .nav a.active { background: var(--amber); color: var(--charcoal); font-weight: 600; }
 
-.sidebar-foot { padding-top: 16px; border-top: 1px solid #2D2C33; }
-.sidebar-foot a { color: #8A8578; font-size: 13px; }
-.sidebar-foot a:hover { color: var(--white); }
-
 /* ---------- Content ---------- */
 .content { flex: 1; min-width: 0; max-width: 1560px; overflow-x: hidden; padding: 40px 48px; }
 
