@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Stock{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Stock</h1>
+    <p>What's on hand, where, and what's moved recently.</p>
+  </div>
+  <div style="display:flex; gap:10px;">
+    <button class="btn btn-ghost" onclick="document.getElementById('wh-panel').style.display='block';">+ Warehouse</button>
+    <button class="btn" onclick="document.getElementById('move-panel').style.display='block';">+ Record movement</button>
+  </div>
+</div>
+
+<div class="panel" id="wh-panel" style="display:none;">
+  <h2>Add a warehouse</h2>
+  <form id="warehouse-form">
+    <div class="form-grid">
+      <div class="field"><label>Name</label><input name="name" required placeholder="Main Warehouse"></div>
+      <div class="field"><label>Location</label><input name="location" placeholder="Al Quoz, Dubai"></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save warehouse</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('wh-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel" id="move-panel" style="display:none;">
+  <h2>Record a stock movement</h2>
+  <form id="movement-form">
+    <div class="form-grid">
+      <div class="field"><label>Product</label><select name="product_id" id="mv-product" required></select></div>
+      <div class="field"><label>Warehouse</label><select name="warehouse_id" id="mv-warehouse" required></select></div>
+      <div class="field"><label>Type</label>
+        <select name="movement_type">
+          <option value="in">Stock in</option>
+          <option value="out">Stock out</option>
+          <option value="adjustment">Adjustment</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantity</label><input name="quantity" type="number" required></div>
+      <div class="field"><label>Project (optional)</label><select name="project_id" id="mv-project"><option value="">— None —</option></select></div>
+      <div class="field"><label>Reference</label><input name="reference" placeholder="PO #123, site delivery, ..."></div>
+      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save movement</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('move-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>Stock on hand</h2>
+  <table>
+    <thead><tr><th>SKU</th><th>Product</th><th>Warehouse</th><th class="num">On hand</th><th class="num">Reorder level</th><th>Status</th></tr></thead>
+    <tbody id="levels-body"></tbody>
+  </table>
+  <div class="empty-state" id="levels-empty" style="display:none;">
+    <h3>No stock recorded yet</h3>
+    <p>Record your first stock-in movement above to start tracking levels.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Recent movements</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="num">Qty</th></tr></thead>
+    <tbody id="movements-body"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let productsCache = [];
+
+async function populateSelectors() {
+  const [products, warehouses, projects] = await Promise.all([api('/products/'), api('/stock/warehouses'), api('/projects/')]);
+  productsCache = products;
+  document.getElementById('mv-product').innerHTML = products.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
+  document.getElementById('mv-warehouse').innerHTML = warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+  document.getElementById('mv-project').innerHTML += projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
+}
+
+async function loadLevels() {
+  const levels = await api('/stock/levels');
+  document.getElementById('levels-empty').style.display = levels.length ? 'none' : 'block';
+  document.getElementById('levels-body').innerHTML = levels.map(s => `
+    <tr>
+      <td class="mono">${s.sku}</td>
+      <td>${s.name}</td>
+      <td>${s.warehouse_name}</td>
+      <td class="num">${s.quantity_on_hand}</td>
+      <td class="num">${s.reorder_level}</td>
+      <td>${s.below_reorder ? '<span class="badge low">Low stock</span>' : '<span class="badge">OK</span>'}</td>
+    </tr>`).join('');
+}
+
+async function loadMovements() {
+  const movements = await api('/stock/movements');
+  document.getElementById('movements-body').innerHTML = movements.slice(0, 20).map(m => {
+    const p = productsCache.find(pr => pr.id === m.product_id);
+    return `<tr>
+      <td>${fmtDate(m.created_at)}</td>
+      <td><span class="badge">${m.movement_type}</span></td>
+      <td>${m.reference || '—'} ${p ? '· ' + p.sku : ''}</td>
+      <td class="num">${m.quantity}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('warehouse-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/stock/warehouses', { method: 'POST', body: JSON.stringify(formToJSON(e.target)) });
+    toast('Warehouse added');
+    e.target.reset();
+    document.getElementById('wh-panel').style.display = 'none';
+    populateSelectors();
+  } catch (err) { toast(err.message, true); }
+});
+
+document.getElementById('movement-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  payload.product_id = parseInt(payload.product_id);
+  payload.warehouse_id = parseInt(payload.warehouse_id);
+  if (payload.project_id) payload.project_id = parseInt(payload.project_id);
+  payload.quantity = parseInt(payload.quantity);
+  try {
+    await api('/stock/movements', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Movement recorded');
+    e.target.reset();
+    document.getElementById('move-panel').style.display = 'none';
+    loadLevels();
+    loadMovements();
+  } catch (err) { toast(err.message, true); }
+});
+
+(async () => {
+  await populateSelectors();
+  await loadLevels();
+  await loadMovements();
+})();
+</script>
+{% endblock %}

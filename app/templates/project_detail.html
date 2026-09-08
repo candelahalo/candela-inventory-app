@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Project{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 id="proj-name">Loading…</h1>
+    <p id="proj-meta"></p>
+  </div>
+  <a href="/projects" class="btn btn-ghost">← All projects</a>
+</div>
+
+<div class="panel">
+  <h2>Status</h2>
+  <div class="stepper" id="stepper"></div>
+  <p style="color:var(--muted); font-size:13px; margin:0;">Click a stage to move the project there — it's logged to the timeline below.</p>
+</div>
+
+<div class="panel">
+  <h2>Details</h2>
+  <table id="details-table"><tbody></tbody></table>
+</div>
+
+<div class="panel">
+  <h2>Linked quotations</h2>
+  <table>
+    <thead><tr><th>Quote #</th><th>Status</th><th class="num">Total</th><th>Date</th></tr></thead>
+    <tbody id="quotes-body"></tbody>
+  </table>
+  <div class="empty-state" id="quotes-empty" style="display:none;"><p>No quotations linked to this project yet.</p></div>
+</div>
+
+<div class="panel">
+  <h2>Stock movements for this site</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="num">Qty</th></tr></thead>
+    <tbody id="stock-body"></tbody>
+  </table>
+  <div class="empty-state" id="stock-empty" style="display:none;"><p>No stock has been recorded against this project yet.</p></div>
+</div>
+
+<div class="panel">
+  <h2>Timeline</h2>
+  <ul class="timeline" id="timeline"></ul>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const projectId = {{ project_id }};
+const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
+
+async function loadProject() {
+  const project = await api('/projects/' + projectId);
+  document.getElementById('proj-name').textContent = project.name;
+  document.getElementById('proj-meta').textContent = project.project_number + ' · ' + project.status;
+
+  const stepper = document.getElementById('stepper');
+  const currentIdx = STAGES.indexOf(project.status);
+  stepper.innerHTML = STAGES.map((s, i) => {
+    const cls = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : '');
+    return `<button class="step ${cls}" onclick="advance('${s}')">${s}</button>`;
+  }).join('');
+
+  document.getElementById('details-table').querySelector('tbody').innerHTML = `
+    <tr><td style="color:var(--muted); width:180px;">Site address</td><td>${project.site_address || '—'}</td></tr>
+    <tr><td style="color:var(--muted);">Start date</td><td>${fmtDate(project.start_date)}</td></tr>
+    <tr><td style="color:var(--muted);">Target completion</td><td>${fmtDate(project.target_completion_date)}</td></tr>
+    <tr><td style="color:var(--muted);">Notes</td><td>${project.notes || '—'}</td></tr>
+  `;
+
+  document.getElementById('timeline').innerHTML = [...project.status_history].reverse().map(h => `
+    <li>
+      <span><span class="badge stage-${h.status}">${h.status}</span> ${h.notes ? '<span class="t-note">— ' + h.notes + '</span>' : ''}</span>
+      <span class="t-when">${fmtDate(h.changed_at)}</span>
+    </li>`).join('');
+}
+
+async function advance(status) {
+  const notes = prompt(`Move this project to "${status}"? Add a note (optional):`, '');
+  if (notes === null) return;
+  try {
+    await api('/projects/' + projectId + '/status', { method: 'POST', body: JSON.stringify({ status, notes: notes || null }) });
+    toast('Status updated');
+    loadProject();
+  } catch (err) { toast(err.message, true); }
+}
+
+async function loadQuotes() {
+  const quotes = await api('/quotations/?project_id=' + projectId);
+  document.getElementById('quotes-empty').style.display = quotes.length ? 'none' : 'block';
+  document.getElementById('quotes-body').innerHTML = quotes.map(q => {
+    const total = q.items.reduce((sum, i) => sum + i.line_total, 0);
+    return `<tr>
+      <td class="mono">${q.quote_number}</td>
+      <td><span class="badge">${q.status}</span></td>
+      <td class="num">${fmtMoney(total)}</td>
+      <td>${fmtDate(q.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadStock() {
+  const movements = await api('/stock/movements?project_id=' + projectId);
+  document.getElementById('stock-empty').style.display = movements.length ? 'none' : 'block';
+  document.getElementById('stock-body').innerHTML = movements.map(m => `
+    <tr>
+      <td>${fmtDate(m.created_at)}</td>
+      <td><span class="badge">${m.movement_type}</span></td>
+      <td>${m.reference || '—'}</td>
+      <td class="num">${m.quantity}</td>
+    </tr>`).join('');
+}
+
+loadProject();
+loadQuotes();
+loadStock();
+</script>
+{% endblock %}

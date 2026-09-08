@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Projects</h1>
+    <p>Every supply & installation job, enquiry through close-out.</p>
+  </div>
+  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ New project</button>
+</div>
+
+<div class="panel" id="add-panel" style="display:none;">
+  <h2>New project</h2>
+  <form id="project-form">
+    <div class="form-grid">
+      <div class="field span2"><label>Project name</label><input name="name" required placeholder="Villa 44 — Full Home Automation"></div>
+      <div class="field"><label>Customer</label><select name="customer_id" id="p-customer" required></select></div>
+      <div class="field"><label>Start date</label><input name="start_date" type="date"></div>
+      <div class="field"><label>Target completion</label><input name="target_completion_date" type="date"></div>
+      <div class="field span2"><label>Site address</label><textarea name="site_address" rows="2"></textarea></div>
+      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Create project</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Project #</th><th>Name</th><th>Customer</th><th>Status</th><th>Started</th></tr></thead>
+    <tbody id="project-body"></tbody>
+  </table>
+  <div class="empty-state" id="project-empty" style="display:none;">
+    <h3>No projects yet</h3>
+    <p>Create your first project above to start tracking its live status.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let customersCache = [];
+
+async function loadCustomerOptions() {
+  customersCache = await api('/customers/');
+  document.getElementById('p-customer').innerHTML = customersCache.map(c => `<option value="${c.id}">${c.name}${c.company ? ' — ' + c.company : ''}</option>`).join('');
+}
+
+async function loadProjects() {
+  const projects = await api('/projects/');
+  document.getElementById('project-empty').style.display = projects.length ? 'none' : 'block';
+  document.getElementById('project-body').innerHTML = projects.map(p => {
+    const customer = customersCache.find(c => c.id === p.customer_id);
+    return `<tr onclick="location.href='/projects/view/${p.id}'" style="cursor:pointer;">
+      <td class="mono">${p.project_number}</td>
+      <td>${p.name}</td>
+      <td>${customer ? customer.name : '—'}</td>
+      <td><span class="badge stage-${p.status}">${p.status}</span></td>
+      <td>${fmtDate(p.start_date)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  payload.customer_id = parseInt(payload.customer_id);
+  try {
+    const project = await api('/projects/', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Project created');
+    location.href = '/projects/view/' + project.id;
+  } catch (err) { toast(err.message, true); }
+});
+
+(async () => {
+  await loadCustomerOptions();
+  await loadProjects();
+})();
+</script>
+{% endblock %}

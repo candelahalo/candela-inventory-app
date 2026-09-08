@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Quotations{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Quotations</h1>
+    <p>Prepare and track pricing sent to clients.</p>
+  </div>
+  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ New quotation</button>
+</div>
+
+<div class="panel" id="add-panel" style="display:none;">
+  <h2>New quotation</h2>
+  <form id="quote-form">
+    <div class="form-grid">
+      <div class="field"><label>Customer</label><select name="customer_id" id="q-customer" required></select></div>
+      <div class="field"><label>Project (optional)</label><select name="project_id" id="q-project"><option value="">— None —</option></select></div>
+      <div class="field"><label>Valid until</label><input name="valid_until" type="date"></div>
+      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    </div>
+
+    <h2 style="margin-top:22px;">Line items</h2>
+    <div class="line-items" id="line-items"></div>
+    <button type="button" class="btn btn-ghost btn-sm" id="add-line">+ Add line</button>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Save quotation</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Quote #</th><th>Customer</th><th>Project</th><th>Status</th><th class="num">Total</th><th>Date</th></tr></thead>
+    <tbody id="quote-body"></tbody>
+  </table>
+  <div class="empty-state" id="quote-empty" style="display:none;">
+    <h3>No quotations yet</h3>
+    <p>Create your first quotation above.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let productsCache = [], customersCache = [], projectsCache = [];
+
+function lineRow() {
+  const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}">${p.sku} — ${p.name}</option>`).join('');
+  return `<div class="line-item-row">
+    <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
+    <div class="field"><label>Qty</label><input class="li-qty" type="number" value="1" min="1"></div>
+    <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="0"></div>
+    <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="0"></div>
+    <button type="button" class="remove-line" onclick="this.closest('.line-item-row').remove()">×</button>
+  </div>`;
+}
+
+function addLine() {
+  const container = document.getElementById('line-items');
+  container.insertAdjacentHTML('beforeend', lineRow());
+  const row = container.lastElementChild;
+  const sel = row.querySelector('.li-product');
+  const priceInput = row.querySelector('.li-price');
+  const syncPrice = () => { const opt = sel.selectedOptions[0]; if (opt) priceInput.value = opt.dataset.price; };
+  sel.addEventListener('change', syncPrice);
+  syncPrice();
+}
+
+document.getElementById('add-line').addEventListener('click', addLine);
+
+async function loadFormData() {
+  const [products, customers, projects] = await Promise.all([api('/products/'), api('/customers/'), api('/projects/')]);
+  productsCache = products; customersCache = customers; projectsCache = projects;
+  document.getElementById('q-customer').innerHTML = customers.map(c => `<option value="${c.id}">${c.name}${c.company ? ' — ' + c.company : ''}</option>`).join('');
+  document.getElementById('q-project').innerHTML += projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
+  if (!document.getElementById('line-items').children.length) addLine();
+}
+
+async function loadQuotations() {
+  const quotes = await api('/quotations/');
+  document.getElementById('quote-empty').style.display = quotes.length ? 'none' : 'block';
+  document.getElementById('quote-body').innerHTML = quotes.map(q => {
+    const customer = customersCache.find(c => c.id === q.customer_id);
+    const project = projectsCache.find(p => p.id === q.project_id);
+    const total = q.items.reduce((sum, i) => sum + i.line_total, 0);
+    return `<tr>
+      <td class="mono">${q.quote_number}</td>
+      <td>${customer ? customer.name : '—'}</td>
+      <td>${project ? project.project_number : '—'}</td>
+      <td><span class="badge">${q.status}</span></td>
+      <td class="num">${fmtMoney(total)}</td>
+      <td>${fmtDate(q.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('quote-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const items = [...document.querySelectorAll('.line-item-row')].map(row => ({
+    product_id: parseInt(row.querySelector('.li-product').value),
+    quantity: parseInt(row.querySelector('.li-qty').value),
+    unit_price: parseFloat(row.querySelector('.li-price').value),
+    discount_pct: parseFloat(row.querySelector('.li-disc').value || 0),
+  }));
+  if (!items.length) { toast('Add at least one line item', true); return; }
+
+  const payload = formToJSON(form);
+  payload.customer_id = parseInt(payload.customer_id);
+  if (payload.project_id) payload.project_id = parseInt(payload.project_id);
+  payload.items = items;
+
+  try {
+    await api('/quotations/', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Quotation created');
+    form.reset();
+    document.getElementById('line-items').innerHTML = '';
+    addLine();
+    document.getElementById('add-panel').style.display = 'none';
+    loadQuotations();
+  } catch (err) { toast(err.message, true); }
+});
+
+(async () => {
+  await loadFormData();
+  await loadQuotations();
+})();
+</script>
+{% endblock %}

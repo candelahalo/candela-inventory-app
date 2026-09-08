@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Customers</h1>
+    <p>Clients you quote and run projects for.</p>
+  </div>
+  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Add customer</button>
+</div>
+
+<div class="panel" id="add-panel" style="display:none;">
+  <h2>Add a customer</h2>
+  <form id="customer-form">
+    <div class="form-grid">
+      <div class="field"><label>Name</label><input name="name" required placeholder="Ahmed Al Mansoori"></div>
+      <div class="field"><label>Company</label><input name="company" placeholder="Optional"></div>
+      <div class="field"><label>Email</label><input name="email" type="email"></div>
+      <div class="field"><label>Phone</label><input name="phone"></div>
+      <div class="field"><label>TRN</label><input name="trn" placeholder="Optional"></div>
+      <div class="field span2"><label>Address</label><textarea name="address" rows="2"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save customer</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th></tr></thead>
+    <tbody id="customer-body"></tbody>
+  </table>
+  <div class="empty-state" id="customer-empty" style="display:none;">
+    <h3>No customers yet</h3>
+    <p>Add your first client above to start quoting them.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+async function loadCustomers() {
+  const customers = await api('/customers/');
+  document.getElementById('customer-empty').style.display = customers.length ? 'none' : 'block';
+  document.getElementById('customer-body').innerHTML = customers.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.company || '—'}</td>
+      <td>${c.email || '—'}</td>
+      <td>${c.phone || '—'}</td>
+    </tr>`).join('');
+}
+
+document.getElementById('customer-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/customers/', { method: 'POST', body: JSON.stringify(formToJSON(e.target)) });
+    toast('Customer added');
+    e.target.reset();
+    document.getElementById('add-panel').style.display = 'none';
+    loadCustomers();
+  } catch (err) { toast(err.message, true); }
+});
+
+loadCustomers();
+</script>
+{% endblock %}

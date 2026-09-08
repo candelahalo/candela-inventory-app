@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Products</h1>
+    <p>Your light fitting and home automation catalog.</p>
+  </div>
+  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Add product</button>
+</div>
+
+<div class="panel" id="add-panel" style="display:none;">
+  <h2>Add a product</h2>
+  <form id="product-form">
+    <div class="form-grid">
+      <div class="field"><label>SKU</label><input name="sku" required placeholder="CND-LED-001"></div>
+      <div class="field"><label>Name</label><input name="name" required placeholder="LED Downlight 12W"></div>
+      <div class="field"><label>Category</label><input name="category" placeholder="Downlights, Smart Switches, ..."></div>
+      <div class="field"><label>Brand</label><input name="brand" placeholder="Optional"></div>
+      <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
+      <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save product</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th class="num">Cost</th><th class="num">Selling price</th><th class="num">Reorder level</th></tr></thead>
+    <tbody id="product-body"></tbody>
+  </table>
+  <div class="empty-state" id="product-empty" style="display:none;">
+    <h3>No products yet</h3>
+    <p>Add your first light fitting or automation product above.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+async function loadProducts() {
+  const products = await api('/products/');
+  const body = document.getElementById('product-body');
+  document.getElementById('product-empty').style.display = products.length ? 'none' : 'block';
+  body.innerHTML = products.map(p => `
+    <tr>
+      <td class="mono">${p.sku}</td>
+      <td>${p.name}</td>
+      <td>${p.category || '—'}</td>
+      <td class="num">${fmtMoney(p.cost_price)}</td>
+      <td class="num">${fmtMoney(p.selling_price)}</td>
+      <td class="num">${p.reorder_level}</td>
+    </tr>`).join('');
+}
+
+document.getElementById('product-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  payload.cost_price = parseFloat(payload.cost_price || 0);
+  payload.selling_price = parseFloat(payload.selling_price || 0);
+  payload.reorder_level = parseInt(payload.reorder_level || 0);
+  try {
+    await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Product added');
+    e.target.reset();
+    document.getElementById('add-panel').style.display = 'none';
+    loadProducts();
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+loadProducts();
+</script>
+{% endblock %}

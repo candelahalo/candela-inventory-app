@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Live status across every job, and what's running low.</p>
+  </div>
+</div>
+
+<div class="stat-row" id="stat-row">
+  <div class="stat"><div class="num">—</div><div class="label">Active projects</div></div>
+  <div class="stat"><div class="num">—</div><div class="label">Products tracked</div></div>
+  <div class="stat"><div class="num">—</div><div class="label">Open quotations</div></div>
+  <div class="stat warn"><div class="num">—</div><div class="label">Items below reorder</div></div>
+</div>
+
+<div class="panel">
+  <h2>Project pipeline</h2>
+  <div class="board" id="board"></div>
+</div>
+
+<div class="panel" id="low-stock-panel" style="display:none;">
+  <h2>Low stock</h2>
+  <table>
+    <thead><tr><th>SKU</th><th>Product</th><th>Warehouse</th><th class="num">On hand</th><th class="num">Reorder level</th></tr></thead>
+    <tbody id="low-stock-body"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
+const STAGE_LABELS = {enquiry:'Enquiry',quoted:'Quoted',approved:'Approved',ordered:'Ordered',delivered:'Delivered',installed:'Installed',commissioned:'Commissioned',closed:'Closed'};
+
+async function loadDashboard() {
+  try {
+    const [board, products, quotations, lowStock] = await Promise.all([
+      api('/projects/board/summary'),
+      api('/products/'),
+      api('/quotations/'),
+      api('/stock/low-stock'),
+    ]);
+
+    const activeProjects = STAGES.filter(s => s !== 'closed').reduce((sum, s) => sum + (board[s] ? board[s].length : 0), 0);
+    const openQuotes = quotations.filter(q => q.status !== 'rejected').length;
+
+    const statRow = document.getElementById('stat-row');
+    statRow.children[0].querySelector('.num').textContent = activeProjects;
+    statRow.children[1].querySelector('.num').textContent = products.length;
+    statRow.children[2].querySelector('.num').textContent = openQuotes;
+    statRow.children[3].querySelector('.num').textContent = lowStock.length;
+
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = STAGES.map(stage => {
+      const items = board[stage] || [];
+      return `<div class="board-col">
+        <div class="board-col-head"><span>${STAGE_LABELS[stage]}</span><span class="count">${items.length}</span></div>
+        ${items.length ? items.map(p => `
+          <a class="board-card" href="/projects/view/${p.id}">
+            <span class="pn">${p.project_number}</span>${p.name}
+          </a>`).join('') : '<div class="board-empty">Nothing here</div>'}
+      </div>`;
+    }).join('');
+
+    if (lowStock.length) {
+      document.getElementById('low-stock-panel').style.display = '';
+      document.getElementById('low-stock-body').innerHTML = lowStock.map(s => `
+        <tr>
+          <td class="mono">${s.sku}</td>
+          <td>${s.name}</td>
+          <td>${s.warehouse_name}</td>
+          <td class="num"><span class="badge low">${s.quantity_on_hand}</span></td>
+          <td class="num">${s.reorder_level}</td>
+        </tr>`).join('');
+    }
+  } catch (e) {
+    toast('Could not load dashboard: ' + e.message, true);
+  }
+}
+loadDashboard();
+</script>
+{% endblock %}
