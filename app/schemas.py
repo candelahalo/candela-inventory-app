@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
-from app.models import DocStatus, InvoiceStatus, MovementType
+from app.models import DocStatus, MovementType, ProjectStatus
 
 
 # ---------- Product ----------
@@ -47,6 +47,7 @@ class WarehouseOut(WarehouseBase):
 class StockMovementCreate(BaseModel):
     product_id: int
     warehouse_id: int
+    project_id: Optional[int] = None
     movement_type: MovementType
     quantity: int
     reference: Optional[str] = None
@@ -107,6 +108,7 @@ class QuotationItemOut(QuotationItemCreate):
 
 class QuotationCreate(BaseModel):
     customer_id: int
+    project_id: Optional[int] = None
     notes: Optional[str] = None
     valid_until: Optional[datetime] = None
     items: List[QuotationItemCreate]
@@ -117,6 +119,7 @@ class QuotationOut(BaseModel):
     id: int
     quote_number: Optional[str]
     customer_id: int
+    project_id: Optional[int]
     status: DocStatus
     version: int
     notes: Optional[str]
@@ -125,42 +128,39 @@ class QuotationOut(BaseModel):
     items: List[QuotationItemOut]
 
 
-# ---------- Invoice ----------
-class InvoiceItemCreate(BaseModel):
-    product_id: int
-    description: Optional[str] = None
-    quantity: int
-    unit_price: float
-    discount_pct: float = 0.0
-
-
-class InvoiceItemOut(InvoiceItemCreate):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    line_total: float
-
-
-class InvoiceCreate(BaseModel):
+# ---------- Project ----------
+class ProjectCreate(BaseModel):
+    name: str
     customer_id: int
-    quotation_id: Optional[int] = None
-    due_date: Optional[datetime] = None
+    site_address: Optional[str] = None
+    start_date: Optional[datetime] = None
+    target_completion_date: Optional[datetime] = None
     notes: Optional[str] = None
-    items: List[InvoiceItemCreate] = []
 
 
-class InvoiceOut(BaseModel):
+class ProjectStatusHistoryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    invoice_number: Optional[str]
+    status: ProjectStatus
+    notes: Optional[str]
+    changed_at: datetime
+
+
+class ProjectOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    project_number: Optional[str]
+    name: str
     customer_id: int
-    quotation_id: Optional[int]
-    status: InvoiceStatus
-    due_date: Optional[datetime]
-    amount_paid: float
+    site_address: Optional[str]
+    status: ProjectStatus
+    start_date: Optional[datetime]
+    target_completion_date: Optional[datetime]
     notes: Optional[str]
     created_at: datetime
-    items: List[InvoiceItemOut]
+    status_history: List[ProjectStatusHistoryOut] = []
 
 
-class PaymentUpdate(BaseModel):
-    amount: float
+class ProjectStatusUpdate(BaseModel):
+    status: ProjectStatus
+    notes: Optional[str] = None

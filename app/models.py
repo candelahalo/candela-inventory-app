@@ -14,14 +14,6 @@ class DocStatus(str, enum.Enum):
     sent = "sent"
     accepted = "accepted"
     rejected = "rejected"
-    invoiced = "invoiced"
-
-
-class InvoiceStatus(str, enum.Enum):
-    unpaid = "unpaid"
-    partially_paid = "partially_paid"
-    paid = "paid"
-    overdue = "overdue"
 
 
 class MovementType(str, enum.Enum):
@@ -30,13 +22,24 @@ class MovementType(str, enum.Enum):
     adjustment = "adjustment"
 
 
+class ProjectStatus(str, enum.Enum):
+    enquiry = "enquiry"
+    quoted = "quoted"
+    approved = "approved"
+    ordered = "ordered"
+    delivered = "delivered"
+    installed = "installed"
+    commissioned = "commissioned"
+    closed = "closed"
+
+
 class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
     sku = Column(String(64), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
-    category = Column(String(120), index=True)
+    category = Column(String(120), index=True)  # e.g. "Downlights", "Smart Switches", "Home Automation Hub"
     brand = Column(String(120))
     unit = Column(String(32), default="pcs")
     cost_price = Column(Float, default=0.0)
@@ -64,14 +67,16 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)  # link stock-out to a project/site
     movement_type = Column(Enum(MovementType), nullable=False)
     quantity = Column(Integer, nullable=False)
-    reference = Column(String(255))  # e.g. "Invoice #INV-0001" or "PO #123"
+    reference = Column(String(255))  # e.g. "PO #123", "Site delivery"
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     product = relationship("Product", back_populates="stock_movements")
     warehouse = relationship("Warehouse", back_populates="stock_movements")
+    project = relationship("Project", back_populates="stock_movements")
 
 
 class Customer(Base):
@@ -87,7 +92,7 @@ class Customer(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     quotations = relationship("Quotation", back_populates="customer")
-    invoices = relationship("Invoice", back_populates="customer")
+    projects = relationship("Project", back_populates="customer")
 
 
 class Quotation(Base):
@@ -96,6 +101,7 @@ class Quotation(Base):
     id = Column(Integer, primary_key=True, index=True)
     quote_number = Column(String(64), unique=True, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     status = Column(Enum(DocStatus), default=DocStatus.draft)
     version = Column(Integer, default=1)
     notes = Column(Text)
@@ -103,8 +109,8 @@ class Quotation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     customer = relationship("Customer", back_populates="quotations")
+    project = relationship("Project", back_populates="quotations")
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan")
-    invoice = relationship("Invoice", back_populates="quotation", uselist=False)
 
 
 class QuotationItem(Base):
@@ -126,38 +132,36 @@ class QuotationItem(Base):
         return round(self.quantity * self.unit_price * (1 - self.discount_pct / 100), 2)
 
 
-class Invoice(Base):
-    __tablename__ = "invoices"
+class Project(Base):
+    __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    invoice_number = Column(String(64), unique=True, index=True)
+    project_number = Column(String(64), unique=True, index=True)
+    name = Column(String(255), nullable=False)  # e.g. "Villa 44 - Full Home Automation"
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    quotation_id = Column(Integer, ForeignKey("quotations.id"), unique=True, nullable=True)
-    status = Column(Enum(InvoiceStatus), default=InvoiceStatus.unpaid)
-    due_date = Column(DateTime)
-    amount_paid = Column(Float, default=0.0)
+    site_address = Column(Text)
+    status = Column(Enum(ProjectStatus), default=ProjectStatus.enquiry, index=True)
+    start_date = Column(DateTime)
+    target_completion_date = Column(DateTime)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    customer = relationship("Customer", back_populates="invoices")
-    quotation = relationship("Quotation", back_populates="invoice")
-    items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
+    customer = relationship("Customer", back_populates="projects")
+    quotations = relationship("Quotation", back_populates="project")
+    stock_movements = relationship("StockMovement", back_populates="project")
+    status_history = relationship(
+        "ProjectStatusHistory", back_populates="project",
+        cascade="all, delete-orphan", order_by="ProjectStatusHistory.changed_at",
+    )
 
 
-class InvoiceItem(Base):
-    __tablename__ = "invoice_items"
+class ProjectStatusHistory(Base):
+    __tablename__ = "project_status_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    description = Column(String(500))
-    quantity = Column(Integer, nullable=False)
-    unit_price = Column(Float, nullable=False)
-    discount_pct = Column(Float, default=0.0)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    status = Column(Enum(ProjectStatus), nullable=False)
+    notes = Column(Text)
+    changed_at = Column(DateTime, default=datetime.utcnow)
 
-    invoice = relationship("Invoice", back_populates="items")
-    product = relationship("Product")
-
-    @property
-    def line_total(self):
-        return round(self.quantity * self.unit_price * (1 - self.discount_pct / 100), 2)
+    project = relationship("Project", back_populates="status_history")

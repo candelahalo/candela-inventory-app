@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import products, stock, customers, quotations, invoices, reports
+from app.routers import products, stock, customers, quotations, projects
 
-app = FastAPI(title="Candela Inventory & Quotation System", version="0.1.0")
+app = FastAPI(title="Candela Inventory, Stock & Project Tracker", version="0.2.0")
 
 # CORS - tighten allow_origins to your actual frontend domain(s) before production use
 app.add_middleware(
@@ -18,8 +18,7 @@ app.include_router(products.router)
 app.include_router(stock.router)
 app.include_router(customers.router)
 app.include_router(quotations.router)
-app.include_router(invoices.router)
-app.include_router(reports.router)
+app.include_router(projects.router)
 
 
 @app.get("/")

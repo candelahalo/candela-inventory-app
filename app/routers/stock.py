@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
@@ -29,12 +29,26 @@ def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(
     warehouse = db.query(models.Warehouse).get(payload.warehouse_id)
     if not product or not warehouse:
         raise HTTPException(status_code=404, detail="Product or warehouse not found")
+    if payload.project_id:
+        project = db.query(models.Project).get(payload.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
     movement = models.StockMovement(**payload.model_dump())
     db.add(movement)
     db.commit()
     db.refresh(movement)
     return movement
+
+
+@router.get("/movements", response_model=List[schemas.StockMovementOut])
+def list_movements(project_id: Optional[int] = None, product_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(models.StockMovement)
+    if project_id:
+        q = q.filter(models.StockMovement.project_id == project_id)
+    if product_id:
+        q = q.filter(models.StockMovement.product_id == product_id)
+    return q.order_by(models.StockMovement.created_at.desc()).all()
 
 
 @router.get("/levels", response_model=List[schemas.StockLevel])

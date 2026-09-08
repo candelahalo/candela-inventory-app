@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -14,8 +14,11 @@ def _next_quote_number(db: Session) -> str:
 
 
 @router.get("/", response_model=List[schemas.QuotationOut])
-def list_quotations(db: Session = Depends(get_db)):
-    return db.query(models.Quotation).order_by(models.Quotation.created_at.desc()).all()
+def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(models.Quotation)
+    if project_id:
+        q = q.filter(models.Quotation.project_id == project_id)
+    return q.order_by(models.Quotation.created_at.desc()).all()
 
 
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
@@ -25,10 +28,15 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
         raise HTTPException(status_code=404, detail="Customer not found")
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
+    if payload.project_id:
+        project = db.query(models.Project).get(payload.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
     quotation = models.Quotation(
         quote_number=_next_quote_number(db),
         customer_id=payload.customer_id,
+        project_id=payload.project_id,
         notes=payload.notes,
         valid_until=payload.valid_until,
     )
@@ -70,6 +78,7 @@ def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     new_quote = models.Quotation(
         quote_number=f"{original.quote_number}-v{original.version + 1}",
         customer_id=payload.customer_id,
+        project_id=payload.project_id or original.project_id,
         notes=payload.notes,
         valid_until=payload.valid_until,
         version=original.version + 1,
