@@ -53,10 +53,10 @@
 
 <div class="panel">
   <h2>Stock on hand</h2>
-  <table>
+  <div class="table-scroll"><table>
     <thead><tr><th>SKU</th><th>Product</th><th>Warehouse</th><th class="num">On hand</th><th class="num">Reorder level</th><th>Status</th></tr></thead>
     <tbody id="levels-body"></tbody>
-  </table>
+  </table></div>
   <div class="empty-state" id="levels-empty" style="display:none;">
     <h3>No stock recorded yet</h3>
     <p>Record your first stock-in movement above to start tracking levels.</p>
@@ -65,10 +65,10 @@
 
 <div class="panel">
   <h2>Recent movements</h2>
-  <table>
+  <div class="table-scroll"><table>
     <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="num">Qty</th></tr></thead>
     <tbody id="movements-body"></tbody>
-  </table>
+  </table></div>
 </div>
 {% endblock %}
 
