@@ -48,8 +48,8 @@ a { color: inherit; text-decoration: none; }
   height: 100vh;
 }
 
-.brand { margin-bottom: 36px; }
-.brand-logo { height: 30px; width: auto; display: block; }
+.brand { margin-bottom: 40px; }
+.brand-logo { height: 46px; width: auto; display: block; }
 
 .nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .nav a {
