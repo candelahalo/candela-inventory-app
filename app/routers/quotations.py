@@ -146,7 +146,6 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     bold = Font(bold=True)
     thin = Side(style="thin", color="D9D3C4")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    wrap = Alignment(wrap_text=True, vertical="top")
 
     ws["A1"] = "CANDELA LIGHTING AND AUTOMATION LLC"
     ws["A1"].font = title_font
@@ -167,17 +166,20 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     row = header_row + 1
     for idx, item in enumerate(quotation.items, start=1):
         product = item.product
-        ws.cell(row=row, column=1, value=idx).border = border
-        ws.cell(row=row, column=2, value=item.type_code or "").border = border
-        ws.cell(row=row, column=3, value=product.brand if product else "").border = border
+        center = Alignment(horizontal="center", vertical="center")
+        left_mid = Alignment(horizontal="left", vertical="center")
+
+        c = ws.cell(row=row, column=1, value=idx); c.border = border; c.alignment = center
+        c = ws.cell(row=row, column=2, value=item.type_code or ""); c.border = border; c.alignment = center
+        c = ws.cell(row=row, column=3, value=product.brand if product else ""); c.border = border; c.alignment = left_mid
         desc_cell = ws.cell(row=row, column=4, value=item.description or (product.name if product else ""))
         desc_cell.border = border
-        desc_cell.alignment = wrap
-        ws.cell(row=row, column=5, value=product.unit if product else "pcs").border = border
-        ws.cell(row=row, column=6, value=item.quantity).border = border
-        ws.cell(row=row, column=7, value=item.unit_price).border = border
-        ws.cell(row=row, column=8, value=item.discount_pct).border = border
-        ws.cell(row=row, column=9, value=item.line_total).border = border
+        desc_cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="left")
+        c = ws.cell(row=row, column=5, value=product.unit if product else "pcs"); c.border = border; c.alignment = center
+        c = ws.cell(row=row, column=6, value=item.quantity); c.border = border; c.alignment = center
+        c = ws.cell(row=row, column=7, value=item.unit_price); c.border = border; c.alignment = Alignment(horizontal="right", vertical="center")
+        c = ws.cell(row=row, column=8, value=item.discount_pct); c.border = border; c.alignment = center
+        c = ws.cell(row=row, column=9, value=item.line_total); c.border = border; c.alignment = Alignment(horizontal="right", vertical="center")
         ws.row_dimensions[row].height = 60
 
         # Embed product photo scaled to a small consistent thumbnail, preserving aspect ratio

@@ -129,14 +129,16 @@
     border-bottom: 1.25px solid #201E1A;
   }
   table.items thead th.num { text-align: right; }
+  table.items thead th.center { text-align: center; }
 
   table.items tbody td {
     padding: 11px 6px;
     border-bottom: 0.75px solid #EAE3D2;
-    vertical-align: top;
+    vertical-align: middle;
     font-size: 9.7px;
   }
   table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.items tbody td.center { text-align: center; }
   table.items tbody tr:nth-child(even) { background: #FBF9F4; }
 
   .item-img { width: 46px; height: 46px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
@@ -227,18 +229,18 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   </colgroup>
   <thead>
     <tr>
-      <th>#</th><th>Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th>
+      <th class="center">#</th><th class="center">Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th>
     </tr>
   </thead>
   <tbody>
     {% for item in q.items %}
     <tr>
-      <td>{{ loop.index }}</td>
-      <td>
+      <td class="center">{{ loop.index }}</td>
+      <td class="center">
         {% if item.product and item.product.image_path %}
         <img class="item-img" src="app{{ item.product.image_path }}">
         {% else %}
-        <div class="item-img-empty"></div>
+        <div class="item-img-empty" style="margin: 0 auto;"></div>
         {% endif %}
       </td>
       <td>
