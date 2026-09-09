@@ -180,7 +180,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     AMBER = "C77D0A"
     LINE = "DED6C2"
     PAPER = "FBF9F4"
-    FONT = "Calibri"
+    FONT = "IBM Plex Sans"
+    FONT_MONO = "IBM Plex Mono"
 
     center = Alignment(horizontal="center", vertical="center")
     center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -336,10 +337,15 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         cover[f"B{r}"].font = Font(name=FONT, size=9.5, color=MUTED)
 
     cover.page_setup.orientation = "portrait"
+    cover.page_setup.paperSize = cover.PAPERSIZE_A4
     cover.page_setup.fitToWidth = 1
     cover.page_setup.fitToHeight = 1
     cover.sheet_properties.pageSetUpPr.fitToPage = True
-    cover.page_margins = PageMargins(left=0.5, right=0.5, top=0.6, bottom=0.6)
+    cover.print_options.horizontalCentered = True
+    cover.page_margins = PageMargins(left=0.6, right=0.6, top=0.7, bottom=0.7)
+    cover.oddFooter.center.text = "We Light Your Dreams…"
+    cover.oddFooter.center.size = 8
+    cover.oddFooter.center.color = "9A9382"
 
     # =========================================================
     # SHEET 2 — ITEMIZED SCHEDULE
@@ -354,7 +360,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     ws.row_dimensions[1].height = 30
     ws.merge_cells("C1:G1")
     ws["C1"] = quotation.quote_number
-    ws["C1"].font = Font(name="IBM Plex Mono", size=9, color=MUTED)
+    ws["C1"].font = Font(name=FONT_MONO, size=9, color=FAINT)
     ws["C1"].alignment = Alignment(horizontal="right", vertical="center")
     ws.row_dimensions[2].height = 6
 
@@ -411,14 +417,25 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         if fill: desc_cell.fill = fill
 
         for col, val in [(4, product.unit if product else "pcs"), (5, item.quantity),
-                          (6, round(item.unit_price, 2)), (7, round(item.line_total, 2))]:
+                          (6, round(item.unit_price, 2))]:
             c = ws.cell(row=row, column=col, value=val)
             c.alignment = center
             c.border = border
             c.font = Font(name=FONT, size=9.5, color=INK)
             if fill: c.fill = fill
-            if col in (6, 7):
+            if col == 6:
                 c.number_format = '#,##0.00'
+
+        # Line total is a live formula (qty × price, less any discount) so the
+        # sheet recalculates if someone edits quantities or rates in Excel.
+        disc = (item.discount_pct or 0) / 100
+        total_cell = ws.cell(row=row, column=7)
+        total_cell.value = f"=E{row}*F{row}" + (f"*{1 - disc}" if disc else "")
+        total_cell.alignment = center
+        total_cell.border = border
+        total_cell.font = Font(name=FONT, size=9.5, color=INK)
+        total_cell.number_format = '#,##0.00'
+        if fill: total_cell.fill = fill
 
         b = ws.cell(row=row, column=2); b.border = border
         if fill: b.fill = fill
@@ -439,20 +456,43 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
                     pass
         row += 1
 
-    totals_col_label, totals_col_val = 5, 7
-    totals = [("Gross Total", quotation.gross_total, False)]
-    if quotation.freight_charges:
-        totals.append(("Freight & Customs", quotation.freight_charges, False))
-    totals.append(("Subtotal (VAT excl.)", quotation.grand_total, False))
-    totals.append((f"VAT ({quotation.vat_percent}%)", quotation.vat_amount, False))
-    totals.append(("Total Due", quotation.total_with_vat, True))
+    first_item_row = header_row + 1
+    last_item_row = row - 1
+
+    freight_row = None
+    subtotal_row = None
+    gross_row = None
 
     row += 1
-    for label, value, is_grand in totals:
-        ws.merge_cells(start_row=row, start_column=totals_col_label, end_row=row, end_column=6)
-        lbl_cell = ws.cell(row=row, column=totals_col_label, value=label)
-        val_cell = ws.cell(row=row, column=totals_col_val, value=value)
-        f = Font(bold=True, size=12 if is_grand else 10, color=INK if is_grand else MUTED)
+    totals_spec = []
+    totals_spec.append(("Gross Total", f"=SUM(G{first_item_row}:G{last_item_row})", False))
+    if quotation.freight_charges:
+        totals_spec.append(("Freight & Customs", quotation.freight_charges, False))
+    totals_spec.append(("Subtotal (VAT excl.)", None, False))       # filled in below
+    totals_spec.append((f"VAT ({quotation.vat_percent}%)", None, False))
+    totals_spec.append(("Total Due", None, True))
+
+    for label, value, is_grand in totals_spec:
+        ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=6)
+        lbl_cell = ws.cell(row=row, column=5, value=label)
+        val_cell = ws.cell(row=row, column=7)
+
+        if label == "Gross Total":
+            gross_row = row
+            val_cell.value = value
+        elif label == "Freight & Customs":
+            freight_row = row
+            val_cell.value = value
+        elif label.startswith("Subtotal"):
+            subtotal_row = row
+            val_cell.value = f"=G{gross_row}+G{freight_row}" if freight_row else f"=G{gross_row}"
+        elif label.startswith("VAT"):
+            vat_row = row
+            val_cell.value = f"=G{subtotal_row}*{quotation.vat_percent / 100}"
+        else:
+            val_cell.value = f"=G{subtotal_row}+G{vat_row}"
+
+        f = Font(name=FONT, bold=True, size=12 if is_grand else 10, color=INK if is_grand else MUTED)
         lbl_cell.font = f
         val_cell.font = f
         lbl_cell.alignment = Alignment(horizontal="right", vertical="center")
@@ -462,6 +502,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
             top = Side(style="thin", color=INK)
             lbl_cell.border = Border(top=top)
             val_cell.border = Border(top=top)
+        ws.row_dimensions[row].height = 20 if is_grand else 16
         row += 1
 
     row += 1
@@ -469,10 +510,20 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(italic=True, size=8, color=MUTED)
 
     ws.page_setup.orientation = "portrait"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.page_margins = PageMargins(left=0.4, right=0.4, top=0.5, bottom=0.5)
+    ws.print_options.horizontalCentered = True
+    ws.page_margins = PageMargins(left=0.5, right=0.5, top=0.7, bottom=0.7)
+    # Repeat the table header on every printed page of a long schedule
+    ws.print_title_rows = f"{header_row}:{header_row}"
+    ws.oddHeader.right.text = quotation.quote_number
+    ws.oddHeader.right.size = 8
+    ws.oddHeader.right.color = "9A9382"
+    ws.oddFooter.center.text = "Page &P of &N"
+    ws.oddFooter.center.size = 8
+    ws.oddFooter.center.color = "9A9382"
 
     # =========================================================
     # SHEET 3 — TERMS & CONDITIONS
@@ -526,10 +577,15 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         r += 1
 
     tc.page_setup.orientation = "portrait"
+    tc.page_setup.paperSize = tc.PAPERSIZE_A4
     tc.page_setup.fitToWidth = 1
     tc.page_setup.fitToHeight = 1
     tc.sheet_properties.pageSetUpPr.fitToPage = True
-    tc.page_margins = PageMargins(left=0.5, right=0.5, top=0.6, bottom=0.6)
+    tc.print_options.horizontalCentered = True
+    tc.page_margins = PageMargins(left=0.6, right=0.6, top=0.7, bottom=0.7)
+    tc.oddHeader.right.text = quotation.quote_number
+    tc.oddHeader.right.size = 8
+    tc.oddHeader.right.color = "9A9382"
 
     wb.active = 0
     buf = io.BytesIO()
