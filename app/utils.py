@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import UploadFile, HTTPException
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageChops
 
 UPLOAD_ROOT = Path("app/static/uploads")
 PRODUCT_IMAGE_DIR = UPLOAD_ROOT / "products"
@@ -20,6 +20,44 @@ def url_to_disk_path(url_path: str) -> str:
     """Convert a served URL like '/static/uploads/products/x.jpg' to its
     actual filesystem path 'app/static/uploads/products/x.jpg'."""
     return "app" + url_path if url_path.startswith("/static") else url_path.lstrip("/")
+
+
+def _detect_content_bbox(img: Image.Image, threshold: int = 22, margin_pct: float = 0.04):
+    """
+    Finds the bounding box of the actual product within the photo by comparing
+    every pixel against the photo's own background color (sampled from its
+    border), so a tightly-cropped supplier photo and a loosely letterboxed one
+    both end up filling the same proportion of the final frame.
+    """
+    w, h = img.size
+    border = max(2, min(w, h) // 50)
+    edge_pixels = (
+        list(img.crop((0, 0, w, border)).getdata())
+        + list(img.crop((0, h - border, w, h)).getdata())
+        + list(img.crop((0, 0, border, h)).getdata())
+        + list(img.crop((w - border, 0, w, h)).getdata())
+    )
+    bg_color = tuple(sorted(edge_pixels, key=lambda p: sum(p))[len(edge_pixels) // 2])
+
+    bg_layer = Image.new("RGB", img.size, bg_color)
+    diff = ImageChops.difference(img, bg_layer).convert("L")
+    mask = diff.point(lambda p: 255 if p > threshold else 0)
+    bbox = mask.getbbox()
+
+    if not bbox:
+        return None
+
+    x0, y0, x1, y1 = bbox
+    mx, my = int((x1 - x0) * margin_pct), int((y1 - y0) * margin_pct)
+    x0, y0 = max(0, x0 - mx), max(0, y0 - my)
+    x1, y1 = min(w, x1 + mx), min(h, y1 + my)
+
+    # Guard against a degenerate crop (near-blank image or busy photographic
+    # background with no clean margin) - fall back to the full photo.
+    area_ratio = ((x1 - x0) * (y1 - y0)) / (w * h)
+    if area_ratio < 0.02 or area_ratio > 0.98:
+        return None
+    return (x0, y0, x1, y1)
 
 
 def save_product_image(file: UploadFile) -> str:
@@ -45,9 +83,20 @@ def save_product_image(file: UploadFile) -> str:
     else:
         img = img.convert("RGB")
 
-    # Scale down to fit within the canvas with a small margin, preserving aspect ratio
+    # Auto-crop to the actual product content, so a loosely letterboxed
+    # supplier photo and a tightly-cropped one end up filling the frame the
+    # same amount - this is what makes different sources look "uniform".
+    bbox = _detect_content_bbox(img)
+    if bbox:
+        img = img.crop(bbox)
+
+    # Scale to fill a consistent proportion of the canvas, preserving aspect
+    # ratio - resize (not thumbnail) so a loosely-cropped source photo gets
+    # scaled UP to match, not left small just because its original pixels were.
     inner = int(CANVAS_SIZE * 0.92)
-    img.thumbnail((inner, inner), Image.LANCZOS)
+    scale = min(inner / img.width, inner / img.height)
+    new_size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
+    img = img.resize(new_size, Image.LANCZOS)
 
     canvas = Image.new("RGB", (CANVAS_SIZE, CANVAS_SIZE), (255, 255, 255))
     offset = ((CANVAS_SIZE - img.width) // 2, (CANVAS_SIZE - img.height) // 2)
