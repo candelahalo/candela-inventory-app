@@ -168,73 +168,181 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
 
-    from openpyxl.cell.rich_text import CellRichText, TextBlock
-    from openpyxl.cell.text import InlineFont
     from openpyxl.worksheet.page import PageMargins
 
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Quotation"
 
     INK = "201E1A"
     MUTED = "56503F"
     AMBER = "C77D0A"
     LINE = "DED6C2"
+    PAPER = "FBF9F4"
 
     center = Alignment(horizontal="center", vertical="center")
     center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_wrap = Alignment(horizontal="left", vertical="top", wrap_text=True)
     thin = Side(style="thin", color=LINE)
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    thin_bottom = Border(bottom=Side(style="thin", color=INK))
 
-    COLS = ["A", "B", "C", "D", "E", "F", "G"]  # #, Image, Description, Unit, Qty, Price, Total
+    def add_logo(ws, cell="A1", height=34):
+        logo_path = "app/static/candela-logo-dark.png"
+        if os.path.exists(logo_path):
+            with PILImage.open(logo_path) as im:
+                w, h = im.size
+                target_w = int(w * (height / h))
+            img = XLImage(logo_path)
+            img.height = height
+            img.width = target_w
+            ws.add_image(img, cell)
+
+    # =========================================================
+    # SHEET 1 — COVER
+    # =========================================================
+    cover = wb.active
+    cover.title = "Cover"
+    cover.sheet_view.showGridLines = False
+    for col, w in {"A": 3, "B": 22, "C": 22, "D": 22, "E": 22, "F": 22, "G": 22}.items():
+        cover.column_dimensions[col].width = w
+
+    add_logo(cover, "B2", height=38)
+    cover.row_dimensions[1].height = 8
+    cover.row_dimensions[2].height = 30
+    cover.row_dimensions[3].height = 30
+
+    r = 6
+    cover.merge_cells(f"B{r}:G{r}")
+    cover[f"B{r}"] = "COMMERCIAL PROPOSAL"
+    cover[f"B{r}"].font = Font(name="Calibri", size=10, bold=True, color=AMBER)
+    r += 1
+    cover.merge_cells(f"B{r}:G{r}")
+    cover[f"B{r}"] = "Quotation"
+    cover[f"B{r}"].font = Font(name="Calibri", size=26, bold=True, color=INK)
+    r += 1
+    cover.merge_cells(f"B{r}:G{r}")
+    cover[f"B{r}"] = quotation.subject or (quotation.project.name if quotation.project else "Supply of Lighting & Automation Fixtures")
+    cover[f"B{r}"].font = Font(size=12, color=MUTED)
+    r += 2
+
+    meta = [
+        ("Quotation No.", quotation.quote_number, "Date", quotation.created_at.strftime("%d %B %Y")),
+        ("Prepared For", quotation.attention_to or quotation.customer.name,
+         "Project" if quotation.project else "Company",
+         quotation.project.name if quotation.project else (quotation.customer.company or "—")),
+    ]
+    top_border_row = r
+    for left_label, left_val, right_label, right_val in meta:
+        cover.merge_cells(f"B{r}:C{r}")
+        cover[f"B{r}"] = left_label
+        cover[f"B{r}"].font = Font(size=8.5, bold=True, color=MUTED)
+        r += 1
+        cover.merge_cells(f"B{r}:C{r}")
+        cover[f"B{r}"] = left_val
+        cover[f"B{r}"].font = Font(size=11, color=INK)
+
+        cover.merge_cells(f"E{r-1}:G{r-1}")
+        cover[f"E{r-1}"] = right_label
+        cover[f"E{r-1}"].font = Font(size=8.5, bold=True, color=MUTED)
+        cover.merge_cells(f"E{r}:G{r}")
+        cover[f"E{r}"] = right_val
+        cover[f"E{r}"].font = Font(size=11, color=INK)
+        r += 2
+    bottom_border_row = r - 1
+    for row_i in (top_border_row - 1, bottom_border_row + 1):
+        cover.merge_cells(f"B{row_i}:G{row_i}")
+        for col in "BCDEFG":
+            cover[f"{col}{row_i}"].border = Border(top=Side(style="thin", color=LINE))
+    r += 1
+
+    cover.merge_cells(f"B{r}:G{r+1}")
+    cover[f"B{r}"] = (
+        f"Dear {quotation.attention_to or quotation.customer.name}, thank you for the opportunity to quote for your "
+        f"requirements. Please find our itemized schedule and commercial terms on the following sheets, together with "
+        f"our standard Terms & Conditions."
+    )
+    cover[f"B{r}"].font = Font(size=10, color=INK)
+    cover[f"B{r}"].alignment = left_wrap
+    r += 3
+
+    terms = [
+        ("Currency", f"United Arab Emirates Dirhams ({quotation.currency})"),
+        ("Scope", quotation.scope),
+        ("Delivery", quotation.delivery_time),
+        ("Validity", quotation.valid_until.strftime("%d %B %Y") if quotation.valid_until else "30 days from date of issue"),
+        ("Payment", quotation.payment_terms),
+    ]
+    for label, value in terms:
+        cover.merge_cells(f"B{r}:C{r}")
+        cover[f"B{r}"] = label
+        cover[f"B{r}"].font = Font(size=9.5, bold=True, color=MUTED)
+        cover.merge_cells(f"D{r}:G{r}")
+        cover[f"D{r}"] = value
+        cover[f"D{r}"].font = Font(size=10, color=INK)
+        cover[f"D{r}"].alignment = left_wrap
+        cover.row_dimensions[r].height = 24
+        r += 1
+    r += 2
+
+    cover.merge_cells(f"B{r}:G{r}")
+    cover[f"B{r}"] = "We trust this proposal meets your requirements and look forward to your confirmation."
+    cover[f"B{r}"].font = Font(size=10, italic=True, color=MUTED)
+    r += 4
+
+    cover.merge_cells(f"B{r}:C{r}")
+    cover[f"B{r}"] = "FOR CANDELA LIGHTING AND AUTOMATION LLC"
+    cover[f"B{r}"].font = Font(size=8, bold=True, color=MUTED)
+    cover.merge_cells(f"E{r}:G{r}")
+    cover[f"E{r}"] = "ACCEPTED BY CLIENT"
+    cover[f"E{r}"].font = Font(size=8, bold=True, color=MUTED)
+    r += 3
+    cover.merge_cells(f"B{r}:C{r}")
+    cover[f"B{r}"].border = thin_bottom
+    cover.merge_cells(f"E{r}:G{r}")
+    cover[f"E{r}"].border = thin_bottom
+    r += 1
+    cover.merge_cells(f"B{r}:C{r}")
+    cover[f"B{r}"] = quotation.prepared_by_name or "Authorized Signatory"
+    cover[f"B{r}"].font = Font(size=10, bold=True, color=INK)
+    cover.merge_cells(f"E{r}:G{r}")
+    cover[f"E{r}"] = "Name, signature & date"
+    cover[f"E{r}"].font = Font(size=9, color=MUTED)
+    r += 1
+    if quotation.prepared_by_title:
+        cover.merge_cells(f"B{r}:C{r}")
+        cover[f"B{r}"] = quotation.prepared_by_title
+        cover[f"B{r}"].font = Font(size=9, color=MUTED)
+
+    cover.page_setup.orientation = "portrait"
+    cover.page_setup.fitToWidth = 1
+    cover.page_setup.fitToHeight = 1
+    cover.sheet_properties.pageSetUpPr.fitToPage = True
+    cover.page_margins = PageMargins(left=0.5, right=0.5, top=0.6, bottom=0.6)
+
+    # =========================================================
+    # SHEET 2 — ITEMIZED SCHEDULE
+    # =========================================================
+    ws = wb.create_sheet("Itemized Schedule")
+    ws.sheet_view.showGridLines = False
     widths = {"A": 5, "B": 12, "C": 52, "D": 8, "E": 7, "F": 12, "G": 14}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
-    # ---------- Letterhead ----------
-    logo_path = "app/static/candela-logo-dark.png"
-    if os.path.exists(logo_path):
-        with PILImage.open(logo_path) as im:
-            w, h = im.size
-            target_h = 34
-            target_w = int(w * (target_h / h))
-        logo_img = XLImage(logo_path)
-        logo_img.height = target_h
-        logo_img.width = target_w
-        ws.add_image(logo_img, "A1")
+    add_logo(ws, "A1")
     ws.row_dimensions[1].height = 30
+    ws.merge_cells("C1:G1")
+    ws["C1"] = quotation.quote_number
+    ws["C1"].font = Font(name="IBM Plex Mono", size=9, color=MUTED)
+    ws["C1"].alignment = Alignment(horizontal="right", vertical="center")
     ws.row_dimensions[2].height = 6
 
-    ws.merge_cells("A3:C3")
-    ws["A3"] = "QUOTATION"
-    ws["A3"].font = Font(name="Calibri", size=18, bold=True, color=INK)
+    ws.merge_cells("A3:G3")
+    ws["A3"] = "Itemized Schedule"
+    ws["A3"].font = Font(name="Calibri", size=16, bold=True, color=INK)
+    ws.merge_cells("A4:G4")
+    ws["A4"] = quotation.subject or (quotation.project.name if quotation.project else "")
+    ws["A4"].font = Font(size=10, color=MUTED)
+    r = 6
 
-    ws.merge_cells("D3:G3")
-    ws["D3"] = quotation.subject or (quotation.project.name if quotation.project else "")
-    ws["D3"].font = Font(size=10, italic=True, color=MUTED)
-    ws["D3"].alignment = Alignment(horizontal="right", vertical="center")
-
-    info_rows = [
-        ("Quotation No.", quotation.quote_number),
-        ("Date", quotation.created_at.strftime("%d %B %Y")),
-        ("Prepared For", quotation.attention_to or quotation.customer.name),
-        ("Project" if quotation.project else "Company", quotation.project.name if quotation.project else (quotation.customer.company or "—")),
-    ]
-    r = 5
-    for label, value in info_rows:
-        ws.merge_cells(f"A{r}:B{r}")
-        ws[f"A{r}"] = label
-        ws[f"A{r}"].font = Font(size=9, bold=True, color=MUTED)
-        ws[f"A{r}"].alignment = Alignment(horizontal="left", vertical="center")
-        ws.merge_cells(f"C{r}:G{r}")
-        ws[f"C{r}"] = value
-        ws[f"C{r}"].font = Font(size=10, color=INK)
-        ws[f"C{r}"].alignment = Alignment(horizontal="left", vertical="center")
-        r += 1
-
-    r += 1  # blank spacer row
-
-    # ---------- Item table header ----------
     header_row = r
     headers = ["#", "Image", "Description", "Unit", "Qty", "Price", "Total"]
     for i, h in enumerate(headers):
@@ -244,9 +352,6 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         cell.alignment = center
         cell.border = border
 
-    bold_title = InlineFont(b=True, sz=10)
-    normal_spec = InlineFont(b=False, sz=9, color=MUTED)
-
     row = header_row + 1
     for idx, item in enumerate(quotation.items, start=1):
         product = item.product
@@ -254,29 +359,29 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         if product and product.brand:
             title += f" ({product.brand})"
 
-        ws.cell(row=row, column=1, value=idx).alignment = center
-        ws.cell(row=row, column=1).border = border
+        fill = PatternFill(start_color=PAPER, end_color=PAPER, fill_type="solid") if idx % 2 == 0 else None
+
+        c = ws.cell(row=row, column=1, value=idx); c.alignment = center; c.border = border
+        if fill: c.fill = fill
 
         desc_cell = ws.cell(row=row, column=3)
-        if item.description:
-            desc_cell.value = CellRichText(
-                TextBlock(bold_title, title), "\n", TextBlock(normal_spec, item.description)
-            )
-        else:
-            desc_cell.value = title
-            desc_cell.font = Font(bold=True, size=10)
-        desc_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        desc_cell.value = title + ("\n" + item.description if item.description else "")
+        desc_cell.font = Font(bold=True, size=10)
+        desc_cell.alignment = left_wrap
         desc_cell.border = border
+        if fill: desc_cell.fill = fill
 
         for col, val in [(4, product.unit if product else "pcs"), (5, item.quantity),
                           (6, round(item.unit_price, 2)), (7, round(item.line_total, 2))]:
             c = ws.cell(row=row, column=col, value=val)
             c.alignment = center
             c.border = border
+            if fill: c.fill = fill
             if col in (6, 7):
                 c.number_format = '#,##0.00'
 
-        ws.cell(row=row, column=2).border = border
+        b = ws.cell(row=row, column=2); b.border = border
+        if fill: b.fill = fill
         ws.row_dimensions[row].height = 62
 
         if product and product.image_path:
@@ -291,7 +396,6 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
                     pass
         row += 1
 
-    # ---------- Totals ----------
     totals_col_label, totals_col_val = 5, 7
     totals = [("Gross Total", quotation.gross_total, False)]
     if quotation.freight_charges:
@@ -319,16 +423,70 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
-    note_cell = ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.")
-    note_cell.font = Font(italic=True, size=8, color=MUTED)
+    ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(italic=True, size=8, color=MUTED)
 
-    # Page setup, so "Save as PDF" from Excel prints cleanly on one page width
     ws.page_setup.orientation = "portrait"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.page_margins = PageMargins(left=0.4, right=0.4, top=0.5, bottom=0.5)
 
+    # =========================================================
+    # SHEET 3 — TERMS & CONDITIONS
+    # =========================================================
+    tc = wb.create_sheet("Terms & Conditions")
+    tc.sheet_view.showGridLines = False
+    tc.column_dimensions["A"].width = 4
+    tc.column_dimensions["B"].width = 92
+
+    add_logo(tc, "B2")
+    tc.row_dimensions[1].height = 8
+    tc.row_dimensions[2].height = 30
+    tc.row_dimensions[3].height = 30
+
+    r = 6
+    tc[f"B{r}"] = "Terms & Conditions"
+    tc[f"B{r}"].font = Font(name="Calibri", size=16, bold=True, color=INK)
+    r += 2
+
+    sections = [
+        ("Offer", [
+            "This offer includes only the items explicitly listed in the description. Accessories or components not listed are excluded.",
+            "Unit rates apply strictly to the quantities offered. Any change in quantity, or removal of items, is subject to recalculation.",
+            "Prices include delivery to site unless otherwise stated.",
+            "Customs duties and applicable sales tax are calculated per regulations in force at the time of order confirmation. Any changes enacted between confirmation and delivery will be reflected on the final invoice.",
+        ]),
+        ("Payment", [
+            "Where an Advance Payment Guarantee or security cheque is required, its validity shall not exceed the agreed delivery schedule, becoming void and returned upon delivery of materials.",
+            "All bank guarantees are issued per our bank's standard format.",
+        ]),
+        ("Delivery", [
+            "Once delivered, goods are no longer the responsibility of Candela Lighting and Automation LLC and cannot be returned or refunded.",
+        ]),
+        ("Warranty", [
+            "Standard manufacturing warranty on all items is three years, unless a different term is agreed in writing.",
+            "Items with a manufacturing defect that cannot be repaired will be replaced under warranty, provided they are returned in original condition and packaging within ten days of purchase or delivery.",
+        ]),
+    ]
+    for title, bullets in sections:
+        tc[f"B{r}"] = title
+        tc[f"B{r}"].font = Font(size=12, bold=True, color=AMBER)
+        r += 1
+        for bullet in bullets:
+            tc[f"B{r}"] = "•  " + bullet
+            tc[f"B{r}"].font = Font(size=10, color=INK)
+            tc[f"B{r}"].alignment = left_wrap
+            tc.row_dimensions[r].height = 30
+            r += 1
+        r += 1
+
+    tc.page_setup.orientation = "portrait"
+    tc.page_setup.fitToWidth = 1
+    tc.page_setup.fitToHeight = 1
+    tc.sheet_properties.pageSetUpPr.fitToPage = True
+    tc.page_margins = PageMargins(left=0.5, right=0.5, top=0.6, bottom=0.6)
+
+    wb.active = 0
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
