@@ -90,6 +90,15 @@ function addLine(item) {
     descArea.value = opt.dataset.spec || '';
     sync();
   });
+  // For a brand-new line, prefill price and spec from the preselected product.
+  // When editing an existing line, keep the values that were saved on the quotation.
+  if (!item) {
+    const opt = sel.selectedOptions[0];
+    if (opt) {
+      priceInput.value = opt.dataset.price;
+      descArea.value = opt.dataset.spec || '';
+    }
+  }
   sync();
 }
 
