@@ -120,8 +120,8 @@ class Quotation(Base):
     freight_charges = Column(Float, default=0.0)  # "Air Freight & Customs" style line
     transportation_charges = Column(String(64), default="500")  # number (e.g. "500") or free text (e.g. "Included")
     vat_percent = Column(Float, default=5.0)
-    prepared_by_name = Column(String(120))
-    prepared_by_title = Column(String(120))
+    prepared_by_name = Column(String(120), default="Johns James")
+    prepared_by_title = Column(String(120), default="Division Head - Projects")
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

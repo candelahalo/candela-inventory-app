@@ -123,8 +123,8 @@ class QuotationCreate(BaseModel):
     freight_charges: float = 0.0
     transportation_charges: str = "500"
     vat_percent: float = 5.0
-    prepared_by_name: Optional[str] = None
-    prepared_by_title: Optional[str] = None
+    prepared_by_name: Optional[str] = "Johns James"
+    prepared_by_title: Optional[str] = "Division Head - Projects"
     items: List[QuotationItemCreate]
 
 
