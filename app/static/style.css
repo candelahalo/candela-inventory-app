@@ -126,10 +126,10 @@ table.dt th { cursor: grab; }
 table.dt th.dragging-col { opacity: 0.4; }
 table.dt th .sort-arrow { display: inline-block; width: 12px; color: var(--amber); font-weight: 700; }
 table.dt th.th-actions { width: 1%; }
-td.row-actions { white-space: nowrap; text-align: right; }
+td.row-actions { white-space: nowrap; text-align: center; }
 td.row-actions .btn-sm { margin-left: 4px; }
 th {
-  text-align: left;
+  text-align: center;
   font-size: 12.5px;
   color: var(--muted);
   font-weight: 600;
@@ -140,11 +140,12 @@ td {
   padding: 11px 10px;
   border-bottom: 1px solid var(--paper-2);
   font-size: 14px;
+  text-align: center;
 }
 tr:last-child td { border-bottom: none; }
 td.mono, .mono { font-family: var(--font-mono); font-size: 13px; }
-td.num { text-align: right; }
-th.num { text-align: right; }
+td.num { font-variant-numeric: tabular-nums; }
+th.num { }
 
 .badge {
   display: inline-block;
