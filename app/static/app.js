@@ -3,7 +3,7 @@
 function getUserName() {
   let name = localStorage.getItem('candela_user_name');
   if (!name) {
-    name = prompt('Your name (shown in the activity log):', '') || 'Unknown';
+    name = 'admin';
     localStorage.setItem('candela_user_name', name);
   }
   return name;
