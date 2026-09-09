@@ -5,224 +5,302 @@
 <style>
   @page {
     size: A4;
-    margin: 20mm 18mm 24mm 18mm;
+    margin: 26mm 20mm 22mm 20mm;
+    @top-right {
+      content: "{{ q.quote_number }}";
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.06em;
+      color: #9A9382;
+    }
+    @top-left {
+      content: "CANDELA LIGHTING AND AUTOMATION LLC";
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 8px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #9A9382;
+    }
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 8px;
+      color: #9A9382;
+    }
+  }
+  @page :first {
+    @top-right { content: ""; }
+    @top-left { content: ""; }
     @bottom-center {
       content: "We Light Your Dreams…";
       font-family: 'IBM Plex Sans', sans-serif;
       font-size: 9px;
-      color: #7A7364;
       font-style: italic;
-      border-top: 0.5px solid #D9D3C4;
-      padding-top: 6px;
-      width: 100%;
+      color: #9A9382;
     }
   }
+
   * { box-sizing: border-box; }
   body {
     font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10.5px;
-    color: #1C1A16;
-    line-height: 1.5;
+    font-size: 10.3px;
+    color: #201E1A;
+    line-height: 1.6;
   }
-  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; }
-  .letterhead img { height: 34px; }
-  .letterhead .meta { text-align: right; font-size: 10px; }
-  .letterhead .meta b { font-weight: 600; }
+  .amber { color: #C77D0A; }
 
-  .to-block { margin-bottom: 18px; }
-  .to-block table td { padding: 1px 0; vertical-align: top; font-size: 10.5px; }
-  .to-block table td.label { width: 70px; color: #4A4436; }
+  /* ---------- Cover page ---------- */
+  .cover-brand { display: flex; align-items: center; margin-bottom: 54px; }
+  .cover-brand img { height: 30px; }
 
-  .greeting { margin-bottom: 12px; }
-  .intro { margin-bottom: 16px; text-align: justify; }
+  .cover-kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #C77D0A;
+    margin-bottom: 10px;
+  }
+  h1.cover-title {
+    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .cover-subject { font-size: 13.5px; color: #56503F; margin-bottom: 34px; }
 
-  .terms-summary td { padding: 3px 0; font-size: 10.5px; vertical-align: top; }
-  .terms-summary td.label { width: 110px; font-weight: 600; }
-  .terms-summary td.colon { width: 12px; }
+  .cover-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 40px;
+    padding: 22px 0;
+    border-top: 0.75px solid #DED6C2;
+    border-bottom: 0.75px solid #DED6C2;
+    margin-bottom: 30px;
+  }
+  .cover-meta-grid .k { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9A9382; margin-bottom: 3px; }
+  .cover-meta-grid .v { font-size: 11.5px; font-weight: 500; }
 
-  .closing { margin-top: 22px; }
-  .signature { margin-top: 34px; }
-  .signature .name { font-weight: 700; }
+  .cover-intro { font-size: 10.8px; color: #3A362C; text-align: justify; margin-bottom: 28px; max-width: 145mm; }
+
+  .terms-grid { display: grid; grid-template-columns: 130px 1fr; row-gap: 9px; margin-bottom: 30px; max-width: 150mm; }
+  .terms-grid .tk { font-size: 9.5px; font-weight: 600; color: #56503F; text-transform: uppercase; letter-spacing: 0.03em; }
+  .terms-grid .tv { font-size: 10.5px; }
+
+  .cover-closing { font-size: 10.5px; color: #3A362C; margin-bottom: 40px; max-width: 145mm; }
+
+  .signoff { display: flex; justify-content: space-between; margin-top: 10px; }
+  .signoff-block { width: 46%; }
+  .signoff-line { border-top: 0.75px solid #201E1A; margin-top: 46px; padding-top: 6px; }
+  .signoff-name { font-weight: 700; font-size: 11px; }
+  .signoff-title { font-size: 9.5px; color: #56503F; }
+  .signoff-label { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9A9382; }
 
   .page-break { page-break-before: always; }
 
-  h2.section-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 0 12px;
-    letter-spacing: 0.02em;
-  }
-
-  table.items {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 4px;
-  }
-  table.items th {
-    background: #17161B;
-    color: #fff;
-    font-size: 8.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 7px 6px;
-    text-align: left;
+  /* ---------- Item schedule ---------- */
+  .schedule-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  h2.schedule-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
     font-weight: 600;
+    margin: 0;
   }
-  table.items td {
-    border-bottom: 0.75px solid #E4DDCD;
-    padding: 8px 6px;
-    font-size: 9.5px;
+  .schedule-sub { font-size: 9.5px; color: #9A9382; margin-bottom: 18px; }
+
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.items col.c-idx { width: 22px; }
+  table.items col.c-img { width: 58px; }
+  table.items col.c-desc { width: auto; }
+  table.items col.c-unit { width: 34px; }
+  table.items col.c-qty { width: 32px; }
+  table.items col.c-price { width: 58px; }
+  table.items col.c-total { width: 64px; }
+
+  table.items thead th {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #56503F;
+    font-weight: 600;
+    text-align: left;
+    padding: 0 6px 8px;
+    border-bottom: 1.25px solid #201E1A;
+  }
+  table.items thead th.num { text-align: right; }
+
+  table.items tbody td {
+    padding: 11px 6px;
+    border-bottom: 0.75px solid #EAE3D2;
     vertical-align: top;
+    font-size: 9.7px;
   }
-  table.items td.num { text-align: right; white-space: nowrap; }
-  table.items td.img-cell { width: 62px; }
-  table.items td.img-cell img { width: 56px; height: 56px; object-fit: contain; border: 0.75px solid #E4DDCD; border-radius: 3px; padding: 3px; background: #fff; }
-  table.items .desc-title { font-weight: 700; margin-bottom: 3px; }
-  table.items .desc-body { color: #4A4436; white-space: pre-line; font-size: 9px; line-height: 1.45; }
-  table.items .type-code { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.items tbody tr:nth-child(even) { background: #FBF9F4; }
 
-  .totals { width: 100%; margin-top: 10px; }
-  .totals td { padding: 4px 6px; font-size: 10.5px; }
-  .totals tr.grand td { font-weight: 700; font-size: 12px; border-top: 1.25px solid #17161B; padding-top: 8px; }
-  .totals td.tlabel { text-align: right; width: 82%; color: #4A4436; }
-  .totals tr.grand td.tlabel { color: #1C1A16; }
-  .totals td.tval { text-align: right; white-space: nowrap; }
-  .vat-note { font-size: 8.5px; color: #7A7364; margin-top: 10px; font-style: italic; }
+  .item-img { width: 46px; height: 46px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
+  .item-img-empty { width: 46px; height: 46px; border: 0.75px dashed #DED6C2; border-radius: 3px; }
+  .item-type { font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: #C77D0A; font-weight: 600; letter-spacing: 0.02em; }
+  .item-name { font-weight: 600; font-size: 10px; margin: 2px 0 4px; }
+  .item-brand { font-weight: 400; color: #9A9382; }
+  .item-spec { color: #56503F; font-size: 8.5px; line-height: 1.5; white-space: pre-line; }
 
-  .tc-section { margin-bottom: 16px; }
-  .tc-section h3 { font-size: 11px; font-weight: 700; margin: 0 0 6px; }
-  .tc-section ul { margin: 0; padding-left: 16px; }
-  .tc-section li { margin-bottom: 5px; text-align: justify; font-size: 9.5px; }
+  /* ---------- Totals ---------- */
+  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 4px; }
+  .totals-box { width: 62mm; }
+  .totals-box .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px; color: #56503F; }
+  .totals-box .row.grand { border-top: 1.25px solid #201E1A; margin-top: 4px; padding-top: 9px; font-size: 12.5px; font-weight: 700; color: #201E1A; }
+  .vat-note { font-size: 8px; color: #9A9382; font-style: italic; margin-top: 14px; text-align: right; }
+
+  /* ---------- Terms & conditions ---------- */
+  .tc-columns { column-count: 2; column-gap: 26px; }
+  .tc-section { break-inside: avoid; margin-bottom: 18px; }
+  .tc-section h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: #C77D0A;
+  }
+  .tc-section ul { margin: 0; padding-left: 13px; }
+  .tc-section li { margin-bottom: 6px; font-size: 9px; text-align: justify; color: #3A362C; }
 </style>
 </head>
 <body>
 
-<div class="letterhead">
-  <img src="app/static/candela-logo-dark.png">
-  <div class="meta">
-    <div><b>Date:</b> {{ q.created_at.strftime('%d %B %Y') }}</div>
-    <div><b>Quotation No:</b> {{ q.quote_number }}</div>
+<!-- ===== COVER PAGE ===== -->
+<div class="cover-brand"><img src="app/static/candela-logo-dark.png"></div>
+
+<div class="cover-kicker">Commercial Proposal</div>
+<h1 class="cover-title">Quotation</h1>
+<div class="cover-subject">{{ q.subject or (q.project.name if q.project else 'Supply of Lighting & Automation Fixtures') }}</div>
+
+<div class="cover-meta-grid">
+  <div><div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div></div>
+  <div><div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
+  <div><div class="k">Prepared For</div><div class="v">{{ q.attention_to or q.customer.name }}</div></div>
+  <div><div class="k">{{ 'Project' if q.project else 'Company' }}</div><div class="v">{{ q.project.name if q.project else (q.customer.company or '—') }}</div></div>
+</div>
+
+<div class="cover-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
+Thank you for the opportunity to quote for your requirements. We are pleased to enclose our proposal, with the itemized schedule and commercial terms set out on the following pages, together with our standard Terms &amp; Conditions.</div>
+
+<div class="terms-grid">
+  <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
+  <div class="tk">Scope</div><div class="tv">{{ q.scope }}</div>
+  <div class="tk">Delivery</div><div class="tv">{{ q.delivery_time }}</div>
+  <div class="tk">Validity</div><div class="tv">{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
+  <div class="tk">Payment</div><div class="tv">{{ q.payment_terms }}</div>
+</div>
+
+<div class="cover-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>
+
+<div class="signoff">
+  <div class="signoff-block">
+    <div class="signoff-label">For Candela Lighting and Automation LLC</div>
+    <div class="signoff-line">
+      <div class="signoff-name">{{ q.prepared_by_name or 'Authorized Signatory' }}</div>
+      <div class="signoff-title">{{ q.prepared_by_title or '' }}</div>
+    </div>
   </div>
-</div>
-
-<div class="to-block">
-  <table>
-    <tr><td class="label">To</td><td>: {{ q.attention_to or q.customer.name }}{% if q.customer.company %} ({{ q.customer.company }}){% endif %}</td></tr>
-    {% if q.project %}<tr><td class="label">Project</td><td>: {{ q.project.name }}</td></tr>{% endif %}
-    <tr><td class="label">Subject</td><td>: {{ q.subject or 'Quotation' }}</td></tr>
-  </table>
-</div>
-
-<div class="greeting">Dear {{ q.attention_to or q.customer.name }},</div>
-<div class="intro">We thank you for giving us the opportunity to quote against your requirements for this project, and we are pleased to send our offer to you. You will find the details of the offer in the attached annexure followed by our Terms and Conditions.</div>
-
-<table class="terms-summary">
-  <tr><td class="label">Currency</td><td class="colon">:</td><td>In United Arab Emirates {{ 'Dirhams' if q.currency == 'AED' else q.currency }}</td></tr>
-  <tr><td class="label">Scope</td><td class="colon">:</td><td>{{ q.scope }}</td></tr>
-  <tr><td class="label">Delivery Time</td><td class="colon">:</td><td>{{ q.delivery_time }}</td></tr>
-  <tr><td class="label">Validity</td><td class="colon">:</td><td>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '1 month' }}</td></tr>
-  <tr><td class="label">Payment Terms</td><td class="colon">:</td><td>{{ q.payment_terms }}</td></tr>
-</table>
-
-<div class="closing">We hope that our proposal suits your requirements and look forward to receiving your order. Issue orders and payment to our legal name mentioned in this Offer.</div>
-
-<div class="signature">
-  <div>Regards,</div>
-  <div style="height:30px;"></div>
-  <div class="name">{{ q.prepared_by_name or 'Candela Team' }}</div>
-  <div>{{ q.prepared_by_title or '' }}</div>
-</div>
-
-<div style="margin-top:40px;">
-  <div style="border-top:0.75px solid #1C1A16; width:200px; margin-bottom:4px;"></div>
-  <div>From</div>
-  <div style="font-weight:700;">CANDELA LIGHTING AND AUTOMATION LLC</div>
+  <div class="signoff-block">
+    <div class="signoff-label">Accepted by client</div>
+    <div class="signoff-line">
+      <div class="signoff-name">&nbsp;</div>
+      <div class="signoff-title">Name, signature &amp; date</div>
+    </div>
+  </div>
 </div>
 
 <div class="page-break"></div>
 
-<h2 class="section-title">{{ (q.project.name if q.project else q.subject or 'QUOTATION') | upper }}</h2>
+<!-- ===== ITEM SCHEDULE ===== -->
+<div class="schedule-head">
+  <h2 class="schedule-title">Itemized Schedule</h2>
+</div>
+<div class="schedule-sub">{{ q.subject or (q.project.name if q.project else '') }}</div>
 
 <table class="items">
+  <colgroup>
+    <col class="c-idx"><col class="c-img"><col class="c-desc"><col class="c-unit"><col class="c-qty"><col class="c-price"><col class="c-total">
+  </colgroup>
   <thead>
     <tr>
-      <th style="width:24px;">#</th>
-      <th style="width:60px;">Image</th>
-      <th>Description</th>
-      <th style="width:32px;">Unit</th>
-      <th style="width:34px;">Qty</th>
-      <th style="width:52px;">Price</th>
-      <th style="width:60px;">Total</th>
+      <th>#</th><th>Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th>
     </tr>
   </thead>
   <tbody>
     {% for item in q.items %}
     <tr>
       <td>{{ loop.index }}</td>
-      <td class="img-cell">
+      <td>
         {% if item.product and item.product.image_path %}
-        <img src="app{{ item.product.image_path }}">
+        <img class="item-img" src="app{{ item.product.image_path }}">
+        {% else %}
+        <div class="item-img-empty"></div>
         {% endif %}
       </td>
       <td>
-        <div class="desc-title">{% if item.type_code %}<span class="type-code">{{ item.type_code }}</span> — {% endif %}{{ item.product.name if item.product else '' }}{% if item.product and item.product.brand %} <span style="font-weight:400; color:#7A7364;">({{ item.product.brand }})</span>{% endif %}</div>
-        {% if item.description %}<div class="desc-body">{{ item.description }}</div>{% endif %}
+        {% if item.type_code %}<div class="item-type">{{ item.type_code }}</div>{% endif %}
+        <div class="item-name">{{ item.product.name if item.product else '' }}{% if item.product and item.product.brand %} <span class="item-brand">— {{ item.product.brand }}</span>{% endif %}</div>
+        {% if item.description %}<div class="item-spec">{{ item.description }}</div>{% endif %}
       </td>
-      <td>{{ item.product.unit if item.product else 'pcs' }}</td>
+      <td class="num">{{ item.product.unit if item.product else 'pcs' }}</td>
       <td class="num">{{ item.quantity }}</td>
-      <td class="num">{{ "%.2f"|format(item.unit_price) }}</td>
-      <td class="num">{{ "%.2f"|format(item.line_total) }}</td>
+      <td class="num">{{ "{:,.2f}".format(item.unit_price) }}</td>
+      <td class="num">{{ "{:,.2f}".format(item.line_total) }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<table class="totals">
-  <tr><td class="tlabel">Gross Total</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</td></tr>
-  {% if q.freight_charges %}<tr><td class="tlabel">Freight & Customs</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</td></tr>{% endif %}
-  <tr><td class="tlabel">Total ({{ q.currency }}, VAT excluded)</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}</td></tr>
-  <tr class="grand"><td class="tlabel">Total incl. VAT ({{ q.vat_percent }}%)</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
-</table>
-<div class="vat-note">Note: Standard {{ q.vat_percent }}% VAT is applicable as per UAE Law in the above stated Total Amount.</div>
+<div class="totals-wrap">
+  <div class="totals-box">
+    <div class="row"><span>Gross Total</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</span></div>
+    {% if q.freight_charges %}<div class="row"><span>Freight &amp; Customs</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</span></div>{% endif %}
+    <div class="row"><span>Subtotal (VAT excl.)</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}</span></div>
+    <div class="row"><span>VAT ({{ q.vat_percent }}%)</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</span></div>
+    <div class="row grand"><span>Total Due</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</span></div>
+  </div>
+</div>
+<div class="vat-note">Standard {{ q.vat_percent }}% VAT applies as per UAE Federal Tax Law.</div>
 
 <div class="page-break"></div>
 
-<div class="letterhead" style="margin-bottom:30px;">
-  <img src="app/static/candela-logo-dark.png">
-</div>
-<h2 class="section-title" style="text-align:center; margin-bottom:22px;">GENERAL TERMS &amp; CONDITIONS</h2>
+<!-- ===== TERMS & CONDITIONS ===== -->
+<h2 class="schedule-title" style="margin-bottom:20px;">Terms &amp; Conditions</h2>
 
-<div class="tc-section">
-  <h3>Candela Lighting Offer</h3>
-  <ul>
-    <li>Our offer only includes the items mentioned in the description. Any accessories or components not listed are not included.</li>
-    <li>All unit rates are applicable for offered quantities. Changes in quantities and elimination of items are subject to recalculation of our offer.</li>
-    <li>Prices include delivery to the site unless stated otherwise.</li>
-    <li>Customs duties and sales tax are calculated based on current regulations provided by the local customs authorities at the time of order confirmation. If any changes are announced and implemented by the authorities between the time of order confirmation and delivery, then these changes shall be applied on the final invoice.</li>
-  </ul>
-</div>
-
-<div class="tc-section">
-  <h3>Payment Term</h3>
-  <ul>
-    <li>In cases where an Advance Payment Guarantee or security cheque is required, its validity should not exceed the agreed delivery schedule. It becomes invalid and the original returned to us upon delivery of the materials.</li>
-    <li>All required bank guarantees will be issued as per our bank's standard format.</li>
-  </ul>
-</div>
-
-<div class="tc-section">
-  <h3>Delivery Terms</h3>
-  <ul>
-    <li>Once delivered, goods are no longer the responsibility of Candela Lighting, thus they cannot be returned nor refunded.</li>
-  </ul>
-</div>
-
-<div class="tc-section">
-  <h3>Warranty</h3>
-  <ul>
-    <li>Standard manufacturing warranty on all items is three years unless another term is agreed in writing and mentioned in the proposal.</li>
-    <li>Candela Lighting will replace the item if it has a manufacturing defect or can't be repaired and is under warranty, provided that the item is returned in its original condition and packaging within ten days of purchase/delivery.</li>
-  </ul>
+<div class="tc-columns">
+  <div class="tc-section">
+    <h3>Offer</h3>
+    <ul>
+      <li>This offer includes only the items explicitly listed in the description. Accessories or components not listed are excluded.</li>
+      <li>Unit rates apply strictly to the quantities offered. Any change in quantity, or removal of items, is subject to recalculation.</li>
+      <li>Prices include delivery to site unless otherwise stated.</li>
+      <li>Customs duties and applicable sales tax are calculated per regulations in force at the time of order confirmation. Any changes enacted between confirmation and delivery will be reflected on the final invoice.</li>
+    </ul>
+  </div>
+  <div class="tc-section">
+    <h3>Payment</h3>
+    <ul>
+      <li>Where an Advance Payment Guarantee or security cheque is required, its validity shall not exceed the agreed delivery schedule, becoming void and returned upon delivery of materials.</li>
+      <li>All bank guarantees are issued per our bank's standard format.</li>
+    </ul>
+  </div>
+  <div class="tc-section">
+    <h3>Delivery</h3>
+    <ul>
+      <li>Once delivered, goods are no longer the responsibility of Candela Lighting and Automation LLC and cannot be returned or refunded.</li>
+    </ul>
+  </div>
+  <div class="tc-section">
+    <h3>Warranty</h3>
+    <ul>
+      <li>Standard manufacturing warranty on all items is three years, unless a different term is agreed in writing.</li>
+      <li>Items with a manufacturing defect that cannot be repaired will be replaced under warranty, provided they are returned in original condition and packaging within ten days of purchase or delivery.</li>
+    </ul>
+  </div>
 </div>
 
 </body>
