@@ -59,7 +59,8 @@ function renderDatasheets(list) {
     ],
     rows: list,
     actions: d => `
-      <a class="btn btn-ghost btn-sm" href="${d.file_path}" target="_blank">View</a>
+      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/preview" target="_blank">Preview</a>
+      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/download">Download</a>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteDatasheet(${d.id})">Delete</button>
     `,
   });

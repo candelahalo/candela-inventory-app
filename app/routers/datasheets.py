@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -53,6 +54,40 @@ def upload_datasheet(
     db.commit()
     db.refresh(datasheet)
     return datasheet
+
+
+@router.get("/{datasheet_id}/preview")
+def preview_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
+    """Serve the PDF inline so it opens in the browser's built-in viewer."""
+    datasheet = db.query(models.Datasheet).get(datasheet_id)
+    if not datasheet:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    disk_path = url_to_disk_path(datasheet.file_path)
+    if not os.path.exists(disk_path):
+        raise HTTPException(status_code=404, detail="File is missing from the server")
+    safe_name = (datasheet.original_filename or f"{datasheet.title}.pdf").replace('"', "")
+    return FileResponse(
+        disk_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+    )
+
+
+@router.get("/{datasheet_id}/download")
+def download_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
+    """Serve the PDF as an attachment, using its original filename."""
+    datasheet = db.query(models.Datasheet).get(datasheet_id)
+    if not datasheet:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    disk_path = url_to_disk_path(datasheet.file_path)
+    if not os.path.exists(disk_path):
+        raise HTTPException(status_code=404, detail="File is missing from the server")
+    safe_name = (datasheet.original_filename or f"{datasheet.title}.pdf").replace('"', "")
+    return FileResponse(
+        disk_path,
+        media_type="application/pdf",
+        filename=safe_name,
+    )
 
 
 @router.delete("/{datasheet_id}", status_code=204)
