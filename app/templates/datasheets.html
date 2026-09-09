@@ -31,16 +31,7 @@
     <div class="field"><label>Filter by brand</label><select id="filter-brand"><option value="">All brands</option></select></div>
     <div class="field"><label>Filter by category</label><select id="filter-category"><option value="">All categories</option></select></div>
   </div>
-  <div class="table-scroll">
-  <table>
-    <thead><tr><th>Title</th><th>Brand</th><th>Category</th><th>Linked product</th><th>Uploaded</th><th></th></tr></thead>
-    <tbody id="datasheet-body"></tbody>
-  </table>
-  </div>
-  <div class="empty-state" id="datasheet-empty" style="display:none;">
-    <h3>No datasheets yet</h3>
-    <p>Upload manufacturer spec sheets above to build your reference library.</p>
-  </div>
+  <div id="datasheets-table"></div>
 </div>
 {% endblock %}
 
@@ -55,21 +46,23 @@ async function loadProductOptions() {
 }
 
 function renderDatasheets(list) {
-  document.getElementById('datasheet-empty').style.display = list.length ? 'none' : 'block';
-  document.getElementById('datasheet-body').innerHTML = list.map(d => {
-    const product = productsCache.find(p => p.id === d.product_id);
-    return `<tr>
-      <td>${d.title}</td>
-      <td>${d.brand || '—'}</td>
-      <td>${d.category || '—'}</td>
-      <td>${product ? product.sku + ' — ' + product.name : '—'}</td>
-      <td>${fmtDate(d.uploaded_at)}</td>
-      <td>
-        <a class="btn btn-ghost btn-sm" href="${d.file_path}" target="_blank">View</a>
-        <button class="btn btn-ghost btn-sm" onclick="deleteDatasheet(${d.id})" style="color:var(--red);">Delete</button>
-      </td>
-    </tr>`;
-  }).join('');
+  DataTable.render({
+    containerId: 'datasheets-table',
+    storageKey: 'datasheets',
+    emptyMessage: 'No datasheets yet — upload manufacturer spec sheets above to build your reference library.',
+    columns: [
+      { key: 'title', label: 'Title', value: d => d.title, render: d => d.title },
+      { key: 'brand', label: 'Brand', value: d => d.brand || '', render: d => d.brand || '—' },
+      { key: 'category', label: 'Category', value: d => d.category || '', render: d => d.category || '—' },
+      { key: 'product', label: 'Linked product', value: d => { const p = productsCache.find(x => x.id === d.product_id); return p ? p.sku : ''; }, render: d => { const p = productsCache.find(x => x.id === d.product_id); return p ? p.sku + ' — ' + p.name : '—'; } },
+      { key: 'uploaded', label: 'Uploaded', value: d => d.uploaded_at, render: d => fmtDate(d.uploaded_at) },
+    ],
+    rows: list,
+    actions: d => `
+      <a class="btn btn-ghost btn-sm" href="${d.file_path}" target="_blank">View</a>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteDatasheet(${d.id})">Delete</button>
+    `,
+  });
 }
 
 function applyFilters() {

@@ -68,6 +68,16 @@ def get_quotation(quotation_id: int, db: Session = Depends(get_db)):
     return quotation
 
 
+@router.delete("/{quotation_id}", status_code=204)
+def delete_quotation(quotation_id: int, db: Session = Depends(get_db)):
+    quotation = db.query(models.Quotation).get(quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    db.delete(quotation)
+    db.commit()
+    return None
+
+
 @router.post("/{quotation_id}/status/{new_status}", response_model=schemas.QuotationOut)
 def update_status(quotation_id: int, new_status: models.DocStatus, db: Session = Depends(get_db)):
     quotation = db.query(models.Quotation).get(quotation_id)

@@ -23,6 +23,41 @@ def list_warehouses(db: Session = Depends(get_db)):
     return db.query(models.Warehouse).all()
 
 
+@router.put("/warehouses/{warehouse_id}", response_model=schemas.WarehouseOut)
+def update_warehouse(warehouse_id: int, payload: schemas.WarehouseCreate, db: Session = Depends(get_db)):
+    wh = db.query(models.Warehouse).get(warehouse_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    for key, value in payload.model_dump().items():
+        setattr(wh, key, value)
+    db.commit()
+    db.refresh(wh)
+    return wh
+
+
+@router.delete("/warehouses/{warehouse_id}", status_code=204)
+def delete_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
+    wh = db.query(models.Warehouse).get(warehouse_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    in_use = db.query(models.StockMovement).filter(models.StockMovement.warehouse_id == warehouse_id).first()
+    if in_use:
+        raise HTTPException(status_code=400, detail="Cannot delete a warehouse with recorded stock movements")
+    db.delete(wh)
+    db.commit()
+    return None
+
+
+@router.delete("/movements/{movement_id}", status_code=204)
+def delete_movement(movement_id: int, db: Session = Depends(get_db)):
+    movement = db.query(models.StockMovement).get(movement_id)
+    if not movement:
+        raise HTTPException(status_code=404, detail="Movement not found")
+    db.delete(movement)
+    db.commit()
+    return None
+
+
 @router.post("/movements", response_model=schemas.StockMovementOut, status_code=201)
 def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(get_db)):
     product = db.query(models.Product).get(payload.product_id)

@@ -6,12 +6,13 @@
     <h1>Projects</h1>
     <p>Every supply & installation job, enquiry through close-out.</p>
   </div>
-  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ New project</button>
+  <button class="btn" id="show-add-btn">+ New project</button>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2>New project</h2>
+  <h2 id="form-title">New project</h2>
   <form id="project-form">
+    <input type="hidden" id="editing-id">
     <div class="form-grid">
       <div class="field span2"><label>Project name</label><input name="name" required placeholder="Villa 44 — Full Home Automation"></div>
       <div class="field"><label>Customer</label><select name="customer_id" id="p-customer" required></select></div>
@@ -21,27 +22,57 @@
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn">Create project</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+      <button type="submit" class="btn">Save project</button>
+      <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
   </form>
 </div>
 
-<div class="panel">
-  <div class="table-scroll"><table>
-    <thead><tr><th>Project #</th><th>Name</th><th>Customer</th><th>Status</th><th>Started</th></tr></thead>
-    <tbody id="project-body"></tbody>
-  </table></div>
-  <div class="empty-state" id="project-empty" style="display:none;">
-    <h3>No projects yet</h3>
-    <p>Create your first project above to start tracking its live status.</p>
-  </div>
-</div>
+<div class="panel"><div id="projects-table"></div></div>
 {% endblock %}
 
 {% block script %}
 <script>
 let customersCache = [];
+let projectsCache = [];
+
+function showAddPanel(title) {
+  document.getElementById('form-title').textContent = title;
+  document.getElementById('add-panel').style.display = 'block';
+  document.getElementById('show-add-btn').style.display = 'none';
+}
+function hideAddPanel() {
+  document.getElementById('add-panel').style.display = 'none';
+  document.getElementById('show-add-btn').style.display = '';
+  document.getElementById('project-form').reset();
+  document.getElementById('editing-id').value = '';
+}
+document.getElementById('show-add-btn').addEventListener('click', () => showAddPanel('New project'));
+document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
+
+function isoToDateInput(iso) { return iso ? iso.substring(0, 10) : ''; }
+
+function editProject(id) {
+  const p = projectsCache.find(x => x.id === id);
+  if (!p) return;
+  const form = document.getElementById('project-form');
+  form.name.value = p.name; form.customer_id.value = p.customer_id;
+  form.start_date.value = isoToDateInput(p.start_date);
+  form.target_completion_date.value = isoToDateInput(p.target_completion_date);
+  form.site_address.value = p.site_address || ''; form.notes.value = p.notes || '';
+  document.getElementById('editing-id').value = id;
+  showAddPanel('Edit project');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteProject(id, name) {
+  if (!confirm(`Delete project "${name}"? This removes its full status history too.`)) return;
+  try {
+    await api('/projects/' + id, { method: 'DELETE' });
+    toast('Project deleted');
+    loadProjects();
+  } catch (err) { toast(err.message, true); }
+}
 
 async function loadCustomerOptions() {
   customersCache = await api('/customers/');
@@ -49,28 +80,43 @@ async function loadCustomerOptions() {
 }
 
 async function loadProjects() {
-  const projects = await api('/projects/');
-  document.getElementById('project-empty').style.display = projects.length ? 'none' : 'block';
-  document.getElementById('project-body').innerHTML = projects.map(p => {
-    const customer = customersCache.find(c => c.id === p.customer_id);
-    return `<tr onclick="location.href='/projects/view/${p.id}'" style="cursor:pointer;">
-      <td class="mono">${p.project_number}</td>
-      <td>${p.name}</td>
-      <td>${customer ? customer.name : '—'}</td>
-      <td><span class="badge stage-${p.status}">${p.status}</span></td>
-      <td>${fmtDate(p.start_date)}</td>
-    </tr>`;
-  }).join('');
+  projectsCache = await api('/projects/');
+  DataTable.render({
+    containerId: 'projects-table',
+    storageKey: 'projects',
+    emptyMessage: 'No projects yet — create your first one above to start tracking its live status.',
+    columns: [
+      { key: 'project_number', label: 'Project #', value: p => p.project_number || '', render: p => `<a href="/projects/view/${p.id}" class="mono">${p.project_number}</a>` },
+      { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/projects/view/${p.id}">${p.name}</a>` },
+      { key: 'customer', label: 'Customer', value: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : ''; }, render: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : '—'; } },
+      { key: 'status', label: 'Status', value: p => p.status, render: p => `<span class="badge stage-${p.status}">${p.status}</span>` },
+      { key: 'start_date', label: 'Started', value: p => p.start_date || '', render: p => fmtDate(p.start_date) },
+    ],
+    rows: projectsCache,
+    actions: p => `
+      <a class="btn btn-ghost btn-sm" href="/projects/view/${p.id}">Open</a>
+      <button class="btn btn-ghost btn-sm" onclick="editProject(${p.id})">Edit</button>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>
+    `,
+  });
 }
 
 document.getElementById('project-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = formToJSON(e.target);
   payload.customer_id = parseInt(payload.customer_id);
+  const editingId = document.getElementById('editing-id').value;
   try {
-    const project = await api('/projects/', { method: 'POST', body: JSON.stringify(payload) });
-    toast('Project created');
-    location.href = '/projects/view/' + project.id;
+    if (editingId) {
+      await api('/projects/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Project updated');
+      hideAddPanel();
+      loadProjects();
+    } else {
+      const project = await api('/projects/', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Project created');
+      location.href = '/projects/view/' + project.id;
+    }
   } catch (err) { toast(err.message, true); }
 });
 

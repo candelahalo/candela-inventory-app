@@ -41,16 +41,7 @@
 </div>
 
 <div class="panel">
-  <div class="table-scroll">
-  <table>
-    <thead><tr><th>Quote #</th><th>Customer</th><th>Project</th><th>Status</th><th class="num">Total (incl. VAT)</th><th>Date</th><th></th></tr></thead>
-    <tbody id="quote-body"></tbody>
-  </table>
-  </div>
-  <div class="empty-state" id="quote-empty" style="display:none;">
-    <h3>No quotations yet</h3>
-    <p>Create your first quotation above.</p>
-  </div>
+  <div id="quotations-table"></div>
 </div>
 {% endblock %}
 
@@ -108,23 +99,34 @@ async function loadFormData() {
 
 async function loadQuotations() {
   const quotes = await api('/quotations/');
-  document.getElementById('quote-empty').style.display = quotes.length ? 'none' : 'block';
-  document.getElementById('quote-body').innerHTML = quotes.map(q => {
-    const customer = customersCache.find(c => c.id === q.customer_id);
-    const project = projectsCache.find(p => p.id === q.project_id);
-    return `<tr>
-      <td class="mono">${q.quote_number}</td>
-      <td>${customer ? customer.name : '—'}</td>
-      <td>${project ? project.project_number : '—'}</td>
-      <td><span class="badge">${q.status}</span></td>
-      <td class="num">${fmtMoney(q.total_with_vat)}</td>
-      <td>${fmtDate(q.created_at)}</td>
-      <td>
-        <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
-        <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/excel">Excel</a>
-      </td>
-    </tr>`;
-  }).join('');
+  DataTable.render({
+    containerId: 'quotations-table',
+    storageKey: 'quotations',
+    emptyMessage: 'No quotations yet — create your first one above.',
+    columns: [
+      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<span class="mono">${q.quote_number}</span>` },
+      { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
+      { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : '—'; } },
+      { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge">${q.status}</span>` },
+      { key: 'total', label: 'Total (incl. VAT)', numeric: true, value: q => q.total_with_vat, render: q => fmtMoney(q.total_with_vat) },
+      { key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) },
+    ],
+    rows: quotes,
+    actions: q => `
+      <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
+      <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/excel">Excel</a>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
+    `,
+  });
+}
+
+async function deleteQuotation(id, quoteNumber) {
+  if (!confirm(`Delete quotation ${quoteNumber}?`)) return;
+  try {
+    await api('/quotations/' + id, { method: 'DELETE' });
+    toast('Quotation deleted');
+    loadQuotations();
+  } catch (err) { toast(err.message, true); }
 }
 
 document.getElementById('quote-form').addEventListener('submit', async (e) => {

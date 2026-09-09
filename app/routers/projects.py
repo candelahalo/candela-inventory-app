@@ -57,6 +57,28 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
     return project
 
 
+@router.put("/{project_id}", response_model=schemas.ProjectOut)
+def update_project(project_id: int, payload: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    project = db.query(models.Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for key, value in payload.model_dump().items():
+        setattr(project, key, value)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.delete("/{project_id}", status_code=204)
+def delete_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    db.delete(project)
+    db.commit()
+    return None
+
+
 @router.post("/{project_id}/status", response_model=schemas.ProjectOut)
 def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate, db: Session = Depends(get_db)):
     """

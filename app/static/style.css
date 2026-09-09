@@ -91,6 +91,8 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--line);
 }
 .btn-ghost:hover { background: var(--paper-2); }
+.btn-ghost.btn-danger { color: var(--red); }
+.btn-ghost.btn-danger:hover { background: #FBEFEC; border-color: #E8C4BB; }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 
 /* ---------- Cards / panels ---------- */
@@ -118,6 +120,14 @@ a { color: inherit; text-decoration: none; }
 /* ---------- Tables ---------- */
 .table-scroll { overflow-x: auto; min-width: 0; }
 table { width: 100%; border-collapse: collapse; }
+table.dt th.th-sortable { cursor: pointer; user-select: none; }
+table.dt th.th-sortable:hover { color: var(--amber-deep); }
+table.dt th { cursor: grab; }
+table.dt th.dragging-col { opacity: 0.4; }
+table.dt th .sort-arrow { display: inline-block; width: 12px; color: var(--amber); font-weight: 700; }
+table.dt th.th-actions { width: 1%; }
+td.row-actions { white-space: nowrap; text-align: right; }
+td.row-actions .btn-sm { margin-left: 4px; }
 th {
   text-align: left;
   font-size: 12.5px;
@@ -251,7 +261,7 @@ th.num { text-align: right; }
 .timeline .t-when { color: var(--muted); font-size: 12.5px; font-family: var(--font-mono); white-space: nowrap; }
 
 .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
-.empty-state h3 { font-family: var(--font-head); color: var(--ink); margin-bottom: 6px; }
+.empty-state h3 { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
 
 @media (max-width: 900px) {
   .shell { flex-direction: column; }

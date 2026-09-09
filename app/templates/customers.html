@@ -6,12 +6,13 @@
     <h1>Customers</h1>
     <p>Clients you quote and run projects for.</p>
   </div>
-  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Add customer</button>
+  <button class="btn" id="show-add-btn">+ Add customer</button>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2>Add a customer</h2>
+  <h2 id="form-title">Add a customer</h2>
   <form id="customer-form">
+    <input type="hidden" id="editing-id">
     <div class="form-grid">
       <div class="field"><label>Name</label><input name="name" required placeholder="Ahmed Al Mansoori"></div>
       <div class="field"><label>Company</label><input name="company" placeholder="Optional"></div>
@@ -22,44 +23,85 @@
     </div>
     <div class="form-actions">
       <button type="submit" class="btn">Save customer</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
   </form>
 </div>
 
-<div class="panel">
-  <div class="table-scroll"><table>
-    <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th></tr></thead>
-    <tbody id="customer-body"></tbody>
-  </table></div>
-  <div class="empty-state" id="customer-empty" style="display:none;">
-    <h3>No customers yet</h3>
-    <p>Add your first client above to start quoting them.</p>
-  </div>
-</div>
+<div class="panel"><div id="customers-table"></div></div>
 {% endblock %}
 
 {% block script %}
 <script>
+let customersCache = [];
+
+function showAddPanel(title) {
+  document.getElementById('form-title').textContent = title;
+  document.getElementById('add-panel').style.display = 'block';
+  document.getElementById('show-add-btn').style.display = 'none';
+}
+function hideAddPanel() {
+  document.getElementById('add-panel').style.display = 'none';
+  document.getElementById('show-add-btn').style.display = '';
+  document.getElementById('customer-form').reset();
+  document.getElementById('editing-id').value = '';
+}
+document.getElementById('show-add-btn').addEventListener('click', () => showAddPanel('Add a customer'));
+document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
+
+function editCustomer(id) {
+  const c = customersCache.find(x => x.id === id);
+  if (!c) return;
+  const form = document.getElementById('customer-form');
+  form.name.value = c.name; form.company.value = c.company || ''; form.email.value = c.email || '';
+  form.phone.value = c.phone || ''; form.trn.value = c.trn || ''; form.address.value = c.address || '';
+  document.getElementById('editing-id').value = id;
+  showAddPanel('Edit customer');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteCustomer(id, name) {
+  if (!confirm(`Remove customer "${name}"?`)) return;
+  try {
+    await api('/customers/' + id, { method: 'DELETE' });
+    toast('Customer removed');
+    loadCustomers();
+  } catch (err) { toast(err.message, true); }
+}
+
 async function loadCustomers() {
-  const customers = await api('/customers/');
-  document.getElementById('customer-empty').style.display = customers.length ? 'none' : 'block';
-  document.getElementById('customer-body').innerHTML = customers.map(c => `
-    <tr>
-      <td>${c.name}</td>
-      <td>${c.company || '—'}</td>
-      <td>${c.email || '—'}</td>
-      <td>${c.phone || '—'}</td>
-    </tr>`).join('');
+  customersCache = await api('/customers/');
+  DataTable.render({
+    containerId: 'customers-table',
+    storageKey: 'customers',
+    emptyMessage: 'No customers yet — add your first client above.',
+    columns: [
+      { key: 'name', label: 'Name', value: c => c.name, render: c => c.name },
+      { key: 'company', label: 'Company', value: c => c.company || '', render: c => c.company || '—' },
+      { key: 'email', label: 'Email', value: c => c.email || '', render: c => c.email || '—' },
+      { key: 'phone', label: 'Phone', value: c => c.phone || '', render: c => c.phone || '—' },
+    ],
+    rows: customersCache,
+    actions: c => `
+      <button class="btn btn-ghost btn-sm" onclick="editCustomer(${c.id})">Edit</button>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}')">Delete</button>
+    `,
+  });
 }
 
 document.getElementById('customer-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const payload = formToJSON(e.target);
+  const editingId = document.getElementById('editing-id').value;
   try {
-    await api('/customers/', { method: 'POST', body: JSON.stringify(formToJSON(e.target)) });
-    toast('Customer added');
-    e.target.reset();
-    document.getElementById('add-panel').style.display = 'none';
+    if (editingId) {
+      await api('/customers/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Customer updated');
+    } else {
+      await api('/customers/', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Customer added');
+    }
+    hideAddPanel();
     loadCustomers();
   } catch (err) { toast(err.message, true); }
 });

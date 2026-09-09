@@ -7,21 +7,22 @@
     <p>What's on hand, where, and what's moved recently.</p>
   </div>
   <div style="display:flex; gap:10px;">
-    <button class="btn btn-ghost" onclick="document.getElementById('wh-panel').style.display='block';">+ Warehouse</button>
-    <button class="btn" onclick="document.getElementById('move-panel').style.display='block';">+ Record movement</button>
+    <button class="btn btn-ghost" id="show-wh-btn">+ Warehouse</button>
+    <button class="btn" id="show-move-btn">+ Record movement</button>
   </div>
 </div>
 
 <div class="panel" id="wh-panel" style="display:none;">
-  <h2>Add a warehouse</h2>
+  <h2 id="wh-form-title">Add a warehouse</h2>
   <form id="warehouse-form">
+    <input type="hidden" id="wh-editing-id">
     <div class="form-grid">
       <div class="field"><label>Name</label><input name="name" required placeholder="Main Warehouse"></div>
       <div class="field"><label>Location</label><input name="location" placeholder="Al Quoz, Dubai"></div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn">Save warehouse</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('wh-panel').style.display='none';">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="wh-cancel-btn">Cancel</button>
     </div>
   </form>
 </div>
@@ -46,78 +47,141 @@
     </div>
     <div class="form-actions">
       <button type="submit" class="btn">Save movement</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('move-panel').style.display='none';">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="move-cancel-btn">Cancel</button>
     </div>
   </form>
 </div>
 
 <div class="panel">
+  <h2>Warehouses</h2>
+  <div id="warehouses-table"></div>
+</div>
+
+<div class="panel">
   <h2>Stock on hand</h2>
-  <div class="table-scroll"><table>
-    <thead><tr><th>SKU</th><th>Product</th><th>Warehouse</th><th class="num">On hand</th><th class="num">Reorder level</th><th>Status</th></tr></thead>
-    <tbody id="levels-body"></tbody>
-  </table></div>
-  <div class="empty-state" id="levels-empty" style="display:none;">
-    <h3>No stock recorded yet</h3>
-    <p>Record your first stock-in movement above to start tracking levels.</p>
-  </div>
+  <div id="levels-table"></div>
 </div>
 
 <div class="panel">
   <h2>Recent movements</h2>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="num">Qty</th></tr></thead>
-    <tbody id="movements-body"></tbody>
-  </table></div>
+  <div id="movements-table"></div>
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
-let productsCache = [];
+let productsCache = [], warehousesCache = [], projectsCache = [];
+
+function showWhPanel(title) { document.getElementById('wh-form-title').textContent = title; document.getElementById('wh-panel').style.display = 'block'; }
+function hideWhPanel() { document.getElementById('wh-panel').style.display = 'none'; document.getElementById('warehouse-form').reset(); document.getElementById('wh-editing-id').value = ''; }
+document.getElementById('show-wh-btn').addEventListener('click', () => showWhPanel('Add a warehouse'));
+document.getElementById('wh-cancel-btn').addEventListener('click', hideWhPanel);
+document.getElementById('show-move-btn').addEventListener('click', () => document.getElementById('move-panel').style.display = 'block');
+document.getElementById('move-cancel-btn').addEventListener('click', () => document.getElementById('move-panel').style.display = 'none');
+
+function editWarehouse(id) {
+  const w = warehousesCache.find(x => x.id === id);
+  if (!w) return;
+  const form = document.getElementById('warehouse-form');
+  form.name.value = w.name; form.location.value = w.location || '';
+  document.getElementById('wh-editing-id').value = id;
+  showWhPanel('Edit warehouse');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteWarehouse(id, name) {
+  if (!confirm(`Delete warehouse "${name}"?`)) return;
+  try {
+    await api('/stock/warehouses/' + id, { method: 'DELETE' });
+    toast('Warehouse deleted');
+    populateSelectors();
+  } catch (err) { toast(err.message, true); }
+}
+
+async function deleteMovement(id) {
+  if (!confirm('Delete this stock movement? This will change computed stock levels.')) return;
+  try {
+    await api('/stock/movements/' + id, { method: 'DELETE' });
+    toast('Movement deleted');
+    loadLevels();
+    loadMovements();
+  } catch (err) { toast(err.message, true); }
+}
 
 async function populateSelectors() {
   const [products, warehouses, projects] = await Promise.all([api('/products/'), api('/stock/warehouses'), api('/projects/')]);
-  productsCache = products;
+  productsCache = products; warehousesCache = warehouses; projectsCache = projects;
   document.getElementById('mv-product').innerHTML = products.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
   document.getElementById('mv-warehouse').innerHTML = warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-  document.getElementById('mv-project').innerHTML += projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
+  document.getElementById('mv-project').innerHTML = '<option value="">— None —</option>' + projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
+
+  DataTable.render({
+    containerId: 'warehouses-table',
+    storageKey: 'warehouses',
+    emptyMessage: 'No warehouses yet — add one above.',
+    columns: [
+      { key: 'name', label: 'Name', value: w => w.name, render: w => w.name },
+      { key: 'location', label: 'Location', value: w => w.location || '', render: w => w.location || '—' },
+    ],
+    rows: warehouses,
+    actions: w => `
+      <button class="btn btn-ghost btn-sm" onclick="editWarehouse(${w.id})">Edit</button>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteWarehouse(${w.id}, '${w.name.replace(/'/g, "\\'")}')">Delete</button>
+    `,
+  });
 }
 
 async function loadLevels() {
   const levels = await api('/stock/levels');
-  document.getElementById('levels-empty').style.display = levels.length ? 'none' : 'block';
-  document.getElementById('levels-body').innerHTML = levels.map(s => `
-    <tr>
-      <td class="mono">${s.sku}</td>
-      <td>${s.name}</td>
-      <td>${s.warehouse_name}</td>
-      <td class="num">${s.quantity_on_hand}</td>
-      <td class="num">${s.reorder_level}</td>
-      <td>${s.below_reorder ? '<span class="badge low">Low stock</span>' : '<span class="badge">OK</span>'}</td>
-    </tr>`).join('');
+  DataTable.render({
+    containerId: 'levels-table',
+    storageKey: 'stock-levels',
+    emptyMessage: 'No stock recorded yet — record your first stock-in movement above.',
+    columns: [
+      { key: 'sku', label: 'SKU', value: s => s.sku, render: s => `<span class="mono">${s.sku}</span>` },
+      { key: 'name', label: 'Product', value: s => s.name, render: s => s.name },
+      { key: 'warehouse', label: 'Warehouse', value: s => s.warehouse_name, render: s => s.warehouse_name },
+      { key: 'on_hand', label: 'On hand', numeric: true, value: s => s.quantity_on_hand, render: s => s.quantity_on_hand },
+      { key: 'reorder', label: 'Reorder level', numeric: true, value: s => s.reorder_level, render: s => s.reorder_level },
+      { key: 'status', label: 'Status', value: s => s.below_reorder ? 0 : 1, render: s => s.below_reorder ? '<span class="badge low">Low stock</span>' : '<span class="badge">OK</span>' },
+    ],
+    rows: levels,
+  });
 }
 
 async function loadMovements() {
   const movements = await api('/stock/movements');
-  document.getElementById('movements-body').innerHTML = movements.slice(0, 20).map(m => {
-    const p = productsCache.find(pr => pr.id === m.product_id);
-    return `<tr>
-      <td>${fmtDate(m.created_at)}</td>
-      <td><span class="badge">${m.movement_type}</span></td>
-      <td>${m.reference || '—'} ${p ? '· ' + p.sku : ''}</td>
-      <td class="num">${m.quantity}</td>
-    </tr>`;
-  }).join('');
+  DataTable.render({
+    containerId: 'movements-table',
+    storageKey: 'stock-movements',
+    emptyMessage: 'No movements recorded yet.',
+    columns: [
+      { key: 'date', label: 'Date', value: m => m.created_at, render: m => fmtDate(m.created_at) },
+      { key: 'type', label: 'Type', value: m => m.movement_type, render: m => `<span class="badge">${m.movement_type}</span>` },
+      { key: 'reference', label: 'Reference', value: m => m.reference || '', render: m => {
+          const p = productsCache.find(pr => pr.id === m.product_id);
+          return (m.reference || '—') + (p ? ' · ' + p.sku : '');
+        } },
+      { key: 'qty', label: 'Qty', numeric: true, value: m => m.quantity, render: m => m.quantity },
+    ],
+    rows: movements.slice(0, 40),
+    actions: m => `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteMovement(${m.id})">Delete</button>`,
+  });
 }
 
 document.getElementById('warehouse-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const payload = formToJSON(e.target);
+  const editingId = document.getElementById('wh-editing-id').value;
   try {
-    await api('/stock/warehouses', { method: 'POST', body: JSON.stringify(formToJSON(e.target)) });
-    toast('Warehouse added');
-    e.target.reset();
-    document.getElementById('wh-panel').style.display = 'none';
+    if (editingId) {
+      await api('/stock/warehouses/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Warehouse updated');
+    } else {
+      await api('/stock/warehouses', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Warehouse added');
+    }
+    hideWhPanel();
     populateSelectors();
   } catch (err) { toast(err.message, true); }
 });
