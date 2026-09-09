@@ -46,9 +46,12 @@ class Product(Base):
     selling_price = Column(Float, default=0.0)
     reorder_level = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    image_path = Column(String(500))  # e.g. /static/uploads/products/xyz.jpg
+    spec_summary = Column(Text)  # short spec block used as default quotation line description
     created_at = Column(DateTime, default=datetime.utcnow)
 
     stock_movements = relationship("StockMovement", back_populates="product")
+    datasheets = relationship("Datasheet", back_populates="product")
 
 
 class Warehouse(Base):
@@ -106,11 +109,40 @@ class Quotation(Base):
     version = Column(Integer, default=1)
     notes = Column(Text)
     valid_until = Column(DateTime)
+
+    # Letterhead / cover-letter fields, matching Candela's standard quotation format
+    attention_to = Column(String(255))  # e.g. "Mr. Aaditya Bhagra & Ms. Rashmi Gulti"
+    subject = Column(String(255))  # e.g. "Quotation for Landscape Lighting"
+    currency = Column(String(16), default="AED")
+    scope = Column(String(255), default="Delivered to site including all expenses")
+    delivery_time = Column(String(255), default="7-9 weeks from the date of order confirmation and advance payment")
+    payment_terms = Column(String(255), default="70% in advance, balance 30% before delivery.")
+    freight_charges = Column(Float, default=0.0)  # "Air Freight & Customs" style line
+    vat_percent = Column(Float, default=5.0)
+    prepared_by_name = Column(String(120))
+    prepared_by_title = Column(String(120))
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     customer = relationship("Customer", back_populates="quotations")
     project = relationship("Project", back_populates="quotations")
-    items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan")
+    items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
+
+    @property
+    def gross_total(self):
+        return round(sum(item.line_total for item in self.items), 2)
+
+    @property
+    def grand_total(self):
+        return round(self.gross_total + (self.freight_charges or 0), 2)
+
+    @property
+    def vat_amount(self):
+        return round(self.grand_total * (self.vat_percent or 0) / 100, 2)
+
+    @property
+    def total_with_vat(self):
+        return round(self.grand_total + self.vat_amount, 2)
 
 
 class QuotationItem(Base):
@@ -119,7 +151,8 @@ class QuotationItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     quotation_id = Column(Integer, ForeignKey("quotations.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    description = Column(String(500))
+    type_code = Column(String(64))  # e.g. "WL1", "BL1" - line reference code shown on the quotation
+    description = Column(Text)  # multi-line spec block; defaults from product.spec_summary if left blank
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
     discount_pct = Column(Float, default=0.0)
@@ -165,3 +198,18 @@ class ProjectStatusHistory(Base):
     changed_at = Column(DateTime, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="status_history")
+
+
+class Datasheet(Base):
+    __tablename__ = "datasheets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)  # e.g. "Igniz Zoom - Track Spotlight"
+    brand = Column(String(120))  # e.g. "Halo", "One Light"
+    category = Column(String(120))  # e.g. "Track Lighting", "LED Drivers"
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    file_path = Column(String(500), nullable=False)  # e.g. /static/uploads/datasheets/xyz.pdf
+    original_filename = Column(String(255))
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", back_populates="datasheets")

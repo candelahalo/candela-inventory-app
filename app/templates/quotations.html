@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>Quotations</h1>
-    <p>Prepare and track pricing sent to clients.</p>
+    <p>Prepare professional, standardized pricing for clients.</p>
   </div>
   <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ New quotation</button>
 </div>
@@ -15,7 +15,17 @@
     <div class="form-grid">
       <div class="field"><label>Customer</label><select name="customer_id" id="q-customer" required></select></div>
       <div class="field"><label>Project (optional)</label><select name="project_id" id="q-project"><option value="">— None —</option></select></div>
+      <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
+      <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
+      <div class="field"><label>Currency</label><input name="currency" value="AED"></div>
       <div class="field"><label>Valid until</label><input name="valid_until" type="date"></div>
+      <div class="field span2"><label>Scope</label><input name="scope" value="Delivered to site including all expenses"></div>
+      <div class="field span2"><label>Delivery time</label><input name="delivery_time" value="7-9 weeks from the date of order confirmation and advance payment"></div>
+      <div class="field span2"><label>Payment terms</label><input name="payment_terms" value="70% in advance, balance 30% before delivery."></div>
+      <div class="field"><label>Freight & customs (optional)</label><input name="freight_charges" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>VAT %</label><input name="vat_percent" type="number" step="0.1" value="5"></div>
+      <div class="field"><label>Prepared by (name)</label><input name="prepared_by_name" placeholder="Johns James"></div>
+      <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" placeholder="Division Head — Residential Projects"></div>
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
     </div>
 
@@ -31,10 +41,12 @@
 </div>
 
 <div class="panel">
-  <div class="table-scroll"><table>
-    <thead><tr><th>Quote #</th><th>Customer</th><th>Project</th><th>Status</th><th class="num">Total</th><th>Date</th></tr></thead>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Quote #</th><th>Customer</th><th>Project</th><th>Status</th><th class="num">Total (incl. VAT)</th><th>Date</th><th></th></tr></thead>
     <tbody id="quote-body"></tbody>
-  </table></div>
+  </table>
+  </div>
   <div class="empty-state" id="quote-empty" style="display:none;">
     <h3>No quotations yet</h3>
     <p>Create your first quotation above.</p>
@@ -47,25 +59,41 @@
 let productsCache = [], customersCache = [], projectsCache = [];
 
 function lineRow() {
-  const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}">${p.sku} — ${p.name}</option>`).join('');
-  return `<div class="line-item-row">
-    <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
-    <div class="field"><label>Qty</label><input class="li-qty" type="number" value="1" min="1"></div>
-    <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="0"></div>
-    <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="0"></div>
-    <button type="button" class="remove-line" onclick="this.closest('.line-item-row').remove()">×</button>
+  const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}">${p.sku} — ${p.name}</option>`).join('');
+  return `<div class="line-item-block">
+    <div class="line-item-row">
+      <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
+      </div>
+      <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
+      <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1"></div>
+      <div class="field"><label>Qty</label><input class="li-qty" type="number" value="1" min="1"></div>
+      <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="0"></div>
+      <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove()">×</button>
+    </div>
+    <div class="field" style="padding: 0 12px 12px;"><label>Description (defaults from product spec)</label><textarea class="li-desc" rows="2"></textarea></div>
   </div>`;
 }
 
 function addLine() {
   const container = document.getElementById('line-items');
   container.insertAdjacentHTML('beforeend', lineRow());
-  const row = container.lastElementChild;
-  const sel = row.querySelector('.li-product');
-  const priceInput = row.querySelector('.li-price');
-  const syncPrice = () => { const opt = sel.selectedOptions[0]; if (opt) priceInput.value = opt.dataset.price; };
-  sel.addEventListener('change', syncPrice);
-  syncPrice();
+  const blocks = container.querySelectorAll('.line-item-block');
+  const block = blocks[blocks.length - 1];
+  const sel = block.querySelector('.li-product');
+  const priceInput = block.querySelector('.li-price');
+  const photo = block.querySelector('.li-photo');
+  const descArea = block.querySelector('.li-desc');
+  const sync = () => {
+    const opt = sel.selectedOptions[0];
+    if (!opt) return;
+    priceInput.value = opt.dataset.price;
+    photo.src = opt.dataset.image || '';
+    photo.style.display = opt.dataset.image ? 'block' : 'none';
+    if (!descArea.value) descArea.value = opt.dataset.spec || '';
+  };
+  sel.addEventListener('change', () => { descArea.value = ''; sync(); });
+  sync();
 }
 
 document.getElementById('add-line').addEventListener('click', addLine);
@@ -84,14 +112,17 @@ async function loadQuotations() {
   document.getElementById('quote-body').innerHTML = quotes.map(q => {
     const customer = customersCache.find(c => c.id === q.customer_id);
     const project = projectsCache.find(p => p.id === q.project_id);
-    const total = q.items.reduce((sum, i) => sum + i.line_total, 0);
     return `<tr>
       <td class="mono">${q.quote_number}</td>
       <td>${customer ? customer.name : '—'}</td>
       <td>${project ? project.project_number : '—'}</td>
       <td><span class="badge">${q.status}</span></td>
-      <td class="num">${fmtMoney(total)}</td>
+      <td class="num">${fmtMoney(q.total_with_vat)}</td>
       <td>${fmtDate(q.created_at)}</td>
+      <td>
+        <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
+        <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/excel">Excel</a>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -99,17 +130,21 @@ async function loadQuotations() {
 document.getElementById('quote-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
-  const items = [...document.querySelectorAll('.line-item-row')].map(row => ({
-    product_id: parseInt(row.querySelector('.li-product').value),
-    quantity: parseInt(row.querySelector('.li-qty').value),
-    unit_price: parseFloat(row.querySelector('.li-price').value),
-    discount_pct: parseFloat(row.querySelector('.li-disc').value || 0),
+  const items = [...document.querySelectorAll('.line-item-block')].map(block => ({
+    product_id: parseInt(block.querySelector('.li-product').value),
+    type_code: block.querySelector('.li-type').value || null,
+    description: block.querySelector('.li-desc').value || null,
+    quantity: parseInt(block.querySelector('.li-qty').value),
+    unit_price: parseFloat(block.querySelector('.li-price').value),
+    discount_pct: parseFloat(block.querySelector('.li-disc').value || 0),
   }));
   if (!items.length) { toast('Add at least one line item', true); return; }
 
   const payload = formToJSON(form);
   payload.customer_id = parseInt(payload.customer_id);
   if (payload.project_id) payload.project_id = parseInt(payload.project_id);
+  payload.freight_charges = parseFloat(payload.freight_charges || 0);
+  payload.vat_percent = parseFloat(payload.vat_percent || 0);
   payload.items = items;
 
   try {

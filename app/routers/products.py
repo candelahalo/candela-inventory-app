@@ -1,9 +1,10 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.utils import save_product_image
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -62,3 +63,14 @@ def deactivate_product(product_id: int, db: Session = Depends(get_db)):
     product.is_active = False
     db.commit()
     return None
+
+
+@router.post("/{product_id}/image", response_model=schemas.ProductOut)
+def upload_product_image(product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    product.image_path = save_product_image(file)
+    db.commit()
+    db.refresh(product)
+    return product

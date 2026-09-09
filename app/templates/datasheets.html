@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Datasheets{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Datasheets</h1>
+    <p>Manufacturer spec sheets for every product and accessory.</p>
+  </div>
+  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Upload datasheet</button>
+</div>
+
+<div class="panel" id="add-panel" style="display:none;">
+  <h2>Upload a datasheet</h2>
+  <form id="datasheet-form">
+    <div class="form-grid">
+      <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom - Track Spotlight"></div>
+      <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
+      <div class="field"><label>Category</label><input name="category" placeholder="Track Lighting, LED Drivers, ..."></div>
+      <div class="field span2"><label>Link to product (optional)</label><select name="product_id" id="ds-product"><option value="">— None —</option></select></div>
+      <div class="field span2"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf" required></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Upload</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:18px;">
+    <div class="field"><label>Filter by brand</label><select id="filter-brand"><option value="">All brands</option></select></div>
+    <div class="field"><label>Filter by category</label><select id="filter-category"><option value="">All categories</option></select></div>
+  </div>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Title</th><th>Brand</th><th>Category</th><th>Linked product</th><th>Uploaded</th><th></th></tr></thead>
+    <tbody id="datasheet-body"></tbody>
+  </table>
+  </div>
+  <div class="empty-state" id="datasheet-empty" style="display:none;">
+    <h3>No datasheets yet</h3>
+    <p>Upload manufacturer spec sheets above to build your reference library.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let productsCache = [];
+let allDatasheets = [];
+
+async function loadProductOptions() {
+  productsCache = await api('/products/');
+  document.getElementById('ds-product').innerHTML += productsCache.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
+}
+
+function renderDatasheets(list) {
+  document.getElementById('datasheet-empty').style.display = list.length ? 'none' : 'block';
+  document.getElementById('datasheet-body').innerHTML = list.map(d => {
+    const product = productsCache.find(p => p.id === d.product_id);
+    return `<tr>
+      <td>${d.title}</td>
+      <td>${d.brand || '—'}</td>
+      <td>${d.category || '—'}</td>
+      <td>${product ? product.sku + ' — ' + product.name : '—'}</td>
+      <td>${fmtDate(d.uploaded_at)}</td>
+      <td>
+        <a class="btn btn-ghost btn-sm" href="${d.file_path}" target="_blank">View</a>
+        <button class="btn btn-ghost btn-sm" onclick="deleteDatasheet(${d.id})" style="color:var(--red);">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function applyFilters() {
+  const brand = document.getElementById('filter-brand').value;
+  const category = document.getElementById('filter-category').value;
+  let filtered = allDatasheets;
+  if (brand) filtered = filtered.filter(d => d.brand === brand);
+  if (category) filtered = filtered.filter(d => d.category === category);
+  renderDatasheets(filtered);
+}
+
+async function loadDatasheets() {
+  allDatasheets = await api('/datasheets/');
+  const brands = [...new Set(allDatasheets.map(d => d.brand).filter(Boolean))].sort();
+  const categories = [...new Set(allDatasheets.map(d => d.category).filter(Boolean))].sort();
+  document.getElementById('filter-brand').innerHTML = '<option value="">All brands</option>' + brands.map(b => `<option value="${b}">${b}</option>`).join('');
+  document.getElementById('filter-category').innerHTML = '<option value="">All categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  renderDatasheets(allDatasheets);
+}
+
+async function deleteDatasheet(id) {
+  if (!confirm('Delete this datasheet?')) return;
+  try {
+    await api('/datasheets/' + id, { method: 'DELETE' });
+    toast('Datasheet deleted');
+    loadDatasheets();
+  } catch (err) { toast(err.message, true); }
+}
+
+document.getElementById('filter-brand').addEventListener('change', applyFilters);
+document.getElementById('filter-category').addEventListener('change', applyFilters);
+
+document.getElementById('datasheet-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const file = document.getElementById('ds-file').files[0];
+  if (!file) { toast('Choose a PDF file', true); return; }
+
+  const fd = new FormData();
+  fd.append('title', form.title.value);
+  fd.append('brand', form.brand.value);
+  fd.append('category', form.category.value);
+  if (form.product_id.value) fd.append('product_id', form.product_id.value);
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/datasheets/', { method: 'POST', body: fd });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
+    toast('Datasheet uploaded');
+    form.reset();
+    document.getElementById('add-panel').style.display = 'none';
+    loadDatasheets();
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+(async () => {
+  await loadProductOptions();
+  await loadDatasheets();
+})();
+</script>
+{% endblock %}

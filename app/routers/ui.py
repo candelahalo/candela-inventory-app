@@ -29,6 +29,11 @@ def ui_customers(request: Request):
     return templates.TemplateResponse("customers.html", {"request": request, "active": "customers"})
 
 
+@router.get("/datasheets")
+def ui_datasheets(request: Request):
+    return templates.TemplateResponse("datasheets.html", {"request": request, "active": "datasheets"})
+
+
 @router.get("/quotations")
 def ui_quotations(request: Request):
     return templates.TemplateResponse("quotations.html", {"request": request, "active": "quotations"})

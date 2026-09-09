@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 24mm 18mm;
+    @bottom-center {
+      content: "We Light Your Dreams…";
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 9px;
+      color: #7A7364;
+      font-style: italic;
+      border-top: 0.5px solid #D9D3C4;
+      padding-top: 6px;
+      width: 100%;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10.5px;
+    color: #1C1A16;
+    line-height: 1.5;
+  }
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; }
+  .letterhead img { height: 34px; }
+  .letterhead .meta { text-align: right; font-size: 10px; }
+  .letterhead .meta b { font-weight: 600; }
+
+  .to-block { margin-bottom: 18px; }
+  .to-block table td { padding: 1px 0; vertical-align: top; font-size: 10.5px; }
+  .to-block table td.label { width: 70px; color: #4A4436; }
+
+  .greeting { margin-bottom: 12px; }
+  .intro { margin-bottom: 16px; text-align: justify; }
+
+  .terms-summary td { padding: 3px 0; font-size: 10.5px; vertical-align: top; }
+  .terms-summary td.label { width: 110px; font-weight: 600; }
+  .terms-summary td.colon { width: 12px; }
+
+  .closing { margin-top: 22px; }
+  .signature { margin-top: 34px; }
+  .signature .name { font-weight: 700; }
+
+  .page-break { page-break-before: always; }
+
+  h2.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    letter-spacing: 0.02em;
+  }
+
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 4px;
+  }
+  table.items th {
+    background: #17161B;
+    color: #fff;
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 7px 6px;
+    text-align: left;
+    font-weight: 600;
+  }
+  table.items td {
+    border-bottom: 0.75px solid #E4DDCD;
+    padding: 8px 6px;
+    font-size: 9.5px;
+    vertical-align: top;
+  }
+  table.items td.num { text-align: right; white-space: nowrap; }
+  table.items td.img-cell { width: 62px; }
+  table.items td.img-cell img { width: 56px; height: 56px; object-fit: contain; border: 0.75px solid #E4DDCD; border-radius: 3px; padding: 3px; background: #fff; }
+  table.items .desc-title { font-weight: 700; margin-bottom: 3px; }
+  table.items .desc-body { color: #4A4436; white-space: pre-line; font-size: 9px; line-height: 1.45; }
+  table.items .type-code { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+
+  .totals { width: 100%; margin-top: 10px; }
+  .totals td { padding: 4px 6px; font-size: 10.5px; }
+  .totals tr.grand td { font-weight: 700; font-size: 12px; border-top: 1.25px solid #17161B; padding-top: 8px; }
+  .totals td.tlabel { text-align: right; width: 82%; color: #4A4436; }
+  .totals tr.grand td.tlabel { color: #1C1A16; }
+  .totals td.tval { text-align: right; white-space: nowrap; }
+  .vat-note { font-size: 8.5px; color: #7A7364; margin-top: 10px; font-style: italic; }
+
+  .tc-section { margin-bottom: 16px; }
+  .tc-section h3 { font-size: 11px; font-weight: 700; margin: 0 0 6px; }
+  .tc-section ul { margin: 0; padding-left: 16px; }
+  .tc-section li { margin-bottom: 5px; text-align: justify; font-size: 9.5px; }
+</style>
+</head>
+<body>
+
+<div class="letterhead">
+  <img src="app/static/candela-logo-dark.png">
+  <div class="meta">
+    <div><b>Date:</b> {{ q.created_at.strftime('%d %B %Y') }}</div>
+    <div><b>Quotation No:</b> {{ q.quote_number }}</div>
+  </div>
+</div>
+
+<div class="to-block">
+  <table>
+    <tr><td class="label">To</td><td>: {{ q.attention_to or q.customer.name }}{% if q.customer.company %} ({{ q.customer.company }}){% endif %}</td></tr>
+    {% if q.project %}<tr><td class="label">Project</td><td>: {{ q.project.name }}</td></tr>{% endif %}
+    <tr><td class="label">Subject</td><td>: {{ q.subject or 'Quotation' }}</td></tr>
+  </table>
+</div>
+
+<div class="greeting">Dear {{ q.attention_to or q.customer.name }},</div>
+<div class="intro">We thank you for giving us the opportunity to quote against your requirements for this project, and we are pleased to send our offer to you. You will find the details of the offer in the attached annexure followed by our Terms and Conditions.</div>
+
+<table class="terms-summary">
+  <tr><td class="label">Currency</td><td class="colon">:</td><td>In United Arab Emirates {{ 'Dirhams' if q.currency == 'AED' else q.currency }}</td></tr>
+  <tr><td class="label">Scope</td><td class="colon">:</td><td>{{ q.scope }}</td></tr>
+  <tr><td class="label">Delivery Time</td><td class="colon">:</td><td>{{ q.delivery_time }}</td></tr>
+  <tr><td class="label">Validity</td><td class="colon">:</td><td>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '1 month' }}</td></tr>
+  <tr><td class="label">Payment Terms</td><td class="colon">:</td><td>{{ q.payment_terms }}</td></tr>
+</table>
+
+<div class="closing">We hope that our proposal suits your requirements and look forward to receiving your order. Issue orders and payment to our legal name mentioned in this Offer.</div>
+
+<div class="signature">
+  <div>Regards,</div>
+  <div style="height:30px;"></div>
+  <div class="name">{{ q.prepared_by_name or 'Candela Team' }}</div>
+  <div>{{ q.prepared_by_title or '' }}</div>
+</div>
+
+<div style="margin-top:40px;">
+  <div style="border-top:0.75px solid #1C1A16; width:200px; margin-bottom:4px;"></div>
+  <div>From</div>
+  <div style="font-weight:700;">CANDELA LIGHTING AND AUTOMATION LLC</div>
+</div>
+
+<div class="page-break"></div>
+
+<h2 class="section-title">{{ (q.project.name if q.project else q.subject or 'QUOTATION') | upper }}</h2>
+
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width:24px;">#</th>
+      <th style="width:60px;">Image</th>
+      <th>Description</th>
+      <th style="width:32px;">Unit</th>
+      <th style="width:34px;">Qty</th>
+      <th style="width:52px;">Price</th>
+      <th style="width:60px;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in q.items %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="img-cell">
+        {% if item.product and item.product.image_path %}
+        <img src="app{{ item.product.image_path }}">
+        {% endif %}
+      </td>
+      <td>
+        <div class="desc-title">{% if item.type_code %}<span class="type-code">{{ item.type_code }}</span> — {% endif %}{{ item.product.name if item.product else '' }}{% if item.product and item.product.brand %} <span style="font-weight:400; color:#7A7364;">({{ item.product.brand }})</span>{% endif %}</div>
+        {% if item.description %}<div class="desc-body">{{ item.description }}</div>{% endif %}
+      </td>
+      <td>{{ item.product.unit if item.product else 'pcs' }}</td>
+      <td class="num">{{ item.quantity }}</td>
+      <td class="num">{{ "%.2f"|format(item.unit_price) }}</td>
+      <td class="num">{{ "%.2f"|format(item.line_total) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="totals">
+  <tr><td class="tlabel">Gross Total</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</td></tr>
+  {% if q.freight_charges %}<tr><td class="tlabel">Freight & Customs</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</td></tr>{% endif %}
+  <tr><td class="tlabel">Total ({{ q.currency }}, VAT excluded)</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}</td></tr>
+  <tr class="grand"><td class="tlabel">Total incl. VAT ({{ q.vat_percent }}%)</td><td class="tval">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
+</table>
+<div class="vat-note">Note: Standard {{ q.vat_percent }}% VAT is applicable as per UAE Law in the above stated Total Amount.</div>
+
+<div class="page-break"></div>
+
+<div class="letterhead" style="margin-bottom:30px;">
+  <img src="app/static/candela-logo-dark.png">
+</div>
+<h2 class="section-title" style="text-align:center; margin-bottom:22px;">GENERAL TERMS &amp; CONDITIONS</h2>
+
+<div class="tc-section">
+  <h3>Candela Lighting Offer</h3>
+  <ul>
+    <li>Our offer only includes the items mentioned in the description. Any accessories or components not listed are not included.</li>
+    <li>All unit rates are applicable for offered quantities. Changes in quantities and elimination of items are subject to recalculation of our offer.</li>
+    <li>Prices include delivery to the site unless stated otherwise.</li>
+    <li>Customs duties and sales tax are calculated based on current regulations provided by the local customs authorities at the time of order confirmation. If any changes are announced and implemented by the authorities between the time of order confirmation and delivery, then these changes shall be applied on the final invoice.</li>
+  </ul>
+</div>
+
+<div class="tc-section">
+  <h3>Payment Term</h3>
+  <ul>
+    <li>In cases where an Advance Payment Guarantee or security cheque is required, its validity should not exceed the agreed delivery schedule. It becomes invalid and the original returned to us upon delivery of the materials.</li>
+    <li>All required bank guarantees will be issued as per our bank's standard format.</li>
+  </ul>
+</div>
+
+<div class="tc-section">
+  <h3>Delivery Terms</h3>
+  <ul>
+    <li>Once delivered, goods are no longer the responsibility of Candela Lighting, thus they cannot be returned nor refunded.</li>
+  </ul>
+</div>
+
+<div class="tc-section">
+  <h3>Warranty</h3>
+  <ul>
+    <li>Standard manufacturing warranty on all items is three years unless another term is agreed in writing and mentioned in the proposal.</li>
+    <li>Candela Lighting will replace the item if it has a manufacturing defect or can't be repaired and is under warranty, provided that the item is returned in its original condition and packaging within ten days of purchase/delivery.</li>
+  </ul>
+</div>
+
+</body>
+</html>

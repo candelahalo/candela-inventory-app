@@ -177,8 +177,9 @@ th.num { text-align: right; }
 .form-actions { margin-top: 16px; display: flex; gap: 10px; }
 
 .line-items { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; }
-.line-item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--paper-2); align-items: end; }
-.line-item-row:last-child { border-bottom: none; }
+.line-item-block { border-bottom: 1px solid var(--paper-2); }
+.line-item-block:last-child { border-bottom: none; }
+.line-item-row { display: grid; grid-template-columns: 60px 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; padding: 10px 12px 4px; align-items: end; }
 .line-item-row .field label { font-size: 11px; }
 .remove-line { background: none; border: none; color: var(--red); cursor: pointer; font-size: 18px; line-height: 1; padding: 8px; }
 

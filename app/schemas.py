@@ -16,6 +16,7 @@ class ProductBase(BaseModel):
     selling_price: float = 0.0
     reorder_level: int = 0
     is_active: bool = True
+    spec_summary: Optional[str] = None
 
 
 class ProductCreate(ProductBase):
@@ -25,6 +26,7 @@ class ProductCreate(ProductBase):
 class ProductOut(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    image_path: Optional[str] = None
     created_at: datetime
 
 
@@ -94,6 +96,7 @@ class CustomerOut(CustomerBase):
 # ---------- Quotation ----------
 class QuotationItemCreate(BaseModel):
     product_id: int
+    type_code: Optional[str] = None
     description: Optional[str] = None
     quantity: int
     unit_price: float
@@ -111,6 +114,16 @@ class QuotationCreate(BaseModel):
     project_id: Optional[int] = None
     notes: Optional[str] = None
     valid_until: Optional[datetime] = None
+    attention_to: Optional[str] = None
+    subject: Optional[str] = None
+    currency: str = "AED"
+    scope: Optional[str] = "Delivered to site including all expenses"
+    delivery_time: Optional[str] = "7-9 weeks from the date of order confirmation and advance payment"
+    payment_terms: Optional[str] = "70% in advance, balance 30% before delivery."
+    freight_charges: float = 0.0
+    vat_percent: float = 5.0
+    prepared_by_name: Optional[str] = None
+    prepared_by_title: Optional[str] = None
     items: List[QuotationItemCreate]
 
 
@@ -124,8 +137,22 @@ class QuotationOut(BaseModel):
     version: int
     notes: Optional[str]
     valid_until: Optional[datetime]
+    attention_to: Optional[str]
+    subject: Optional[str]
+    currency: str
+    scope: Optional[str]
+    delivery_time: Optional[str]
+    payment_terms: Optional[str]
+    freight_charges: float
+    vat_percent: float
+    prepared_by_name: Optional[str]
+    prepared_by_title: Optional[str]
     created_at: datetime
     items: List[QuotationItemOut]
+    gross_total: float
+    grand_total: float
+    vat_amount: float
+    total_with_vat: float
 
 
 # ---------- Project ----------
@@ -164,3 +191,16 @@ class ProjectOut(BaseModel):
 class ProjectStatusUpdate(BaseModel):
     status: ProjectStatus
     notes: Optional[str] = None
+
+
+# ---------- Datasheet ----------
+class DatasheetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    brand: Optional[str]
+    category: Optional[str]
+    product_id: Optional[int]
+    file_path: str
+    original_filename: Optional[str]
+    uploaded_at: datetime
