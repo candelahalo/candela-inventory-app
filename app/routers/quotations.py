@@ -207,7 +207,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     cover = wb.active
     cover.title = "Cover"
     cover.sheet_view.showGridLines = False
-    for col, w in {"A": 3, "B": 22, "C": 22, "D": 22, "E": 22, "F": 22, "G": 22}.items():
+    # Sized to fit A4 portrait printable width at 100% scale
+    for col, w in {"A": 2, "B": 15, "C": 15, "D": 15, "E": 15, "F": 15, "G": 15}.items():
         cover.column_dimensions[col].width = w
 
     add_logo(cover, "B2", height=38)
@@ -273,7 +274,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
     r += 2
 
-    cover.merge_cells(f"B{r}:G{r+1}")
+    cover.merge_cells(f"B{r}:G{r+2}")
     cover[f"B{r}"] = (
         "Thank you for the opportunity to quote for your requirements. We are pleased to enclose our proposal, "
         "with the itemized schedule and commercial terms set out on the following sheets, together with our "
@@ -281,9 +282,9 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     )
     cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
     cover[f"B{r}"].alignment = left_wrap
-    cover.row_dimensions[r].height = 16
-    cover.row_dimensions[r + 1].height = 16
-    r += 3
+    for i in range(3):
+        cover.row_dimensions[r + i].height = 15
+    r += 4
 
     terms = [
         ("CURRENCY", f"United Arab Emirates Dirhams ({quotation.currency})"),
@@ -305,13 +306,15 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         r += 1
     r += 2
 
-    cover.merge_cells(f"B{r}:G{r}")
+    cover.merge_cells(f"B{r}:G{r+1}")
     cover[f"B{r}"] = "We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below."
     cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
     cover[f"B{r}"].alignment = left_wrap
+    cover.row_dimensions[r].height = 15
+    cover.row_dimensions[r + 1].height = 15
     r += 4
 
-    cover.merge_cells(f"B{r}:C{r}")
+    cover.merge_cells(f"B{r}:D{r}")
     cover[f"B{r}"] = "FOR CANDELA LIGHTING AND AUTOMATION LLC"
     cover[f"B{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
     cover.merge_cells(f"E{r}:G{r}")
@@ -324,7 +327,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         for c in [chr(x) for x in range(ord(start), ord(end) + 1)]:
             cover[f"{c}{r}"].border = thin_bottom
     r += 1
-    cover.merge_cells(f"B{r}:C{r}")
+    cover.merge_cells(f"B{r}:D{r}")
     cover[f"B{r}"] = quotation.prepared_by_name or "Authorized Signatory"
     cover[f"B{r}"].font = Font(name=FONT, size=11, bold=True, color=INK)
     cover.merge_cells(f"E{r}:G{r}")
@@ -332,7 +335,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     cover[f"E{r}"].font = Font(name=FONT, size=9.5, color=MUTED)
     r += 1
     if quotation.prepared_by_title:
-        cover.merge_cells(f"B{r}:C{r}")
+        cover.merge_cells(f"B{r}:D{r}")
         cover[f"B{r}"] = quotation.prepared_by_title
         cover[f"B{r}"].font = Font(name=FONT, size=9.5, color=MUTED)
 
@@ -352,7 +355,9 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     # =========================================================
     ws = wb.create_sheet("Itemized Schedule")
     ws.sheet_view.showGridLines = False
-    widths = {"A": 5, "B": 12, "C": 52, "D": 8, "E": 7, "F": 12, "G": 14}
+    # Sized to fit A4 portrait printable width (~185mm with 0.5in margins) at
+    # 100% scale, so nothing gets shrunk down when printed.
+    widths = {"A": 4, "B": 10, "C": 40, "D": 7, "E": 6, "F": 11, "G": 13}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
@@ -530,8 +535,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     # =========================================================
     tc = wb.create_sheet("Terms & Conditions")
     tc.sheet_view.showGridLines = False
-    tc.column_dimensions["A"].width = 4
-    tc.column_dimensions["B"].width = 92
+    tc.column_dimensions["A"].width = 3
+    tc.column_dimensions["B"].width = 88
 
     add_logo(tc, "B2")
     tc.row_dimensions[1].height = 8
