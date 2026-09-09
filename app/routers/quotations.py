@@ -167,19 +167,19 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     for idx, item in enumerate(quotation.items, start=1):
         product = item.product
         center = Alignment(horizontal="center", vertical="center")
-        left_mid = Alignment(horizontal="left", vertical="center")
+        center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         c = ws.cell(row=row, column=1, value=idx); c.border = border; c.alignment = center
         c = ws.cell(row=row, column=2, value=item.type_code or ""); c.border = border; c.alignment = center
-        c = ws.cell(row=row, column=3, value=product.brand if product else ""); c.border = border; c.alignment = left_mid
+        c = ws.cell(row=row, column=3, value=product.brand if product else ""); c.border = border; c.alignment = center
         desc_cell = ws.cell(row=row, column=4, value=item.description or (product.name if product else ""))
         desc_cell.border = border
-        desc_cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="left")
+        desc_cell.alignment = center_wrap
         c = ws.cell(row=row, column=5, value=product.unit if product else "pcs"); c.border = border; c.alignment = center
         c = ws.cell(row=row, column=6, value=item.quantity); c.border = border; c.alignment = center
-        c = ws.cell(row=row, column=7, value=item.unit_price); c.border = border; c.alignment = Alignment(horizontal="right", vertical="center")
+        c = ws.cell(row=row, column=7, value=item.unit_price); c.border = border; c.alignment = center
         c = ws.cell(row=row, column=8, value=item.discount_pct); c.border = border; c.alignment = center
-        c = ws.cell(row=row, column=9, value=item.line_total); c.border = border; c.alignment = Alignment(horizontal="right", vertical="center")
+        c = ws.cell(row=row, column=9, value=item.line_total); c.border = border; c.alignment = center
         ws.row_dimensions[row].height = 60
 
         # Embed product photo scaled to a small consistent thumbnail, preserving aspect ratio
@@ -207,6 +207,9 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     ws.cell(row=row + 3, column=9, value=quotation.vat_amount)
     ws.cell(row=row + 4, column=8, value=f"Total ({quotation.currency})").font = bold
     ws.cell(row=row + 4, column=9, value=quotation.total_with_vat).font = bold
+    for r in range(row + 1, row + 5):
+        for col in (8, 9):
+            ws.cell(row=r, column=col).alignment = Alignment(horizontal="center", vertical="center")
 
     widths = [6, 8, 14, 46, 8, 6, 11, 8, 12, 14]
     for i, w in enumerate(widths, start=1):

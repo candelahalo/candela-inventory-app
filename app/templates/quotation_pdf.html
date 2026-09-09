@@ -78,6 +78,7 @@
     border-top: 0.75px solid #DED6C2;
     border-bottom: 0.75px solid #DED6C2;
     margin-bottom: 30px;
+    text-align: center;
   }
   .cover-meta-grid .k { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9A9382; margin-bottom: 3px; }
   .cover-meta-grid .v { font-size: 11.5px; font-weight: 500; }
@@ -85,8 +86,8 @@
   .cover-intro { font-size: 10.8px; color: #3A362C; text-align: justify; margin-bottom: 28px; max-width: 145mm; }
 
   .terms-grid { display: grid; grid-template-columns: 130px 1fr; row-gap: 9px; margin-bottom: 30px; max-width: 150mm; }
-  .terms-grid .tk { font-size: 9.5px; font-weight: 600; color: #56503F; text-transform: uppercase; letter-spacing: 0.03em; }
-  .terms-grid .tv { font-size: 10.5px; }
+  .terms-grid .tk { font-size: 9.5px; font-weight: 600; color: #56503F; text-transform: uppercase; letter-spacing: 0.03em; text-align: center; }
+  .terms-grid .tv { font-size: 10.5px; text-align: center; }
 
   .cover-closing { font-size: 10.5px; color: #3A362C; margin-bottom: 40px; max-width: 145mm; }
 
@@ -124,21 +125,19 @@
     letter-spacing: 0.08em;
     color: #56503F;
     font-weight: 600;
-    text-align: left;
+    text-align: center;
     padding: 0 6px 8px;
     border-bottom: 1.25px solid #201E1A;
   }
-  table.items thead th.num { text-align: right; }
-  table.items thead th.center { text-align: center; }
-
+  table.items thead th.desc-col { text-align: center; }
   table.items tbody td {
     padding: 11px 6px;
     border-bottom: 0.75px solid #EAE3D2;
     vertical-align: middle;
+    text-align: center;
     font-size: 9.7px;
   }
-  table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.items tbody td.center { text-align: center; }
+  table.items tbody td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   table.items tbody tr:nth-child(even) { background: #FBF9F4; }
 
   .item-img { width: 46px; height: 46px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
@@ -149,11 +148,12 @@
   .item-spec { color: #56503F; font-size: 8.5px; line-height: 1.5; white-space: pre-line; }
 
   /* ---------- Totals ---------- */
-  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 4px; }
-  .totals-box { width: 62mm; }
-  .totals-box .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px; color: #56503F; }
+  .totals-wrap { display: flex; justify-content: center; margin-top: 4px; }
+  .totals-box { width: 70mm; }
+  .totals-box .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px; color: #56503F; text-align: center; }
+  .totals-box .row span { flex: 1; }
   .totals-box .row.grand { border-top: 1.25px solid #201E1A; margin-top: 4px; padding-top: 9px; font-size: 12.5px; font-weight: 700; color: #201E1A; }
-  .vat-note { font-size: 8px; color: #9A9382; font-style: italic; margin-top: 14px; text-align: right; }
+  .vat-note { font-size: 8px; color: #9A9382; font-style: italic; margin-top: 14px; text-align: center; }
 
   /* ---------- Terms & conditions ---------- */
   .tc-columns { column-count: 2; column-gap: 26px; }
