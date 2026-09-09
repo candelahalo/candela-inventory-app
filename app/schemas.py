@@ -204,3 +204,16 @@ class DatasheetOut(BaseModel):
     file_path: str
     original_filename: Optional[str]
     uploaded_at: datetime
+
+
+# ---------- Activity Log ----------
+class ActivityLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    entity_type: str
+    entity_id: Optional[int]
+    entity_label: Optional[str]
+    action: str
+    details: Optional[str]
+    performed_by: str
+    created_at: datetime

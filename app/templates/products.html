@@ -106,7 +106,7 @@ document.getElementById('row-image-input').addEventListener('change', async (e) 
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const res = await fetch(`/products/${productId}/image`, { method: 'POST', body: fd });
+    const res = await fetch(`/products/${productId}/image`, { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Image upload failed'); }
     toast('Photo updated');
     loadProducts();
@@ -163,7 +163,7 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
     if (imageFile) {
       const fd = new FormData();
       fd.append('file', imageFile);
-      const res = await fetch(`/products/${product.id}/image`, { method: 'POST', body: fd });
+      const res = await fetch(`/products/${product.id}/image`, { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Image upload failed'); }
     }
 

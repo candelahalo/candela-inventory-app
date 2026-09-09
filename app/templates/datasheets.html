@@ -109,7 +109,7 @@ document.getElementById('datasheet-form').addEventListener('submit', async (e) =
   fd.append('file', file);
 
   try {
-    const res = await fetch('/datasheets/', { method: 'POST', body: fd });
+    const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
     toast('Datasheet uploaded');
     form.reset();

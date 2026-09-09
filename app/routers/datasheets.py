@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import save_datasheet, url_to_disk_path
+from app.utils import save_datasheet, url_to_disk_path, get_user_name, log_activity
 
 router = APIRouter(prefix="/datasheets", tags=["Datasheets"])
 
@@ -35,6 +35,7 @@ def upload_datasheet(
     product_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    user: str = Depends(get_user_name),
 ):
     if product_id:
         product = db.query(models.Product).get(product_id)
@@ -47,19 +48,22 @@ def upload_datasheet(
         file_path=file_path, original_filename=original_filename,
     )
     db.add(datasheet)
+    db.flush()
+    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "created")
     db.commit()
     db.refresh(datasheet)
     return datasheet
 
 
 @router.delete("/{datasheet_id}", status_code=204)
-def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
+def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     datasheet = db.query(models.Datasheet).get(datasheet_id)
     if not datasheet:
         raise HTTPException(status_code=404, detail="Datasheet not found")
     file_on_disk = url_to_disk_path(datasheet.file_path)
     if os.path.exists(file_on_disk):
         os.remove(file_on_disk)
+    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "deleted")
     db.delete(datasheet)
     db.commit()
     return None

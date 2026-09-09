@@ -2,7 +2,7 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile, HTTPException, Header
 from PIL import Image, ImageOps, ImageChops
 
 UPLOAD_ROOT = Path("app/static/uploads")
@@ -14,6 +14,22 @@ DATASHEET_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 CANVAS_SIZE = 800  # every product photo becomes an 800x800 square, regardless of source shape
+
+
+def get_user_name(x_user_name: str = Header(default="Unknown")) -> str:
+    """Identifies who is performing an action for the activity log. There's no
+    login system in this app - the frontend asks for a name once and sends it
+    on every request via this header."""
+    return x_user_name.strip() or "Unknown"
+
+
+def log_activity(db, user: str, entity_type: str, entity_id, entity_label: str, action: str, details: str = None):
+    from app import models
+    entry = models.ActivityLog(
+        entity_type=entity_type, entity_id=entity_id, entity_label=entity_label,
+        action=action, details=details, performed_by=user,
+    )
+    db.add(entry)
 
 
 def url_to_disk_path(url_path: str) -> str:

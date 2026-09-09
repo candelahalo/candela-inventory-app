@@ -6,12 +6,13 @@
     <h1>Quotations</h1>
     <p>Prepare professional, standardized pricing for clients.</p>
   </div>
-  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ New quotation</button>
+  <button class="btn" id="show-add-btn">+ New quotation</button>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2>New quotation</h2>
+  <h2 id="form-title">New quotation</h2>
   <form id="quote-form">
+    <input type="hidden" id="editing-id">
     <div class="form-grid">
       <div class="field"><label>Customer</label><select name="customer_id" id="q-customer" required></select></div>
       <div class="field"><label>Project (optional)</label><select name="project_id" id="q-project"><option value="">— None —</option></select></div>
@@ -35,7 +36,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn">Save quotation</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
   </form>
 </div>
@@ -49,45 +50,88 @@
 <script>
 let productsCache = [], customersCache = [], projectsCache = [];
 
-function lineRow() {
+function lineRow(item) {
   const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}">${p.sku} — ${p.name}</option>`).join('');
   return `<div class="line-item-block">
     <div class="line-item-row">
       <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
       </div>
       <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
-      <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1"></div>
-      <div class="field"><label>Qty</label><input class="li-qty" type="number" value="1" min="1"></div>
-      <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="0"></div>
-      <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="0"></div>
+      <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? item.type_code : ''}"></div>
+      <div class="field"><label>Qty</label><input class="li-qty" type="number" value="${item ? item.quantity : 1}" min="1"></div>
+      <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
+      <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
       <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove()">×</button>
     </div>
-    <div class="field" style="padding: 0 12px 12px;"><label>Description (defaults from product spec)</label><textarea class="li-desc" rows="2"></textarea></div>
+    <div class="field" style="padding: 0 12px 12px;"><label>Description (defaults from product spec)</label><textarea class="li-desc" rows="2">${item && item.description ? item.description : ''}</textarea></div>
   </div>`;
 }
 
-function addLine() {
+function addLine(item) {
   const container = document.getElementById('line-items');
-  container.insertAdjacentHTML('beforeend', lineRow());
+  container.insertAdjacentHTML('beforeend', lineRow(item));
   const blocks = container.querySelectorAll('.line-item-block');
   const block = blocks[blocks.length - 1];
   const sel = block.querySelector('.li-product');
   const priceInput = block.querySelector('.li-price');
   const photo = block.querySelector('.li-photo');
   const descArea = block.querySelector('.li-desc');
+  if (item) sel.value = item.product_id;
   const sync = () => {
     const opt = sel.selectedOptions[0];
     if (!opt) return;
-    priceInput.value = opt.dataset.price;
     photo.src = opt.dataset.image || '';
     photo.style.display = opt.dataset.image ? 'block' : 'none';
-    if (!descArea.value) descArea.value = opt.dataset.spec || '';
   };
-  sel.addEventListener('change', () => { descArea.value = ''; sync(); });
+  sel.addEventListener('change', () => {
+    const opt = sel.selectedOptions[0];
+    priceInput.value = opt.dataset.price;
+    descArea.value = opt.dataset.spec || '';
+    sync();
+  });
   sync();
 }
 
-document.getElementById('add-line').addEventListener('click', addLine);
+document.getElementById('add-line').addEventListener('click', () => addLine());
+
+function showAddPanel(title) {
+  document.getElementById('form-title').textContent = title;
+  document.getElementById('add-panel').style.display = 'block';
+  document.getElementById('show-add-btn').style.display = 'none';
+}
+function hideAddPanel() {
+  document.getElementById('add-panel').style.display = 'none';
+  document.getElementById('show-add-btn').style.display = '';
+  document.getElementById('quote-form').reset();
+  document.getElementById('editing-id').value = '';
+  document.getElementById('line-items').innerHTML = '';
+}
+document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); if (!document.getElementById('line-items').children.length) addLine(); });
+document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
+
+async function editQuotation(id) {
+  const q = await api('/quotations/' + id);
+  const form = document.getElementById('quote-form');
+  form.customer_id.value = q.customer_id;
+  form.project_id.value = q.project_id || '';
+  form.attention_to.value = q.attention_to || '';
+  form.subject.value = q.subject || '';
+  form.currency.value = q.currency;
+  form.valid_until.value = q.valid_until ? q.valid_until.substring(0, 10) : '';
+  form.scope.value = q.scope || '';
+  form.delivery_time.value = q.delivery_time || '';
+  form.payment_terms.value = q.payment_terms || '';
+  form.freight_charges.value = q.freight_charges;
+  form.vat_percent.value = q.vat_percent;
+  form.prepared_by_name.value = q.prepared_by_name || '';
+  form.prepared_by_title.value = q.prepared_by_title || '';
+  form.notes.value = q.notes || '';
+  document.getElementById('editing-id').value = id;
+  document.getElementById('line-items').innerHTML = '';
+  q.items.forEach(item => addLine(item));
+  showAddPanel('Edit quotation ' + q.quote_number);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 async function loadFormData() {
   const [products, customers, projects] = await Promise.all([api('/products/'), api('/customers/'), api('/projects/')]);
@@ -115,6 +159,7 @@ async function loadQuotations() {
     actions: q => `
       <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
       <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/excel">Excel</a>
+      <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">Edit</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
     `,
   });
@@ -148,14 +193,17 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   payload.freight_charges = parseFloat(payload.freight_charges || 0);
   payload.vat_percent = parseFloat(payload.vat_percent || 0);
   payload.items = items;
+  const editingId = document.getElementById('editing-id').value;
 
   try {
-    await api('/quotations/', { method: 'POST', body: JSON.stringify(payload) });
-    toast('Quotation created');
-    form.reset();
-    document.getElementById('line-items').innerHTML = '';
-    addLine();
-    document.getElementById('add-panel').style.display = 'none';
+    if (editingId) {
+      await api('/quotations/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Quotation updated');
+    } else {
+      await api('/quotations/', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Quotation created');
+    }
+    hideAddPanel();
     loadQuotations();
   } catch (err) { toast(err.message, true); }
 });

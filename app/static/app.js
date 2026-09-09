@@ -1,8 +1,37 @@
 // Shared helpers used across all pages.
 
+function getUserName() {
+  let name = localStorage.getItem('candela_user_name');
+  if (!name) {
+    name = prompt('Your name (shown in the activity log):', '') || 'Unknown';
+    localStorage.setItem('candela_user_name', name);
+  }
+  return name;
+}
+
+function setUserName() {
+  const current = localStorage.getItem('candela_user_name') || '';
+  const name = prompt('Your name (shown in the activity log):', current);
+  if (name !== null) {
+    localStorage.setItem('candela_user_name', name || 'Unknown');
+    updateUserNameLink();
+  }
+}
+
+function updateUserNameLink() {
+  const el = document.getElementById('user-name-link');
+  if (el) el.textContent = 'Signed in as ' + getUserName();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateUserNameLink();
+  const link = document.getElementById('user-name-link');
+  if (link) link.addEventListener('click', (e) => { e.preventDefault(); setUserName(); });
+});
+
 async function api(path, options = {}) {
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-User-Name': getUserName() },
     ...options,
   });
   if (!res.ok) {

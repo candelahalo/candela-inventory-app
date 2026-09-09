@@ -14,7 +14,7 @@ import os
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import url_to_disk_path
+from app.utils import url_to_disk_path, get_user_name, log_activity
 
 router = APIRouter(prefix="/quotations", tags=["Quotations"])
 templates = Jinja2Templates(directory="app/templates")
@@ -34,7 +34,7 @@ def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_
 
 
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
-def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db)):
+def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     customer = db.query(models.Customer).get(payload.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -55,6 +55,8 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
         quotation.items.append(models.QuotationItem(**item_data))
 
     db.add(quotation)
+    db.flush()
+    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "created")
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -68,11 +70,42 @@ def get_quotation(quotation_id: int, db: Session = Depends(get_db)):
     return quotation
 
 
-@router.delete("/{quotation_id}", status_code=204)
-def delete_quotation(quotation_id: int, db: Session = Depends(get_db)):
+@router.put("/{quotation_id}", response_model=schemas.QuotationOut)
+def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    customer = db.query(models.Customer).get(payload.customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Quotation must have at least one item")
+
+    data = payload.model_dump(exclude={"items"})
+    for key, value in data.items():
+        setattr(quotation, key, value)
+
+    quotation.items.clear()
+    db.flush()
+    for item in payload.items:
+        prod = db.query(models.Product).get(item.product_id)
+        item_data = item.model_dump()
+        if not item_data.get("description") and prod and prod.spec_summary:
+            item_data["description"] = prod.spec_summary
+        quotation.items.append(models.QuotationItem(**item_data))
+
+    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "updated")
+    db.commit()
+    db.refresh(quotation)
+    return quotation
+
+
+@router.delete("/{quotation_id}", status_code=204)
+def delete_quotation(quotation_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+    quotation = db.query(models.Quotation).get(quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "deleted")
     db.delete(quotation)
     db.commit()
     return None

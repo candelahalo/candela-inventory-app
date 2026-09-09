@@ -200,6 +200,19 @@ class ProjectStatusHistory(Base):
     project = relationship("Project", back_populates="status_history")
 
 
+class ActivityLog(Base):
+    __tablename__ = "activity_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_type = Column(String(64), nullable=False, index=True)  # "product", "customer", "quotation", ...
+    entity_id = Column(Integer, nullable=True)
+    entity_label = Column(String(255))  # human-readable name/number for display
+    action = Column(String(32), nullable=False)  # "created", "updated", "deleted", "status_changed"
+    details = Column(String(500))
+    performed_by = Column(String(120), default="Unknown")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Datasheet(Base):
     __tablename__ = "datasheets"
 

@@ -34,6 +34,11 @@ def ui_datasheets(request: Request):
     return templates.TemplateResponse("datasheets.html", {"request": request, "active": "datasheets"})
 
 
+@router.get("/activity")
+def ui_activity(request: Request):
+    return templates.TemplateResponse("activity.html", {"request": request, "active": "activity"})
+
+
 @router.get("/quotations")
 def ui_quotations(request: Request):
     return templates.TemplateResponse("quotations.html", {"request": request, "active": "quotations"})

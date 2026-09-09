@@ -5,14 +5,17 @@ from sqlalchemy import func, case
 
 from app.database import get_db
 from app import models, schemas
+from app.utils import get_user_name, log_activity
 
 router = APIRouter(prefix="/stock", tags=["Stock"])
 
 
 @router.post("/warehouses", response_model=schemas.WarehouseOut, status_code=201)
-def create_warehouse(payload: schemas.WarehouseCreate, db: Session = Depends(get_db)):
+def create_warehouse(payload: schemas.WarehouseCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     wh = models.Warehouse(**payload.model_dump())
     db.add(wh)
+    db.flush()
+    log_activity(db, user, "warehouse", wh.id, wh.name, "created")
     db.commit()
     db.refresh(wh)
     return wh
@@ -24,42 +27,34 @@ def list_warehouses(db: Session = Depends(get_db)):
 
 
 @router.put("/warehouses/{warehouse_id}", response_model=schemas.WarehouseOut)
-def update_warehouse(warehouse_id: int, payload: schemas.WarehouseCreate, db: Session = Depends(get_db)):
+def update_warehouse(warehouse_id: int, payload: schemas.WarehouseCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     wh = db.query(models.Warehouse).get(warehouse_id)
     if not wh:
         raise HTTPException(status_code=404, detail="Warehouse not found")
     for key, value in payload.model_dump().items():
         setattr(wh, key, value)
+    log_activity(db, user, "warehouse", wh.id, wh.name, "updated")
     db.commit()
     db.refresh(wh)
     return wh
 
 
 @router.delete("/warehouses/{warehouse_id}", status_code=204)
-def delete_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
+def delete_warehouse(warehouse_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     wh = db.query(models.Warehouse).get(warehouse_id)
     if not wh:
         raise HTTPException(status_code=404, detail="Warehouse not found")
     in_use = db.query(models.StockMovement).filter(models.StockMovement.warehouse_id == warehouse_id).first()
     if in_use:
         raise HTTPException(status_code=400, detail="Cannot delete a warehouse with recorded stock movements")
+    log_activity(db, user, "warehouse", wh.id, wh.name, "deleted")
     db.delete(wh)
     db.commit()
     return None
 
 
-@router.delete("/movements/{movement_id}", status_code=204)
-def delete_movement(movement_id: int, db: Session = Depends(get_db)):
-    movement = db.query(models.StockMovement).get(movement_id)
-    if not movement:
-        raise HTTPException(status_code=404, detail="Movement not found")
-    db.delete(movement)
-    db.commit()
-    return None
-
-
 @router.post("/movements", response_model=schemas.StockMovementOut, status_code=201)
-def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(get_db)):
+def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     product = db.query(models.Product).get(payload.product_id)
     warehouse = db.query(models.Warehouse).get(payload.warehouse_id)
     if not product or not warehouse:
@@ -71,6 +66,12 @@ def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(
 
     movement = models.StockMovement(**payload.model_dump())
     db.add(movement)
+    db.flush()
+    log_activity(
+        db, user, "stock_movement", movement.id,
+        f"{product.sku} · {warehouse.name}", "created",
+        f"{payload.movement_type.value} {payload.quantity}",
+    )
     db.commit()
     db.refresh(movement)
     return movement
@@ -84,6 +85,18 @@ def list_movements(project_id: Optional[int] = None, product_id: Optional[int] =
     if product_id:
         q = q.filter(models.StockMovement.product_id == product_id)
     return q.order_by(models.StockMovement.created_at.desc()).all()
+
+
+@router.delete("/movements/{movement_id}", status_code=204)
+def delete_movement(movement_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+    movement = db.query(models.StockMovement).get(movement_id)
+    if not movement:
+        raise HTTPException(status_code=404, detail="Movement not found")
+    product = db.query(models.Product).get(movement.product_id)
+    log_activity(db, user, "stock_movement", movement.id, product.sku if product else "", "deleted")
+    db.delete(movement)
+    db.commit()
+    return None
 
 
 @router.get("/levels", response_model=List[schemas.StockLevel])
