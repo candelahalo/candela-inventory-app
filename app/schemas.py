@@ -121,6 +121,7 @@ class QuotationCreate(BaseModel):
     delivery_time: Optional[str] = "7-9 weeks from the date of order confirmation and advance payment"
     payment_terms: Optional[str] = "70% in advance, balance 30% before delivery."
     freight_charges: float = 0.0
+    transportation_charges: str = "500"
     vat_percent: float = 5.0
     prepared_by_name: Optional[str] = None
     prepared_by_title: Optional[str] = None
@@ -144,6 +145,7 @@ class QuotationOut(BaseModel):
     delivery_time: Optional[str]
     payment_terms: Optional[str]
     freight_charges: float
+    transportation_charges: Optional[str]
     vat_percent: float
     prepared_by_name: Optional[str]
     prepared_by_title: Optional[str]
@@ -153,6 +155,8 @@ class QuotationOut(BaseModel):
     grand_total: float
     vat_amount: float
     total_with_vat: float
+    transportation_amount: float
+    transportation_is_text: bool
 
 
 # ---------- Project ----------

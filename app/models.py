@@ -118,6 +118,7 @@ class Quotation(Base):
     delivery_time = Column(String(255), default="7-9 weeks from the date of order confirmation and advance payment")
     payment_terms = Column(String(255), default="70% in advance, balance 30% before delivery.")
     freight_charges = Column(Float, default=0.0)  # "Air Freight & Customs" style line
+    transportation_charges = Column(String(64), default="500")  # number (e.g. "500") or free text (e.g. "Included")
     vat_percent = Column(Float, default=5.0)
     prepared_by_name = Column(String(120))
     prepared_by_title = Column(String(120))
@@ -133,8 +134,26 @@ class Quotation(Base):
         return round(sum(item.line_total for item in self.items), 2)
 
     @property
+    def transportation_amount(self):
+        """Numeric value of transportation_charges, or 0 when it's free text
+        like 'Included' (which shouldn't be added to the total)."""
+        try:
+            return round(float(str(self.transportation_charges).strip()), 2)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @property
+    def transportation_is_text(self):
+        """True when the field holds words (e.g. 'Included') rather than a figure."""
+        try:
+            float(str(self.transportation_charges).strip())
+            return False
+        except (TypeError, ValueError):
+            return bool(str(self.transportation_charges or "").strip())
+
+    @property
     def grand_total(self):
-        return round(self.gross_total + (self.freight_charges or 0), 2)
+        return round(self.gross_total + (self.freight_charges or 0) + self.transportation_amount, 2)
 
     @property
     def vat_amount(self):

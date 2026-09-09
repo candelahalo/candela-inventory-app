@@ -465,6 +465,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     last_item_row = row - 1
 
     freight_row = None
+    transport_row = None
     subtotal_row = None
     gross_row = None
 
@@ -473,7 +474,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     totals_spec.append(("Gross Total", f"=SUM(G{first_item_row}:G{last_item_row})", False))
     if quotation.freight_charges:
         totals_spec.append(("Freight & Customs", quotation.freight_charges, False))
-    totals_spec.append(("Subtotal (VAT excl.)", None, False))       # filled in below
+    totals_spec.append(("Transportation", None, False))
+    totals_spec.append(("Subtotal (VAT excl.)", None, False))
     totals_spec.append((f"VAT ({quotation.vat_percent}%)", None, False))
     totals_spec.append(("Total Due", None, True))
 
@@ -485,24 +487,41 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         if label == "Gross Total":
             gross_row = row
             val_cell.value = value
+            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
         elif label == "Freight & Customs":
             freight_row = row
             val_cell.value = value
+            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
+        elif label == "Transportation":
+            transport_row = row
+            if quotation.transportation_is_text:
+                # Free text like "Included" - shown as-is and excluded from the sum
+                val_cell.value = quotation.transportation_charges
+            else:
+                val_cell.value = quotation.transportation_amount
+                val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
         elif label.startswith("Subtotal"):
             subtotal_row = row
-            val_cell.value = f"=G{gross_row}+G{freight_row}" if freight_row else f"=G{gross_row}"
+            parts = [f"G{gross_row}"]
+            if freight_row:
+                parts.append(f"G{freight_row}")
+            if transport_row and not quotation.transportation_is_text:
+                parts.append(f"G{transport_row}")
+            val_cell.value = "=" + "+".join(parts)
+            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
         elif label.startswith("VAT"):
             vat_row = row
             val_cell.value = f"=G{subtotal_row}*{quotation.vat_percent / 100}"
+            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
         else:
             val_cell.value = f"=G{subtotal_row}+G{vat_row}"
+            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
 
         f = Font(name=FONT, bold=True, size=12 if is_grand else 10, color=INK if is_grand else MUTED)
         lbl_cell.font = f
         val_cell.font = f
         lbl_cell.alignment = Alignment(horizontal="right", vertical="center")
         val_cell.alignment = center
-        val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
         if is_grand:
             top = Side(style="thin", color=INK)
             lbl_cell.border = Border(top=top)

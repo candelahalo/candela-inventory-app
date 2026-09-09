@@ -24,6 +24,7 @@
       <div class="field span2"><label>Delivery time</label><input name="delivery_time" value="7-9 weeks from the date of order confirmation and advance payment"></div>
       <div class="field span2"><label>Payment terms</label><input name="payment_terms" value="70% in advance, balance 30% before delivery."></div>
       <div class="field"><label>Freight & customs (optional)</label><input name="freight_charges" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Transportation (number or text)</label><input name="transportation_charges" value="500" placeholder="500 or Included"></div>
       <div class="field"><label>VAT %</label><input name="vat_percent" type="number" step="0.1" value="5"></div>
       <div class="field"><label>Prepared by (name)</label><input name="prepared_by_name" placeholder="Johns James"></div>
       <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" placeholder="Division Head — Residential Projects"></div>
@@ -122,6 +123,7 @@ async function editQuotation(id) {
   form.delivery_time.value = q.delivery_time || '';
   form.payment_terms.value = q.payment_terms || '';
   form.freight_charges.value = q.freight_charges;
+  form.transportation_charges.value = q.transportation_charges || '';
   form.vat_percent.value = q.vat_percent;
   form.prepared_by_name.value = q.prepared_by_name || '';
   form.prepared_by_title.value = q.prepared_by_title || '';
@@ -192,6 +194,8 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   if (payload.project_id) payload.project_id = parseInt(payload.project_id);
   payload.freight_charges = parseFloat(payload.freight_charges || 0);
   payload.vat_percent = parseFloat(payload.vat_percent || 0);
+  // Sent as a string so it can hold either a figure ("500") or words ("Included")
+  payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
   const editingId = document.getElementById('editing-id').value;
 
