@@ -38,7 +38,7 @@
 <div class="panel">
   <div class="table-scroll">
   <table>
-    <thead><tr><th style="width:60px;">Photo</th><th>SKU</th><th>Name</th><th>Category</th><th class="num">Cost</th><th class="num">Selling price</th><th class="num">Reorder level</th></tr></thead>
+    <thead><tr><th style="width:60px;">Photo</th><th>SKU</th><th>Name</th><th>Category</th><th class="num">Cost</th><th class="num">Selling price</th><th class="num">Reorder level</th><th></th></tr></thead>
     <tbody id="product-body"></tbody>
   </table>
   </div>
@@ -47,6 +47,7 @@
     <p>Add your first light fitting or automation product above.</p>
   </div>
 </div>
+<input type="file" id="row-image-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
 {% endblock %}
 
 {% block script %}
@@ -75,8 +76,33 @@ async function loadProducts() {
       <td class="num">${fmtMoney(p.cost_price)}</td>
       <td class="num">${fmtMoney(p.selling_price)}</td>
       <td class="num">${p.reorder_level}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" onclick="pickImage(${p.id})">${p.image_path ? 'Change photo' : 'Add photo'}</button></td>
     </tr>`).join('');
 }
+
+let currentImageProductId = null;
+
+function pickImage(productId) {
+  currentImageProductId = productId;
+  document.getElementById('row-image-input').click();
+}
+
+document.getElementById('row-image-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentImageProductId) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`/products/${currentImageProductId}/image`, { method: 'POST', body: fd });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Image upload failed'); }
+    toast('Photo updated');
+    loadProducts();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    e.target.value = '';
+  }
+});
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
