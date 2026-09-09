@@ -169,14 +169,18 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Quotation not found")
 
     from openpyxl.worksheet.page import PageMargins
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+    from openpyxl.cell.text import InlineFont
 
     wb = Workbook()
 
     INK = "201E1A"
     MUTED = "56503F"
+    FAINT = "9A9382"
     AMBER = "C77D0A"
     LINE = "DED6C2"
     PAPER = "FBF9F4"
+    FONT = "Calibri"
 
     center = Alignment(horizontal="center", vertical="center")
     center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -212,105 +216,124 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
 
     r = 6
     cover.merge_cells(f"B{r}:G{r}")
-    cover[f"B{r}"] = "COMMERCIAL PROPOSAL"
-    cover[f"B{r}"].font = Font(name="Calibri", size=10, bold=True, color=AMBER)
+    cover[f"B{r}"] = "C O M M E R C I A L   P R O P O S A L"
+    cover[f"B{r}"].font = Font(name=FONT, size=9, bold=True, color=AMBER)
+    cover.row_dimensions[r].height = 16
     r += 1
     cover.merge_cells(f"B{r}:G{r}")
     cover[f"B{r}"] = "Quotation"
-    cover[f"B{r}"].font = Font(name="Calibri", size=26, bold=True, color=INK)
+    cover[f"B{r}"].font = Font(name=FONT, size=30, bold=True, color=INK)
+    cover.row_dimensions[r].height = 42
     r += 1
     cover.merge_cells(f"B{r}:G{r}")
     cover[f"B{r}"] = quotation.subject or (quotation.project.name if quotation.project else "Supply of Lighting & Automation Fixtures")
-    cover[f"B{r}"].font = Font(size=12, color=MUTED)
+    cover[f"B{r}"].font = Font(name=FONT, size=12, color=MUTED)
+    cover.row_dimensions[r].height = 20
     r += 2
 
+    # Rule above the metadata block
+    for col in "BCDEFG":
+        cover[f"{col}{r}"].border = Border(top=Side(style="thin", color=LINE))
+    cover.row_dimensions[r].height = 6
+    r += 1
+
     meta = [
-        ("Quotation No.", quotation.quote_number, "Date", quotation.created_at.strftime("%d %B %Y")),
-        ("Prepared For", quotation.attention_to or quotation.customer.name,
-         "Project" if quotation.project else "Company",
+        ("QUOTATION NO.", quotation.quote_number, "DATE", quotation.created_at.strftime("%d %B %Y")),
+        ("PREPARED FOR", quotation.attention_to or quotation.customer.name,
+         "PROJECT" if quotation.project else "COMPANY",
          quotation.project.name if quotation.project else (quotation.customer.company or "—")),
     ]
-    top_border_row = r
     for left_label, left_val, right_label, right_val in meta:
         cover.merge_cells(f"B{r}:C{r}")
         cover[f"B{r}"] = left_label
-        cover[f"B{r}"].font = Font(size=8.5, bold=True, color=MUTED)
+        cover[f"B{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
+        cover.merge_cells(f"E{r}:G{r}")
+        cover[f"E{r}"] = right_label
+        cover[f"E{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
+        cover.row_dimensions[r].height = 13
         r += 1
         cover.merge_cells(f"B{r}:C{r}")
         cover[f"B{r}"] = left_val
-        cover[f"B{r}"].font = Font(size=11, color=INK)
-
-        cover.merge_cells(f"E{r-1}:G{r-1}")
-        cover[f"E{r-1}"] = right_label
-        cover[f"E{r-1}"].font = Font(size=8.5, bold=True, color=MUTED)
+        cover[f"B{r}"].font = Font(name=FONT, size=11, color=INK)
         cover.merge_cells(f"E{r}:G{r}")
         cover[f"E{r}"] = right_val
-        cover[f"E{r}"].font = Font(size=11, color=INK)
+        cover[f"E{r}"].font = Font(name=FONT, size=11, color=INK)
+        cover.row_dimensions[r].height = 18
         r += 2
-    bottom_border_row = r - 1
-    for row_i in (top_border_row - 1, bottom_border_row + 1):
-        cover.merge_cells(f"B{row_i}:G{row_i}")
-        for col in "BCDEFG":
-            cover[f"{col}{row_i}"].border = Border(top=Side(style="thin", color=LINE))
-    r += 1
+
+    # Rule below the metadata block
+    for col in "BCDEFG":
+        cover[f"{col}{r}"].border = Border(top=Side(style="thin", color=LINE))
+    cover.row_dimensions[r].height = 6
+    r += 2
+
+    cover.merge_cells(f"B{r}:G{r}")
+    cover[f"B{r}"] = f"Dear {quotation.attention_to or quotation.customer.name},"
+    cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
+    r += 2
 
     cover.merge_cells(f"B{r}:G{r+1}")
     cover[f"B{r}"] = (
-        f"Dear {quotation.attention_to or quotation.customer.name}, thank you for the opportunity to quote for your "
-        f"requirements. Please find our itemized schedule and commercial terms on the following sheets, together with "
-        f"our standard Terms & Conditions."
+        "Thank you for the opportunity to quote for your requirements. We are pleased to enclose our proposal, "
+        "with the itemized schedule and commercial terms set out on the following sheets, together with our "
+        "standard Terms & Conditions."
     )
-    cover[f"B{r}"].font = Font(size=10, color=INK)
+    cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
     cover[f"B{r}"].alignment = left_wrap
+    cover.row_dimensions[r].height = 16
+    cover.row_dimensions[r + 1].height = 16
     r += 3
 
     terms = [
-        ("Currency", f"United Arab Emirates Dirhams ({quotation.currency})"),
-        ("Scope", quotation.scope),
-        ("Delivery", quotation.delivery_time),
-        ("Validity", quotation.valid_until.strftime("%d %B %Y") if quotation.valid_until else "30 days from date of issue"),
-        ("Payment", quotation.payment_terms),
+        ("CURRENCY", f"United Arab Emirates Dirhams ({quotation.currency})"),
+        ("SCOPE", quotation.scope),
+        ("DELIVERY", quotation.delivery_time),
+        ("VALIDITY", quotation.valid_until.strftime("%d %B %Y") if quotation.valid_until else "30 days from date of issue"),
+        ("PAYMENT", quotation.payment_terms),
     ]
     for label, value in terms:
         cover.merge_cells(f"B{r}:C{r}")
         cover[f"B{r}"] = label
-        cover[f"B{r}"].font = Font(size=9.5, bold=True, color=MUTED)
+        cover[f"B{r}"].font = Font(name=FONT, size=9, bold=True, color=MUTED)
+        cover[f"B{r}"].alignment = Alignment(horizontal="left", vertical="center")
         cover.merge_cells(f"D{r}:G{r}")
         cover[f"D{r}"] = value
-        cover[f"D{r}"].font = Font(size=10, color=INK)
-        cover[f"D{r}"].alignment = left_wrap
-        cover.row_dimensions[r].height = 24
+        cover[f"D{r}"].font = Font(name=FONT, size=10.5, color=INK)
+        cover[f"D{r}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        cover.row_dimensions[r].height = 18
         r += 1
     r += 2
 
     cover.merge_cells(f"B{r}:G{r}")
-    cover[f"B{r}"] = "We trust this proposal meets your requirements and look forward to your confirmation."
-    cover[f"B{r}"].font = Font(size=10, italic=True, color=MUTED)
+    cover[f"B{r}"] = "We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below."
+    cover[f"B{r}"].font = Font(name=FONT, size=10.5, color=INK)
+    cover[f"B{r}"].alignment = left_wrap
     r += 4
 
     cover.merge_cells(f"B{r}:C{r}")
     cover[f"B{r}"] = "FOR CANDELA LIGHTING AND AUTOMATION LLC"
-    cover[f"B{r}"].font = Font(size=8, bold=True, color=MUTED)
+    cover[f"B{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
     cover.merge_cells(f"E{r}:G{r}")
     cover[f"E{r}"] = "ACCEPTED BY CLIENT"
-    cover[f"E{r}"].font = Font(size=8, bold=True, color=MUTED)
+    cover[f"E{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
     r += 3
-    cover.merge_cells(f"B{r}:C{r}")
-    cover[f"B{r}"].border = thin_bottom
-    cover.merge_cells(f"E{r}:G{r}")
-    cover[f"E{r}"].border = thin_bottom
+    for col_range in ("B:C", "E:G"):
+        start, end = col_range.split(":")
+        cover.merge_cells(f"{start}{r}:{end}{r}")
+        for c in [chr(x) for x in range(ord(start), ord(end) + 1)]:
+            cover[f"{c}{r}"].border = thin_bottom
     r += 1
     cover.merge_cells(f"B{r}:C{r}")
     cover[f"B{r}"] = quotation.prepared_by_name or "Authorized Signatory"
-    cover[f"B{r}"].font = Font(size=10, bold=True, color=INK)
+    cover[f"B{r}"].font = Font(name=FONT, size=11, bold=True, color=INK)
     cover.merge_cells(f"E{r}:G{r}")
     cover[f"E{r}"] = "Name, signature & date"
-    cover[f"E{r}"].font = Font(size=9, color=MUTED)
+    cover[f"E{r}"].font = Font(name=FONT, size=9.5, color=MUTED)
     r += 1
     if quotation.prepared_by_title:
         cover.merge_cells(f"B{r}:C{r}")
         cover[f"B{r}"] = quotation.prepared_by_title
-        cover[f"B{r}"].font = Font(size=9, color=MUTED)
+        cover[f"B{r}"].font = Font(name=FONT, size=9.5, color=MUTED)
 
     cover.page_setup.orientation = "portrait"
     cover.page_setup.fitToWidth = 1
@@ -337,37 +360,53 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
 
     ws.merge_cells("A3:G3")
     ws["A3"] = "Itemized Schedule"
-    ws["A3"].font = Font(name="Calibri", size=16, bold=True, color=INK)
+    ws["A3"].font = Font(name=FONT, size=17, bold=True, color=INK)
+    ws.row_dimensions[3].height = 24
     ws.merge_cells("A4:G4")
     ws["A4"] = quotation.subject or (quotation.project.name if quotation.project else "")
-    ws["A4"].font = Font(size=10, color=MUTED)
+    ws["A4"].font = Font(name=FONT, size=10, color=FAINT)
     r = 6
 
     header_row = r
-    headers = ["#", "Image", "Description", "Unit", "Qty", "Price", "Total"]
+    headers = ["#", "IMAGE", "DESCRIPTION", "UNIT", "QTY", "PRICE", "TOTAL"]
     for i, h in enumerate(headers):
         cell = ws.cell(row=header_row, column=i + 1, value=h)
         cell.fill = PatternFill(start_color=INK, end_color=INK, fill_type="solid")
-        cell.font = Font(color="FFFFFF", bold=True, size=10)
+        cell.font = Font(name=FONT, color="FFFFFF", bold=True, size=8.5)
         cell.alignment = center
         cell.border = border
+    ws.row_dimensions[header_row].height = 20
+
+    title_font = InlineFont(rFont=FONT, b=True, sz=10, color=INK)
+    type_font = InlineFont(rFont=FONT, b=True, sz=8.5, color=AMBER)
+    brand_font = InlineFont(rFont=FONT, b=False, sz=10, color=FAINT)
+    spec_font = InlineFont(rFont=FONT, b=False, sz=8.5, color=MUTED)
 
     row = header_row + 1
     for idx, item in enumerate(quotation.items, start=1):
         product = item.product
-        title = f"{(item.type_code + ' — ') if item.type_code else ''}{product.name if product else ''}"
-        if product and product.brand:
-            title += f" ({product.brand})"
-
         fill = PatternFill(start_color=PAPER, end_color=PAPER, fill_type="solid") if idx % 2 == 0 else None
 
-        c = ws.cell(row=row, column=1, value=idx); c.alignment = center; c.border = border
+        c = ws.cell(row=row, column=1, value=idx)
+        c.alignment = center
+        c.border = border
+        c.font = Font(name=FONT, size=9.5, color=INK)
         if fill: c.fill = fill
 
+        # Rich-text description block: type code (amber) / product name (bold) /
+        # brand (faint) / spec lines (small muted) - mirrors the PDF layout.
+        blocks = []
+        if item.type_code:
+            blocks.append(TextBlock(type_font, item.type_code + "\n"))
+        blocks.append(TextBlock(title_font, product.name if product else ""))
+        if product and product.brand:
+            blocks.append(TextBlock(brand_font, f"  — {product.brand}"))
+        if item.description:
+            blocks.append(TextBlock(spec_font, "\n" + item.description))
+
         desc_cell = ws.cell(row=row, column=3)
-        desc_cell.value = title + ("\n" + item.description if item.description else "")
-        desc_cell.font = Font(bold=True, size=10)
-        desc_cell.alignment = left_wrap
+        desc_cell.value = CellRichText(*blocks)
+        desc_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         desc_cell.border = border
         if fill: desc_cell.fill = fill
 
@@ -376,21 +415,25 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
             c = ws.cell(row=row, column=col, value=val)
             c.alignment = center
             c.border = border
+            c.font = Font(name=FONT, size=9.5, color=INK)
             if fill: c.fill = fill
             if col in (6, 7):
                 c.number_format = '#,##0.00'
 
         b = ws.cell(row=row, column=2); b.border = border
         if fill: b.fill = fill
-        ws.row_dimensions[row].height = 62
+
+        # Size the row to fit the spec text so nothing gets clipped
+        spec_lines = (item.description or "").count("\n") + 1 if item.description else 0
+        ws.row_dimensions[row].height = max(62, 26 + spec_lines * 11)
 
         if product and product.image_path:
             disk_path = url_to_disk_path(product.image_path)
             if os.path.exists(disk_path):
                 try:
                     xl_img = XLImage(disk_path)
-                    xl_img.height = 56
-                    xl_img.width = 56
+                    xl_img.height = 52
+                    xl_img.width = 52
                     ws.add_image(xl_img, f"B{row}")
                 except Exception:
                     pass
@@ -446,7 +489,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
 
     r = 6
     tc[f"B{r}"] = "Terms & Conditions"
-    tc[f"B{r}"].font = Font(name="Calibri", size=16, bold=True, color=INK)
+    tc[f"B{r}"].font = Font(name=FONT, size=17, bold=True, color=INK)
+    tc.row_dimensions[r].height = 24
     r += 2
 
     sections = [
@@ -470,13 +514,14 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     ]
     for title, bullets in sections:
         tc[f"B{r}"] = title
-        tc[f"B{r}"].font = Font(size=12, bold=True, color=AMBER)
+        tc[f"B{r}"].font = Font(name=FONT, size=11, bold=True, color=AMBER)
+        tc.row_dimensions[r].height = 18
         r += 1
         for bullet in bullets:
             tc[f"B{r}"] = "•  " + bullet
-            tc[f"B{r}"].font = Font(size=10, color=INK)
+            tc[f"B{r}"].font = Font(name=FONT, size=9.5, color=INK)
             tc[f"B{r}"].alignment = left_wrap
-            tc.row_dimensions[r].height = 30
+            tc.row_dimensions[r].height = 13 * (1 + len(bullet) // 105)
             r += 1
         r += 1
 
