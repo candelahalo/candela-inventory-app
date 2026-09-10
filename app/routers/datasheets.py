@@ -90,6 +90,30 @@ def download_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.put("/{datasheet_id}", response_model=schemas.DatasheetOut)
+def update_datasheet(
+    datasheet_id: int,
+    title: str = Form(...),
+    brand: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    product_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+    user: str = Depends(get_user_name),
+):
+    """Update a datasheet's labels (the PDF itself is not replaced)."""
+    datasheet = db.query(models.Datasheet).get(datasheet_id)
+    if not datasheet:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    datasheet.title = title
+    datasheet.brand = brand
+    datasheet.category = category
+    datasheet.product_id = product_id
+    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "updated")
+    db.commit()
+    db.refresh(datasheet)
+    return datasheet
+
+
 @router.delete("/{datasheet_id}", status_code=204)
 def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
     datasheet = db.query(models.Datasheet).get(datasheet_id)

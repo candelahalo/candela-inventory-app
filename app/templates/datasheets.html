@@ -10,18 +10,19 @@
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2>Upload a datasheet</h2>
+  <h2 id="ds-form-title">Upload a datasheet</h2>
   <form id="datasheet-form">
+    <input type="hidden" id="ds-editing-id">
     <div class="form-grid">
       <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom - Track Spotlight"></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
       <div class="field"><label>Category</label><input name="category" placeholder="Track Lighting, LED Drivers, ..."></div>
       <div class="field span2"><label>Link to product (optional)</label><select name="product_id" id="ds-product"><option value="">— None —</option></select></div>
-      <div class="field span2"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf" required></div>
+      <div class="field span2" id="ds-file-field"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf"></div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn">Upload</button>
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-panel').style.display='none';">Cancel</button>
+      <button type="button" class="btn btn-ghost" onclick="resetDatasheetForm();">Cancel</button>
     </div>
   </form>
 </div>
@@ -61,6 +62,7 @@ function renderDatasheets(list) {
     actions: d => `
       <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/preview" target="_blank">Preview</a>
       <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/download">Download</a>
+      <button class="btn btn-ghost btn-sm" onclick="editDatasheet(${d.id})">Edit</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteDatasheet(${d.id})">Delete</button>
     `,
   });
@@ -96,25 +98,53 @@ async function deleteDatasheet(id) {
 document.getElementById('filter-brand').addEventListener('change', applyFilters);
 document.getElementById('filter-category').addEventListener('change', applyFilters);
 
+function editDatasheet(id) {
+  const d = allDatasheets.find(x => x.id === id);
+  if (!d) return;
+  const form = document.getElementById('datasheet-form');
+  form.title.value = d.title;
+  form.brand.value = d.brand || '';
+  form.category.value = d.category || '';
+  form.product_id.value = d.product_id || '';
+  document.getElementById('ds-editing-id').value = id;
+  document.getElementById('ds-form-title').textContent = 'Edit datasheet details';
+  document.getElementById('ds-file-field').style.display = 'none';
+  document.getElementById('add-panel').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetDatasheetForm() {
+  document.getElementById('datasheet-form').reset();
+  document.getElementById('ds-editing-id').value = '';
+  document.getElementById('ds-form-title').textContent = 'Upload a datasheet';
+  document.getElementById('ds-file-field').style.display = '';
+  document.getElementById('add-panel').style.display = 'none';
+}
+
 document.getElementById('datasheet-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
+  const editingId = document.getElementById('ds-editing-id').value;
   const file = document.getElementById('ds-file').files[0];
-  if (!file) { toast('Choose a PDF file', true); return; }
+  if (!editingId && !file) { toast('Choose a PDF file', true); return; }
 
   const fd = new FormData();
   fd.append('title', form.title.value);
   fd.append('brand', form.brand.value);
   fd.append('category', form.category.value);
   if (form.product_id.value) fd.append('product_id', form.product_id.value);
-  fd.append('file', file);
+  if (file) fd.append('file', file);
 
   try {
-    const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
-    toast('Datasheet uploaded');
-    form.reset();
-    document.getElementById('add-panel').style.display = 'none';
+    const url = editingId ? `/datasheets/${editingId}` : '/datasheets/';
+    const res = await fetch(url, {
+      method: editingId ? 'PUT' : 'POST',
+      body: fd,
+      headers: { 'X-User-Name': getUserName() },
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Save failed'); }
+    toast(editingId ? 'Datasheet updated' : 'Datasheet uploaded');
+    resetDatasheetForm();
     loadDatasheets();
   } catch (err) {
     toast(err.message, true);
