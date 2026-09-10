@@ -6,9 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import save_datasheet, url_to_disk_path, get_user_name, log_activity
+from app.utils import save_datasheet, url_to_disk_path, log_activity
+from app import auth
 
-router = APIRouter(prefix="/datasheets", tags=["Datasheets"])
+router = APIRouter(prefix="/datasheets", tags=["Datasheets"],
+                   dependencies=[Depends(auth.get_current_user)])
+
+# Preview/download are mounted on a separate, unauthenticated router:
+# quotation PDFs sent to clients link straight to a product's datasheet,
+# and a client has no login. Manufacturer spec sheets are public marketing
+# material, so this is deliberate - but it does mean anyone with the link
+# can open that PDF.
+public_router = APIRouter(prefix="/datasheets", tags=["Datasheets (public)"])
 
 
 @router.get("/", response_model=List[schemas.DatasheetOut])
@@ -36,7 +45,7 @@ def upload_datasheet(
     product_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: str = Depends(get_user_name),
+    current: models.User = Depends(auth.get_current_user),
 ):
     if product_id:
         product = db.query(models.Product).get(product_id)
@@ -50,13 +59,13 @@ def upload_datasheet(
     )
     db.add(datasheet)
     db.flush()
-    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "created")
+    log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "created")
     db.commit()
     db.refresh(datasheet)
     return datasheet
 
 
-@router.get("/{datasheet_id}/preview")
+@public_router.get("/{datasheet_id}/preview")
 def preview_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
     """Serve the PDF inline so it opens in the browser's built-in viewer."""
     datasheet = db.query(models.Datasheet).get(datasheet_id)
@@ -73,7 +82,7 @@ def preview_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{datasheet_id}/download")
+@public_router.get("/{datasheet_id}/download")
 def download_datasheet(datasheet_id: int, db: Session = Depends(get_db)):
     """Serve the PDF as an attachment, using its original filename."""
     datasheet = db.query(models.Datasheet).get(datasheet_id)
@@ -98,7 +107,7 @@ def update_datasheet(
     category: Optional[str] = Form(None),
     product_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
-    user: str = Depends(get_user_name),
+    current: models.User = Depends(auth.get_current_user),
 ):
     """Update a datasheet's labels (the PDF itself is not replaced)."""
     datasheet = db.query(models.Datasheet).get(datasheet_id)
@@ -108,21 +117,21 @@ def update_datasheet(
     datasheet.brand = brand
     datasheet.category = category
     datasheet.product_id = product_id
-    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "updated")
+    log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "updated")
     db.commit()
     db.refresh(datasheet)
     return datasheet
 
 
 @router.delete("/{datasheet_id}", status_code=204)
-def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     datasheet = db.query(models.Datasheet).get(datasheet_id)
     if not datasheet:
         raise HTTPException(status_code=404, detail="Datasheet not found")
     file_on_disk = url_to_disk_path(datasheet.file_path)
     if os.path.exists(file_on_disk):
         os.remove(file_on_disk)
-    log_activity(db, user, "datasheet", datasheet.id, datasheet.title, "deleted")
+    log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "deleted")
     db.delete(datasheet)
     db.commit()
     return None

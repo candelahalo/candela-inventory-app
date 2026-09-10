@@ -469,3 +469,38 @@ th.num { }
   .product-detail-grid { grid-template-columns: 1fr; }
   .photo-box { max-width: 280px; }
 }
+
+/* ---------- Login page ---------- */
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  padding: 24px;
+  margin: 0;
+}
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 36px 32px 32px;
+  box-shadow: 0 4px 24px rgba(32, 30, 26, 0.06);
+}
+.login-logo { height: 34px; width: auto; display: block; margin-bottom: 28px; }
+.login-card h1 { font-family: var(--font-head); font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.login-sub { color: var(--muted); font-size: 13.5px; margin: 0 0 24px; }
+.login-card .field { margin-bottom: 14px; }
+.login-error { color: var(--red); font-size: 13px; min-height: 18px; margin-top: 4px; }
+
+/* Sidebar foot with sign out */
+.sidebar-foot #user-name-link { color: #B9B4A8; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.sidebar-foot #sign-out-link { color: #8A8578; font-size: 12.5px; }
+
+.inline-check {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--muted); cursor: pointer; margin-top: 4px;
+}
+.inline-check input { width: auto; }

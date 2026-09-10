@@ -6,33 +6,40 @@
 <title>{% block title %}Candela{% endblock %} — Operations</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=23">
+<link rel="stylesheet" href="/static/style.css?v=24">
 </head>
 <body>
+<script>
+  // Bounce straight to sign-in if there's no session, so a protected page
+  // never flashes its shell before the API rejects it.
+  if (!localStorage.getItem('candela_token')) location.replace('/login');
+</script>
 <div class="shell">
   <aside class="sidebar">
     <div class="brand">
       <img src="/static/candela-logo-white.png" alt="Candela" class="brand-logo">
     </div>
     <nav class="nav">
-      <a href="/" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
-      <a href="/projects" class="{{ 'active' if active == 'projects' else '' }}">Projects</a>
-      <a href="/quotations" class="{{ 'active' if active == 'quotations' else '' }}">Quotations</a>
-      <a href="/stock" class="{{ 'active' if active == 'stock' else '' }}">Stock</a>
-      <a href="/products" class="{{ 'active' if active == 'products' else '' }}">Products</a>
-      <a href="/customers" class="{{ 'active' if active == 'customers' else '' }}">Customers</a>
-      <a href="/activity" class="{{ 'active' if active == 'activity' else '' }}">Activity</a>
+      <a href="/" data-screen="dashboard" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
+      <a href="/projects" data-screen="projects" class="{{ 'active' if active == 'projects' else '' }}">Projects</a>
+      <a href="/quotations" data-screen="quotations" class="{{ 'active' if active == 'quotations' else '' }}">Quotations</a>
+      <a href="/stock" data-screen="stock" class="{{ 'active' if active == 'stock' else '' }}">Stock</a>
+      <a href="/products" data-screen="products" class="{{ 'active' if active == 'products' else '' }}">Products</a>
+      <a href="/customers" data-screen="customers" class="{{ 'active' if active == 'customers' else '' }}">Customers</a>
+      <a href="/activity" data-screen="activity" class="{{ 'active' if active == 'activity' else '' }}">Activity</a>
+      <a href="/settings" data-screen="settings" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
     </nav>
     <div class="sidebar-foot">
-      <a href="#" id="user-name-link">Signed in as —</a>
+      <div id="user-name-link">—</div>
+      <a href="#" id="sign-out-link">Sign out</a>
     </div>
   </aside>
   <main class="content">
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="/static/app.js?v=23"></script>
-<script src="/static/datatable.js?v=23"></script>
+<script src="/static/app.js?v=24"></script>
+<script src="/static/datatable.js?v=24"></script>
 {% block script %}{% endblock %}
 </body>
 </html>

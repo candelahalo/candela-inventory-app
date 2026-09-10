@@ -252,6 +252,34 @@ class ProjectStatusHistory(Base):
     project = relationship("Project", back_populates="status_history")
 
 
+class User(Base):
+    """A staff login. Roles are a plain string rather than an enum so new
+    ones can be added without a schema change."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(64), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(120), nullable=False)
+    role = Column(String(32), nullable=False, default="sales")
+    # Comma-separated screens this user may open. Empty means "use the
+    # role default", so existing accounts keep working unchanged.
+    permissions = Column(Text, default="")
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Backup(Base):
+    """A point-in-time snapshot of the business data, stored as JSON."""
+    __tablename__ = "backups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String(16), default="manual")  # "manual" | "auto"
+    created_by = Column(String(120))
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class ActivityLog(Base):
     __tablename__ = "activity_log"
 

@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import products, stock, customers, quotations, projects, datasheets, activity, ui
+from app.routers import (products, stock, customers, quotations, projects,
+                         datasheets, activity, auth_router, backup, ui)
 
 app = FastAPI(title="Candela Inventory, Stock & Project Tracker", version="0.4.0")
 
@@ -23,8 +24,11 @@ app.include_router(stock.router)
 app.include_router(customers.router)
 app.include_router(quotations.router)
 app.include_router(projects.router)
+app.include_router(datasheets.public_router)
 app.include_router(datasheets.router)
 app.include_router(activity.router)
+app.include_router(auth_router.router)
+app.include_router(backup.router)
 
 # Server-rendered UI (dashboard, forms) - mounted last so it doesn't shadow API paths
 app.include_router(ui.router)

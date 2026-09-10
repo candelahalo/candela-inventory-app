@@ -140,7 +140,7 @@ document.getElementById('datasheet-form').addEventListener('submit', async (e) =
     const res = await fetch(url, {
       method: editingId ? 'PUT' : 'POST',
       body: fd,
-      headers: { 'X-User-Name': getUserName() },
+      headers: authHeaders(),
     });
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Save failed'); }
     toast(editingId ? 'Datasheet updated' : 'Datasheet uploaded');

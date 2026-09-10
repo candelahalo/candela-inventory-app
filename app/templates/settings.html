@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p>Your password, staff logins, and backups.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Change Your Password</h2>
+  <form id="password-form">
+    <div class="form-grid">
+      <div class="field"><label>Current password</label><input type="password" id="pw-current" required></div>
+      <div class="field"><label>New password (min 6 characters)</label><input type="password" id="pw-new" required></div>
+    </div>
+    <label class="inline-check">
+      <input type="checkbox" onchange="togglePw(this)"> Show passwords
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn">Change password</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel" id="users-card" style="display:none;">
+  <div class="page-head" style="margin-bottom:16px;">
+    <h2 style="margin:0;">Staff Logins</h2>
+  </div>
+  <form id="user-form">
+    <div class="form-grid">
+      <div class="field"><label>Username</label><input name="username" required></div>
+      <div class="field"><label>Full name</label><input name="full_name" placeholder="Optional"></div>
+      <div class="field"><label>Password</label><input name="password" type="password" required></div>
+      <div class="field"><label>Role</label>
+        <select name="role">
+          <option value="sales">Sales</option>
+          <option value="store">Store</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Add login</button>
+    </div>
+  </form>
+  <div id="users-table" style="margin-top:18px;"></div>
+</div>
+
+<div class="panel">
+  <h2>Backup</h2>
+  <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px; max-width:760px;">
+    The whole system as one file: products, stock movements, customers, projects,
+    quotations and datasheet records. An automatic backup is taken once a day, keeping a
+    rolling 40 days; backups you take yourself are kept permanently. Anyone can take or
+    download one — only an admin can restore or delete.
+    <strong>Note:</strong> uploaded photos and datasheet PDFs are files on the server and
+    are not inside this backup — back those up separately.
+  </p>
+  <button class="btn btn-ghost" id="take-backup-btn">Take backup now</button>
+  <div id="backups-table" style="margin-top:16px;"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let me = null;
+
+function togglePw(cb) {
+  const type = cb.checked ? 'text' : 'password';
+  document.getElementById('pw-current').type = type;
+  document.getElementById('pw-new').type = type;
+}
+
+document.getElementById('password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const current_password = document.getElementById('pw-current').value;
+  const new_password = document.getElementById('pw-new').value;
+  try {
+    await api('/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password, new_password }) });
+    toast('Password changed');
+    e.target.reset();
+  } catch (err) { toast(err.message, true); }
+});
+
+// ---------- Staff logins (admin only) ----------
+async function loadUsers() {
+  const users = await api('/users');
+  DataTable.render({
+    containerId: 'users-table',
+    storageKey: 'users',
+    emptyMessage: 'No logins yet.',
+    columns: [
+      { key: 'username', label: 'Username', value: u => u.username, render: u => `<span class="mono">${u.username}</span>` },
+      { key: 'full_name', label: 'Name', value: u => u.full_name, render: u => u.full_name },
+      { key: 'role', label: 'Role', value: u => u.role, render: u => `<span class="badge">${u.role}</span>` },
+      { key: 'created', label: 'Created', value: u => u.created_at, render: u => fmtDate(u.created_at) },
+    ],
+    rows: users,
+    actions: u => `
+      <button class="btn btn-ghost btn-sm" onclick="resetPassword(${u.id}, '${u.username}')">Reset password</button>
+      ${u.username === me.username ? '' : `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>`}
+    `,
+  });
+}
+
+document.getElementById('user-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  try {
+    await api('/users', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Login created');
+    e.target.reset();
+    loadUsers();
+  } catch (err) { toast(err.message, true); }
+});
+
+async function resetPassword(id, username) {
+  const pw = prompt(`New password for ${username} (leave blank to generate one):`, '');
+  if (pw === null) return;
+  try {
+    const r = await api('/users/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({ new_password: pw || null }) });
+    alert(`Password for ${r.username} is now:\n\n${r.password}\n\nPass this on — it won't be shown again.`);
+  } catch (err) { toast(err.message, true); }
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete the login for ${username}?`)) return;
+  try {
+    await api('/users/' + id, { method: 'DELETE' });
+    toast('Login deleted');
+    loadUsers();
+  } catch (err) { toast(err.message, true); }
+}
+
+// ---------- Backups ----------
+async function loadBackups() {
+  const backups = await api('/backup/');
+  DataTable.render({
+    containerId: 'backups-table',
+    storageKey: 'backups',
+    emptyMessage: 'No backups yet — take one above.',
+    columns: [
+      { key: 'date', label: 'Date', value: b => b.created_at, render: b => fmtDate(b.created_at) },
+      { key: 'kind', label: 'Type', value: b => b.kind, render: b => `<span class="badge">${b.kind}</span>` },
+      { key: 'by', label: 'By', value: b => b.created_by || '', render: b => b.created_by || '—' },
+    ],
+    rows: backups,
+    actions: b => `
+      <button class="btn btn-ghost btn-sm" onclick="downloadBackup(${b.id})">Download</button>
+      ${me && me.is_admin ? `
+        <button class="btn btn-ghost btn-sm" onclick="restoreBackup(${b.id})">Restore</button>
+        <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteBackup(${b.id})">Delete</button>
+      ` : ''}
+    `,
+  });
+}
+
+document.getElementById('take-backup-btn').addEventListener('click', async () => {
+  try {
+    await api('/backup/', { method: 'POST' });
+    toast('Backup taken');
+    loadBackups();
+  } catch (err) { toast(err.message, true); }
+});
+
+async function downloadBackup(id) {
+  try {
+    // Downloads open via plain navigation, which can't send an auth header,
+    // so a short-lived download-only token travels in the URL instead.
+    const r = await api('/auth/download-token', { method: 'POST' });
+    window.open(`/backup/${id}/download?token=${encodeURIComponent(r.token)}`, '_blank');
+  } catch (err) { toast(err.message, true); }
+}
+
+async function restoreBackup(id) {
+  if (!confirm(`Restore from backup #${id}?\n\nThis replaces ALL current data with the contents of that backup. A safety backup of the current state is taken first.`)) return;
+  try {
+    const r = await api('/backup/' + id + '/restore', { method: 'POST' });
+    toast(r.detail);
+    setTimeout(() => location.reload(), 1200);
+  } catch (err) { toast(err.message, true); }
+}
+
+async function deleteBackup(id) {
+  if (!confirm('Delete this backup?')) return;
+  try {
+    await api('/backup/' + id, { method: 'DELETE' });
+    toast('Backup deleted');
+    loadBackups();
+  } catch (err) { toast(err.message, true); }
+}
+
+(async () => {
+  me = await api('/auth/me');
+  if (me.is_admin) {
+    document.getElementById('users-card').style.display = '';
+    await loadUsers();
+  }
+  await loadBackups();
+})();
+</script>
+{% endblock %}

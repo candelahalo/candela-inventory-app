@@ -45,6 +45,16 @@ def ui_datasheets(request: Request):
     return templates.TemplateResponse("datasheets.html", {"request": request, "active": "datasheets"})
 
 
+@router.get("/login")
+def ui_login(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request, "active": "login"})
+
+
+@router.get("/settings")
+def ui_settings(request: Request):
+    return templates.TemplateResponse("settings.html", {"request": request, "active": "settings"})
+
+
 @router.get("/activity")
 def ui_activity(request: Request):
     return templates.TemplateResponse("activity.html", {"request": request, "active": "activity"})

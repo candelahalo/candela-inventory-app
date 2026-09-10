@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import get_user_name, log_activity
+from app.utils import log_activity
+from app import auth
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+router = APIRouter(prefix="/projects", tags=["Projects"],
+                   dependencies=[Depends(auth.get_current_user)])
 
 
 def _next_project_number(db: Session) -> str:
@@ -23,7 +25,7 @@ def list_projects(status: Optional[models.ProjectStatus] = None, db: Session = D
 
 
 @router.post("/", response_model=schemas.ProjectOut, status_code=201)
-def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     customer = db.query(models.Customer).get(payload.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -44,7 +46,7 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
     project.status_history.append(
         models.ProjectStatusHistory(status=models.ProjectStatus.enquiry, notes="Project created")
     )
-    log_activity(db, user, "project", project.id, f"{project.project_number} — {project.name}", "created")
+    log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}", "created")
 
     db.commit()
     db.refresh(project)
@@ -60,31 +62,31 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{project_id}", response_model=schemas.ProjectOut)
-def update_project(project_id: int, payload: schemas.ProjectCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def update_project(project_id: int, payload: schemas.ProjectCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Project).get(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     for key, value in payload.model_dump().items():
         setattr(project, key, value)
-    log_activity(db, user, "project", project.id, f"{project.project_number} — {project.name}", "updated")
+    log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}", "updated")
     db.commit()
     db.refresh(project)
     return project
 
 
 @router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def delete_project(project_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Project).get(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    log_activity(db, user, "project", project.id, f"{project.project_number} — {project.name}", "deleted")
+    log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}", "deleted")
     db.delete(project)
     db.commit()
     return None
 
 
 @router.post("/{project_id}/status", response_model=schemas.ProjectOut)
-def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     """
     Advance (or otherwise change) a project's live status. Every change is
     recorded in status_history so the full timeline of a job is auditable.
@@ -97,8 +99,7 @@ def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate,
     project.status_history.append(
         models.ProjectStatusHistory(status=payload.status, notes=payload.notes)
     )
-    log_activity(
-        db, user, "project", project.id, f"{project.project_number} — {project.name}",
+    log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}",
         "status_changed", f"Moved to {payload.status.value}",
     )
     db.commit()

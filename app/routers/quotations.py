@@ -13,10 +13,12 @@ import os
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import url_to_disk_path, get_user_name, log_activity, is_admin
+from app.utils import url_to_disk_path, log_activity
+from app import auth
 from app.settings import BASE_URL
 
-router = APIRouter(prefix="/quotations", tags=["Quotations"])
+router = APIRouter(prefix="/quotations", tags=["Quotations"],
+                   dependencies=[Depends(auth.get_current_user)])
 templates = Jinja2Templates(directory="app/templates")
 
 # Cost/margin fields are stripped from API responses for non-admin users.
@@ -44,17 +46,17 @@ def _next_quote_number(db: Session) -> str:
 
 
 @router.get("/")
-def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
+def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     q = db.query(models.Quotation)
     if project_id:
         q = q.filter(models.Quotation.project_id == project_id)
     rows = q.order_by(models.Quotation.created_at.desc()).all()
     payload = [schemas.QuotationOut.model_validate(r).model_dump(mode="json") for r in rows]
-    return _strip_margin(payload, admin)
+    return _strip_margin(payload, current.role == "admin")
 
 
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
-def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     customer = db.query(models.Customer).get(payload.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -80,23 +82,23 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
 
     db.add(quotation)
     db.flush()
-    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "created")
+    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "created")
     db.commit()
     db.refresh(quotation)
     return quotation
 
 
 @router.get("/{quotation_id}")
-def get_quotation(quotation_id: int, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
+def get_quotation(quotation_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
     payload = schemas.QuotationOut.model_validate(quotation).model_dump(mode="json")
-    return _strip_margin(payload, admin)
+    return _strip_margin(payload, current.role == "admin")
 
 
 @router.put("/{quotation_id}", response_model=schemas.QuotationOut)
-def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
@@ -123,18 +125,18 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
             item_data["unit_cost"] = prod.cost_price if prod else 0.0
         quotation.items.append(models.QuotationItem(**item_data))
 
-    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "updated")
+    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "updated")
     db.commit()
     db.refresh(quotation)
     return quotation
 
 
 @router.delete("/{quotation_id}", status_code=204)
-def delete_quotation(quotation_id: int, db: Session = Depends(get_db), user: str = Depends(get_user_name)):
+def delete_quotation(quotation_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "deleted")
+    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "deleted")
     db.delete(quotation)
     db.commit()
     return None

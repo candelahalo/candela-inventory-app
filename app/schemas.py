@@ -228,3 +228,53 @@ class ActivityLogOut(BaseModel):
     details: Optional[str]
     performed_by: str
     created_at: datetime
+
+
+# ---------- Auth & Users ----------
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+    full_name: str
+    role: str
+    screens: List[str]
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UserIn(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+    role: str = "sales"
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    full_name: str
+    role: str
+    permissions: Optional[str] = ""
+    active: bool
+    created_at: datetime
+
+
+class PermissionsIn(BaseModel):
+    permissions: List[str]
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: Optional[str] = None
+
+
+# ---------- Backups ----------
+class BackupOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    kind: str
+    created_by: Optional[str]
+    created_at: datetime

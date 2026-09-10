@@ -1,8 +1,8 @@
-"""initial schema
+"""add users and backups
 
-Revision ID: 0be19f4adfb9
+Revision ID: f43413f595e4
 Revises: 
-Create Date: 2026-09-10 15:23:54.958840
+Create Date: 2026-09-10 15:58:08.119788
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0be19f4adfb9'
+revision = 'f43413f595e4'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -32,6 +32,16 @@ def upgrade():
     op.create_index(op.f('ix_activity_log_created_at'), 'activity_log', ['created_at'], unique=False)
     op.create_index(op.f('ix_activity_log_entity_type'), 'activity_log', ['entity_type'], unique=False)
     op.create_index(op.f('ix_activity_log_id'), 'activity_log', ['id'], unique=False)
+    op.create_table('backups',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('kind', sa.String(length=16), nullable=True),
+    sa.Column('created_by', sa.String(length=120), nullable=True),
+    sa.Column('payload', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_backups_created_at'), 'backups', ['created_at'], unique=False)
+    op.create_index(op.f('ix_backups_id'), 'backups', ['id'], unique=False)
     op.create_table('customers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -63,6 +73,19 @@ def upgrade():
     op.create_index(op.f('ix_products_category'), 'products', ['category'], unique=False)
     op.create_index(op.f('ix_products_id'), 'products', ['id'], unique=False)
     op.create_index(op.f('ix_products_sku'), 'products', ['sku'], unique=True)
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('username', sa.String(length=64), nullable=False),
+    sa.Column('hashed_password', sa.String(length=255), nullable=False),
+    sa.Column('full_name', sa.String(length=120), nullable=False),
+    sa.Column('role', sa.String(length=32), nullable=False),
+    sa.Column('permissions', sa.Text(), nullable=True),
+    sa.Column('active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
+    op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
     op.create_table('warehouses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=120), nullable=False),
@@ -190,12 +213,18 @@ def downgrade():
     op.drop_table('datasheets')
     op.drop_index(op.f('ix_warehouses_id'), table_name='warehouses')
     op.drop_table('warehouses')
+    op.drop_index(op.f('ix_users_username'), table_name='users')
+    op.drop_index(op.f('ix_users_id'), table_name='users')
+    op.drop_table('users')
     op.drop_index(op.f('ix_products_sku'), table_name='products')
     op.drop_index(op.f('ix_products_id'), table_name='products')
     op.drop_index(op.f('ix_products_category'), table_name='products')
     op.drop_table('products')
     op.drop_index(op.f('ix_customers_id'), table_name='customers')
     op.drop_table('customers')
+    op.drop_index(op.f('ix_backups_id'), table_name='backups')
+    op.drop_index(op.f('ix_backups_created_at'), table_name='backups')
+    op.drop_table('backups')
     op.drop_index(op.f('ix_activity_log_id'), table_name='activity_log')
     op.drop_index(op.f('ix_activity_log_entity_type'), table_name='activity_log')
     op.drop_index(op.f('ix_activity_log_created_at'), table_name='activity_log')

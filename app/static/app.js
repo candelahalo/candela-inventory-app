@@ -1,41 +1,33 @@
 // Shared helpers used across all pages.
 
-function getUserName() {
-  let name = localStorage.getItem('candela_user_name');
-  // "Unknown" was a fallback from an earlier version that prompted for a name.
-  // Treat it as unset so existing browsers pick up the current default.
-  if (!name || name === 'Unknown') {
-    name = 'admin';
-    localStorage.setItem('candela_user_name', name);
-  }
-  return name;
+function getToken() {
+  return localStorage.getItem('candela_token');
 }
 
-function setUserName() {
-  const current = localStorage.getItem('candela_user_name') || '';
-  const name = prompt('Your name (shown in the activity log):', current);
-  if (name !== null) {
-    localStorage.setItem('candela_user_name', name || 'Unknown');
-    updateUserNameLink();
-  }
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('candela_user') || 'null'); }
+  catch (e) { return null; }
 }
 
-function updateUserNameLink() {
-  const el = document.getElementById('user-name-link');
-  if (el) el.textContent = 'Signed in as ' + getUserName();
+function signOut() {
+  localStorage.removeItem('candela_token');
+  localStorage.removeItem('candela_user');
+  location.href = '/login';
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  updateUserNameLink();
-  const link = document.getElementById('user-name-link');
-  if (link) link.addEventListener('click', (e) => { e.preventDefault(); setUserName(); });
-});
 
 async function api(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', 'X-User-Name': getUserName() },
-    ...options,
-  });
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  const token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const res = await fetch(path, { ...options, headers });
+
+  // An expired or missing session sends you back to sign in rather than
+  // failing silently with an unexplained error on every panel.
+  if (res.status === 401) {
+    signOut();
+    throw new Error('Your session has expired — please sign in again.');
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try { const body = await res.json(); detail = body.detail || detail; } catch (e) {}
@@ -44,6 +36,28 @@ async function api(path, options = {}) {
   if (res.status === 204) return null;
   return res.json();
 }
+
+// Attaches the session token to a raw fetch (file uploads, which send
+// FormData and must not set a JSON content-type).
+function authHeaders() {
+  const token = getToken();
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = getSession();
+  const el = document.getElementById('user-name-link');
+  if (el && session) el.textContent = session.full_name || session.username;
+  const out = document.getElementById('sign-out-link');
+  if (out) out.addEventListener('click', (e) => { e.preventDefault(); signOut(); });
+
+  // Hide nav items this user may not open
+  if (session && session.screens) {
+    document.querySelectorAll('.nav a[data-screen]').forEach(a => {
+      if (!session.screens.includes(a.dataset.screen)) a.style.display = 'none';
+    });
+  }
+});
 
 function formToJSON(form) {
   const data = new FormData(form);
