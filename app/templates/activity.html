@@ -42,7 +42,7 @@ async function loadActivity() {
     storageKey: 'activity',
     emptyMessage: 'No activity recorded yet.',
     columns: [
-      { key: 'when', label: 'When', value: e => e.created_at, render: e => fmtDate(e.created_at) },
+      { key: 'when', label: 'Date & time', value: e => e.created_at, render: e => `<span class="mono">${fmtDateTime(e.created_at)}</span>` },
       { key: 'user', label: 'User', value: e => e.performed_by, render: e => e.performed_by },
       { key: 'area', label: 'Area', value: e => e.entity_type, render: e => `<span class="badge">${ENTITY_LABELS[e.entity_type] || e.entity_type}</span>` },
       { key: 'action', label: 'Action', value: e => e.action, render: e => ACTION_LABELS[e.action] || e.action },

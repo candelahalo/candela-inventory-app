@@ -94,3 +94,16 @@ function fmtDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
+// Timestamps from the API are UTC but often arrive without a timezone
+// marker, which browsers read as local time - so an action logged at
+// 16:40 UTC would display as 16:40 local and look four hours early.
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const utc = /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : iso + 'Z';
+  const d = new Date(utc);
+  return d.toLocaleString(undefined, {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}

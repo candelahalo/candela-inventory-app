@@ -234,7 +234,7 @@ async function loadBackups() {
     storageKey: 'backups',
     emptyMessage: 'No backups yet — take one above.',
     columns: [
-      { key: 'date', label: 'Date', value: b => b.created_at, render: b => fmtDate(b.created_at) },
+      { key: 'date', label: 'Date & time', value: b => b.created_at, render: b => `<span class="mono">${fmtDateTime(b.created_at)}</span>` },
       { key: 'kind', label: 'Type', value: b => b.kind, render: b => `<span class="badge">${b.kind}</span>` },
       { key: 'by', label: 'By', value: b => b.created_by || '', render: b => b.created_by || '—' },
     ],
