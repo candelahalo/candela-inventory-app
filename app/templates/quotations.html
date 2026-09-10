@@ -291,7 +291,7 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
 
 (async () => {
   try {
-    const who = await api('/activity/whoami');
+    const who = await api('/auth/me');
     isAdmin = !!who.is_admin;
   } catch (e) {
     isAdmin = false;
