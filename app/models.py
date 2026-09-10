@@ -261,7 +261,7 @@ class User(Base):
     username = Column(String(64), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(120), nullable=False)
-    role = Column(String(32), nullable=False, default="sales")
+    role = Column(String(32), nullable=False, default="office")
     # Comma-separated screens this user may open. Empty means "use the
     # role default", so existing accounts keep working unchanged.
     permissions = Column(Text, default="")

@@ -36,7 +36,7 @@ ALL_SCREENS = ["dashboard", "projects", "quotations", "stock", "products",
 # What sits inside it (staff logins, restore) is guarded separately.
 ROLE_DEFAULTS = {
     "admin": ALL_SCREENS,
-    "sales": ["dashboard", "projects", "quotations", "products", "customers", "settings"],
+    "office": ["dashboard", "projects", "quotations", "products", "customers", "settings"],
     "store": ["dashboard", "stock", "products", "settings"],
 }
 ROLES = list(ROLE_DEFAULTS)

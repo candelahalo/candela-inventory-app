@@ -249,7 +249,7 @@ class UserIn(BaseModel):
     username: str
     password: str
     full_name: Optional[str] = None
-    role: str = "sales"
+    role: str = "office"
 
 
 class UserOut(BaseModel):
