@@ -18,6 +18,21 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+
+@app.middleware("http")
+async def no_cache_html(request, call_next):
+    """Stop browsers caching page HTML.
+
+    Static files are versioned with ?v=N, but the pages themselves aren't -
+    so a cached page could keep running old inline JavaScript against a
+    newer API, which is exactly how the PDF download kept failing after
+    the endpoints changed.
+    """
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+    return response
+
 # JSON API routers
 app.include_router(products.router)
 app.include_router(stock.router)
