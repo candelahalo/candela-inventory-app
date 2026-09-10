@@ -6,7 +6,8 @@
     <h1>Projects</h1>
     <p>Every supply & installation job, enquiry through close-out.</p>
   </div>
-  <button class="btn" id="show-add-btn">+ New project</button>
+  <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn" id="show-add-btn">+ New project</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
@@ -33,6 +34,10 @@
 
 {% block script %}
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('report-btns').innerHTML = reportButtons('projects');
+});
+
 let customersCache = [];
 let projectsCache = [];
 

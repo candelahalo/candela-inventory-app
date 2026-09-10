@@ -107,3 +107,25 @@ function fmtDateTime(iso) {
     hour: '2-digit', minute: '2-digit', hour12: true,
   });
 }
+
+// ---------- Report downloads ----------
+// Every list page exports through the same endpoint pair. Downloads open
+// via plain navigation, so they carry a short-lived download token rather
+// than the session token.
+async function downloadReport(kind, fmt) {
+  try {
+    const r = await api('/auth/download-token', { method: 'POST' });
+    window.open(`/reports/${kind}.${fmt}?token=${encodeURIComponent(r.token)}`, '_blank');
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// Drops a PDF/Excel pair into a page header.
+function reportButtons(kind) {
+  return `
+    <div class="report-actions">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('${kind}','pdf')">PDF</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('${kind}','xlsx')">Excel</button>
+    </div>`;
+}

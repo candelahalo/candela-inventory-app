@@ -6,7 +6,8 @@
     <h1>Products</h1>
     <p>Your light fitting and home automation catalog.</p>
   </div>
-  <button class="btn" id="show-add-btn">+ Add product</button>
+  <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn" id="show-add-btn">+ Add product</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
@@ -44,6 +45,10 @@
 
 {% block script %}
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('report-btns').innerHTML = reportButtons('products');
+});
+
 let productsCache = [];
 let datasheetCounts = {};
 

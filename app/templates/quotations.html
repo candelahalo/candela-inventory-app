@@ -6,7 +6,8 @@
     <h1>Quotations</h1>
     <p>Prepare professional, standardized pricing for clients.</p>
   </div>
-  <button class="btn" id="show-add-btn">+ New quotation</button>
+  <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn" id="show-add-btn">+ New quotation</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
@@ -72,6 +73,10 @@
 
 {% block script %}
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('report-btns').innerHTML = reportButtons('quotations');
+});
+
 let productsCache = [], customersCache = [], projectsCache = [];
 let isAdmin = false;
 

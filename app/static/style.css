@@ -656,3 +656,8 @@ th.num { }
 .combo-empty { padding: 10px 12px; font-size: 13px; color: var(--muted); }
 .combo-hint { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 16px; }
 .combo-hint.is-new { color: var(--amber-deep); font-weight: 500; }
+
+/* ---------- Report buttons in page headers ---------- */
+.report-actions { display: inline-flex; gap: 6px; }
+.page-head .report-actions { margin-left: auto; }
+.head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4 {{ 'landscape' if landscape else 'portrait' }};
+    margin: 16mm 14mm 16mm 14mm;
+    @top-left {
+      content: "CANDELA LIGHTING AND AUTOMATION LLC";
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 7.5px;
+      letter-spacing: 0.06em;
+      color: #9A9382;
+    }
+    @top-right {
+      content: "{{ title }}";
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 7.5px;
+      color: #9A9382;
+    }
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 7.5px;
+      color: #9A9382;
+    }
+  }
+  @page :first {
+    @top-left { content: ""; }
+    @top-right { content: ""; }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9.5px;
+    color: #201E1A;
+    margin: 0;
+  }
+
+  .head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+  .head img { height: 30px; }
+  .head .meta { text-align: right; font-size: 8px; color: #9A9382; line-height: 1.5; }
+
+  h1 {
+    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    font-size: 17px; font-weight: 600; margin: 0 0 3px;
+  }
+  .subtitle { font-size: 9.5px; color: #9A9382; margin: 0 0 16px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  th {
+    font-size: 7.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #56503F;
+    font-weight: 600;
+    text-align: left;
+    padding: 0 6px 7px;
+    border-bottom: 1.25px solid #201E1A;
+    white-space: nowrap;
+  }
+  th.num { text-align: right; }
+  td {
+    padding: 7px 6px;
+    border-bottom: 0.6px solid #EAE3D2;
+    font-size: 9px;
+    vertical-align: top;
+  }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: #FBF9F4; }
+  tr { page-break-inside: avoid; }
+
+  .empty { padding: 28px; text-align: center; color: #9A9382; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <img src="app/static/candela-logo-dark.png">
+  <div class="meta">
+    Generated {{ generated.strftime('%d %b %Y') }}<br>
+    {{ count }} record{{ '' if count == 1 else 's' }}
+  </div>
+</div>
+
+<h1>{{ title }}</h1>
+{% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
+
+{% if rows %}
+<table>
+  <thead>
+    <tr>
+      {% for c in columns %}
+      <th class="{{ 'num' if c.kind in ('number','money') else '' }}"{% if c.width %} style="width:{{ c.width }};"{% endif %}>{{ c.label }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      {% for cell in row %}
+      <td class="{{ 'num' if cell.numeric else '' }}">{{ cell.text }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">Nothing to report.</div>
+{% endif %}
+
+</body>
+</html>
