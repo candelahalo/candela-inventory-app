@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -118,11 +119,53 @@ def project_timeline(project_id: int, db: Session = Depends(get_db)):
 @router.get("/board/summary")
 def status_board(db: Session = Depends(get_db)):
     """
-    Kanban-style counts of active projects per stage — a quick 'live status'
-    overview across the whole pipeline.
+    Pipeline overview: every stage with its projects, each carrying the
+    context needed to judge it at a glance - customer, quoted value, and
+    how long it has been sitting at its current stage.
     """
-    board = {status.value: [] for status in models.ProjectStatus}
-    projects = db.query(models.Project).all()
-    for p in projects:
-        board[p.status.value].append({"id": p.id, "project_number": p.project_number, "name": p.name})
-    return board
+    STAGES = [s.value for s in models.ProjectStatus]
+
+    customers = {c.id: c for c in db.query(models.Customer).all()}
+
+    # Quoted value per project: the most recent quotation on it.
+    values = {}
+    for q in db.query(models.Quotation).order_by(models.Quotation.created_at).all():
+        if q.project_id:
+            values[q.project_id] = q.total_with_vat
+
+    now = datetime.utcnow()
+    board = {s: [] for s in STAGES}
+    totals = {s: {"count": 0, "value": 0.0} for s in STAGES}
+
+    for p in db.query(models.Project).order_by(models.Project.created_at.desc()).all():
+        # When the project last changed stage, so a stalled job is visible
+        last_change = p.created_at
+        if p.status_history:
+            last_change = max(h.changed_at for h in p.status_history)
+        days_in_stage = max(0, (now - last_change).days) if last_change else 0
+
+        customer = customers.get(p.customer_id)
+        value = values.get(p.id, 0.0)
+        stage = p.status.value
+
+        board[stage].append({
+            "id": p.id,
+            "project_number": p.project_number,
+            "name": p.name,
+            "customer": customer.name if customer else None,
+            "value": value,
+            "days_in_stage": days_in_stage,
+            "stage_index": STAGES.index(stage),
+        })
+        totals[stage]["count"] += 1
+        totals[stage]["value"] += value
+
+    active = [s for s in STAGES if s != "closed"]
+    return {
+        "stages": STAGES,
+        "board": board,
+        "totals": totals,
+        "active_count": sum(totals[s]["count"] for s in active),
+        "active_value": round(sum(totals[s]["value"] for s in active), 2),
+        "won_value": round(totals["closed"]["value"], 2),
+    }

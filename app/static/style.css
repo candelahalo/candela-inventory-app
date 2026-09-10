@@ -220,47 +220,6 @@ th.num { }
 .line-item-foot label { font-size: 11px; font-weight: 600; }
 .line-item-block .li-desc { width: calc(100% - 24px); margin: 0 12px 12px; }
 
-/* ---------- Kanban ---------- */
-.board-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  min-width: 0;
-  padding-bottom: 14px;
-  margin-bottom: -6px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--amber) var(--paper-2);
-}
-.board-scroll::-webkit-scrollbar { height: 8px; }
-.board-scroll::-webkit-scrollbar-track { background: var(--paper-2); border-radius: 4px; }
-.board-scroll::-webkit-scrollbar-thumb { background: var(--amber); border-radius: 4px; }
-
-.board { display: flex; gap: 10px; width: max-content; min-width: 100%; }
-.board-col { flex: 0 0 168px; width: 168px; }
-.board-col-head {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  padding: 8px 4px;
-  border-top: 3px solid var(--amber);
-  margin-bottom: 8px;
-  display: flex;
-  justify-content: space-between;
-  white-space: nowrap;
-}
-.board-col-head .count { color: var(--muted); font-family: var(--font-mono); }
-.board-card {
-  display: block;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  white-space: normal;
-}
-.board-card .pn { font-family: var(--font-mono); font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
-.board-empty { color: var(--muted); font-size: 12.5px; padding: 8px 4px; white-space: nowrap; }
-
 /* ---------- Stepper (project detail) ---------- */
 .stepper { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 24px; }
 .step {
@@ -547,3 +506,109 @@ th.num { }
 .perms-row input { width: auto; margin: 0; }
 .modal-note { font-size: 12.5px; color: var(--amber-deep); min-height: 18px; margin: 10px 0 4px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* ---------- Panel head ---------- */
+.panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px; gap: 12px;
+}
+.panel-head h2 { margin: 0; }
+.panel-link { font-size: 13px; color: var(--amber-deep); font-weight: 500; white-space: nowrap; }
+.panel-link:hover { text-decoration: underline; }
+
+/* ---------- Pipeline funnel ---------- */
+.funnel {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.funnel-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 5px; padding: 8px 4px 10px;
+  background: none; border: none; border-radius: var(--radius);
+  cursor: pointer; font-family: var(--font-body);
+  transition: background 0.12s ease;
+  position: relative;
+}
+.funnel-stage:hover { background: var(--paper-2); }
+.funnel-stage.selected { background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line); }
+
+.fs-bar-track {
+  width: 100%; height: 56px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.fs-bar {
+  width: 70%; min-height: 3px;
+  background: linear-gradient(180deg, var(--amber) 0%, var(--amber-deep) 100%);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.3s ease;
+}
+.funnel-stage.empty .fs-bar { background: var(--line); height: 3px !important; }
+.funnel-stage.selected .fs-bar { background: linear-gradient(180deg, #2E7D52 0%, var(--green) 100%); }
+
+.fs-count { font-family: var(--font-mono); font-size: 19px; font-weight: 500; color: var(--ink); line-height: 1; }
+.funnel-stage.empty .fs-count { color: var(--muted); opacity: 0.5; }
+.fs-label {
+  font-size: 10.5px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.03em; text-align: center; line-height: 1.2;
+}
+.fs-value { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+
+/* ---------- Project cards ---------- */
+.stage-detail-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-bottom: 14px;
+}
+.stage-detail-head span {
+  font-family: var(--font-mono); font-weight: 500;
+  background: var(--paper-2); color: var(--muted);
+  padding: 1px 8px; border-radius: 10px; font-size: 12px; letter-spacing: 0;
+}
+.clear-stage {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  font-family: var(--font-body); font-size: 12px; color: var(--amber-deep);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+}
+.clear-stage:hover { text-decoration: underline; }
+
+.pcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+.pcard {
+  display: block; padding: 14px 16px 12px;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius);
+  transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+.pcard:hover {
+  border-color: var(--amber);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(32, 30, 26, 0.06);
+}
+.pcard-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.pcard-num { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
+.pcard-value { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.pcard-name {
+  font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.35;
+  margin-bottom: 9px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pcard-meta {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 11.5px; color: var(--muted); margin-bottom: 10px;
+}
+.pcard-meta .stale { color: var(--red); font-weight: 600; }
+.pcard-progress { height: 3px; background: var(--paper-2); border-radius: 2px; overflow: hidden; }
+.pcard-progress div { height: 100%; background: var(--amber); border-radius: 2px; transition: width 0.3s ease; }
+
+@media (max-width: 900px) {
+  .funnel { grid-template-columns: repeat(4, 1fr); row-gap: 14px; }
+  .pcard-grid { grid-template-columns: 1fr; }
+}
