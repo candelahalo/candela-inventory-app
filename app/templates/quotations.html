@@ -57,6 +57,7 @@
 {% block script %}
 <script>
 let productsCache = [], customersCache = [], projectsCache = [];
+let isAdmin = false;
 
 function lineRow(item) {
   const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}">${p.sku} — ${p.name}</option>`).join('');
@@ -68,7 +69,7 @@ function lineRow(item) {
       <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? item.type_code : ''}"></div>
       <div class="field"><label>Qty</label><input class="li-qty" type="number" value="${item ? item.quantity : 1}" min="1"></div>
       <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
-      <div class="field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
+      <div class="field li-cost-field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
       <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();">×</button>
     </div>
@@ -125,6 +126,7 @@ function addLine(item) {
 }
 
 function recalcMargins() {
+  if (!isAdmin) return;
   let revenue = 0, cost = 0;
   document.querySelectorAll('.line-item-block').forEach(block => {
     const qty = parseFloat(block.querySelector('.li-qty').value) || 0;
@@ -208,22 +210,26 @@ async function loadFormData() {
 
 async function loadQuotations() {
   const quotes = await api('/quotations/');
-  DataTable.render({
-    containerId: 'quotations-table',
-    storageKey: 'quotations',
-    emptyMessage: 'No quotations yet — create your first one above.',
-    columns: [
+  const columns = [
       { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<span class="mono">${q.quote_number}</span>` },
       { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
       { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : '—'; } },
       { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge">${q.status}</span>` },
       { key: 'total', label: 'Total (incl. VAT)', numeric: true, value: q => q.total_with_vat, render: q => fmtMoney(q.total_with_vat) },
-      { key: 'margin', label: 'Profit', numeric: true, value: q => q.total_margin, render: q => {
-          const cls = q.total_margin < 0 ? 'neg' : (q.total_margin_pct < 15 ? 'low' : 'ok');
-          return `<span class="margin-cell ${cls}">${fmtMoney(q.total_margin)}<small>${q.total_margin_pct}%</small></span>`;
-        } },
-      { key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) },
-    ],
+  ];
+  if (isAdmin) {
+    columns.push({ key: 'margin', label: 'Profit', numeric: true, value: q => q.total_margin, render: q => {
+      const cls = q.total_margin < 0 ? 'neg' : (q.total_margin_pct < 15 ? 'low' : 'ok');
+      return `<span class="margin-cell ${cls}">${fmtMoney(q.total_margin)}<small>${q.total_margin_pct}%</small></span>`;
+    } });
+  }
+  columns.push({ key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) });
+
+  DataTable.render({
+    containerId: 'quotations-table',
+    storageKey: 'quotations',
+    emptyMessage: 'No quotations yet — create your first one above.',
+    columns: columns,
     rows: quotes,
     actions: q => `
       <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
@@ -281,6 +287,19 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
 });
 
 (async () => {
+  try {
+    const who = await api('/activity/whoami');
+    isAdmin = !!who.is_admin;
+  } catch (e) {
+    isAdmin = false;
+  }
+  if (!isAdmin) {
+    // Hide cost/margin UI entirely for non-admin users
+    document.getElementById('margin-summary').style.display = 'none';
+    const style = document.createElement('style');
+    style.textContent = '.li-cost-field, .line-margin { display: none !important; }';
+    document.head.appendChild(style);
+  }
   await loadFormData();
   await loadQuotations();
 })();

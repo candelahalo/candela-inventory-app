@@ -23,6 +23,17 @@ def get_user_name(x_user_name: str = Header(default="Unknown")) -> str:
     return x_user_name.strip() or "Unknown"
 
 
+# Users permitted to see cost and margin figures. Once a real login system
+# exists, derive this from the authenticated session instead of a header -
+# a client-supplied header can be spoofed, so this is a UI-level gate today,
+# not a security boundary.
+ADMIN_USERS = {"admin"}
+
+
+def is_admin(x_user_name: str = Header(default="Unknown")) -> bool:
+    return x_user_name.strip().lower() in ADMIN_USERS
+
+
 def log_activity(db, user: str, entity_type: str, entity_id, entity_label: str, action: str, details: str = None):
     from app import models
     entry = models.ActivityLog(

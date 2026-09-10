@@ -13,10 +13,28 @@ import os
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import url_to_disk_path, get_user_name, log_activity
+from app.utils import url_to_disk_path, get_user_name, log_activity, is_admin
 
 router = APIRouter(prefix="/quotations", tags=["Quotations"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Cost/margin fields are stripped from API responses for non-admin users.
+MARGIN_FIELDS = {"total_cost", "total_margin", "total_margin_pct"}
+MARGIN_ITEM_FIELDS = {"unit_cost", "line_cost", "line_margin", "line_margin_pct"}
+
+
+def _strip_margin(payload, admin: bool):
+    """Remove cost/margin figures unless the caller is an admin."""
+    if admin:
+        return payload
+    items = payload if isinstance(payload, list) else [payload]
+    for q in items:
+        for f in MARGIN_FIELDS:
+            q.pop(f, None)
+        for item in q.get("items", []):
+            for f in MARGIN_ITEM_FIELDS:
+                item.pop(f, None)
+    return payload
 
 
 def _next_quote_number(db: Session) -> str:
@@ -24,12 +42,14 @@ def _next_quote_number(db: Session) -> str:
     return f"QTN/CND/{count:04d}"
 
 
-@router.get("/", response_model=List[schemas.QuotationOut])
-def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+@router.get("/")
+def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
     q = db.query(models.Quotation)
     if project_id:
         q = q.filter(models.Quotation.project_id == project_id)
-    return q.order_by(models.Quotation.created_at.desc()).all()
+    rows = q.order_by(models.Quotation.created_at.desc()).all()
+    payload = [schemas.QuotationOut.model_validate(r).model_dump(mode="json") for r in rows]
+    return _strip_margin(payload, admin)
 
 
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
@@ -65,12 +85,13 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
     return quotation
 
 
-@router.get("/{quotation_id}", response_model=schemas.QuotationOut)
-def get_quotation(quotation_id: int, db: Session = Depends(get_db)):
+@router.get("/{quotation_id}")
+def get_quotation(quotation_id: int, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    return quotation
+    payload = schemas.QuotationOut.model_validate(quotation).model_dump(mode="json")
+    return _strip_margin(payload, admin)
 
 
 @router.put("/{quotation_id}", response_model=schemas.QuotationOut)
