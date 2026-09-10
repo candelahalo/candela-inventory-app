@@ -68,7 +68,7 @@ function lineRow(item) {
       <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? item.type_code : ''}"></div>
       <div class="field"><label>Qty</label><input class="li-qty" type="number" value="${item ? item.quantity : 1}" min="1"></div>
       <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
-      <div class="field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost != null ? item.unit_cost : 0}"></div>
+      <div class="field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
       <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();">×</button>
     </div>
@@ -87,6 +87,12 @@ function addLine(item) {
   const photo = block.querySelector('.li-photo');
   const descArea = block.querySelector('.li-desc');
   if (item) sel.value = item.product_id;
+  // If a saved line has no cost recorded (e.g. created before cost tracking
+  // existed), fall back to the product's current cost so margin isn't wrong.
+  if (item && !item.unit_cost) {
+    const opt = sel.selectedOptions[0];
+    if (opt) block.querySelector('.li-cost').value = opt.dataset.cost || 0;
+  }
   const sync = () => {
     const opt = sel.selectedOptions[0];
     if (!opt) return;

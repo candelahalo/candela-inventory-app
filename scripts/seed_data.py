@@ -146,7 +146,8 @@ for project, customer, lines in quote_lines:
     for sku, qty, disc in lines:
         p = by_sku[sku]
         quote.items.append(models.QuotationItem(
-            product_id=p.id, quantity=qty, unit_price=p.selling_price, discount_pct=disc,
+            product_id=p.id, quantity=qty, unit_price=p.selling_price,
+            unit_cost=p.cost_price, discount_pct=disc,
         ))
     db.add(quote)
     qcounter += 1
