@@ -100,6 +100,21 @@ alembic revision --autogenerate -m "what changed"
 # review the generated file in alembic/versions/ before committing
 ```
 
+**Never delete or regenerate an existing migration file.** Each one records its
+`down_revision`, forming a chain. Deleting a file the live database is stamped
+at breaks that chain and produces "Can't locate revision identified by ...",
+which then has to be repaired by hand. Always add a new migration on top.
+
+To recover from a broken chain (creates only missing tables, keeps data):
+
+```bash
+python3 -c "
+from app.database import engine
+from app import models
+models.Base.metadata.create_all(bind=engine)
+" && sudo -u postgres psql -d candela_app -c "DELETE FROM alembic_version;" && alembic stamp head
+```
+
 ## Uploaded files
 
 Product photos and datasheets live in `app/static/uploads/` and are
