@@ -10,80 +10,61 @@
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2 id="form-title">Add a product</h2>
+  <h2>Add a product</h2>
   <form id="product-form">
-    <input type="hidden" id="editing-id">
     <div class="form-grid">
       <div class="field"><label>SKU</label><input name="sku" required placeholder="CND-LED-001"></div>
       <div class="field"><label>Name</label><input name="name" required placeholder="LED Downlight 12W"></div>
       <div class="field"><label>Category</label><input name="category" placeholder="Downlights, Smart Switches, ..."></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Optional"></div>
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
+      <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
       <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01" value="0"></div>
       <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
-      <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
       <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="3" placeholder="Source : LED&#10;CCT : 3000K&#10;Power : 12W&#10;IP Rating : IP65"></textarea></div>
-      <div class="field span2">
-        <label>Product photo</label>
-        <input type="file" id="product-image" accept="image/jpeg,image/png,image/webp">
-        <img id="image-preview" style="display:none; margin-top:8px; width:120px; height:120px; object-fit:contain; border:1px solid var(--line); border-radius:5px; background:#fff; padding:6px;">
-      </div>
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn" id="save-btn">Save product</button>
+      <button type="submit" class="btn">Save product</button>
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
+    <p style="color:var(--muted); font-size:12.5px; margin-top:10px;">
+      Photo and datasheets are added on the product's own page after saving.
+    </p>
   </form>
 </div>
 
 <div class="panel">
   <div id="products-table"></div>
 </div>
-<input type="file" id="row-image-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img">
+</div>
 {% endblock %}
 
 {% block script %}
 <script>
 let productsCache = [];
+let datasheetCounts = {};
 
-function showAddPanel(title) {
-  document.getElementById('form-title').textContent = title;
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+document.getElementById('show-add-btn').addEventListener('click', () => {
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
-}
-function hideAddPanel() {
+});
+document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('add-panel').style.display = 'none';
   document.getElementById('show-add-btn').style.display = '';
   document.getElementById('product-form').reset();
-  document.getElementById('editing-id').value = '';
-  document.getElementById('image-preview').style.display = 'none';
-}
-document.getElementById('show-add-btn').addEventListener('click', () => showAddPanel('Add a product'));
-document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
-
-document.getElementById('product-image').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  const preview = document.getElementById('image-preview');
-  if (file) { preview.src = URL.createObjectURL(file); preview.style.display = 'block'; }
-  else { preview.style.display = 'none'; }
 });
-
-function editProduct(id) {
-  const p = productsCache.find(x => x.id === id);
-  if (!p) return;
-  const form = document.getElementById('product-form');
-  form.sku.value = p.sku; form.name.value = p.name; form.category.value = p.category || '';
-  form.brand.value = p.brand || ''; form.unit.value = p.unit; form.cost_price.value = p.cost_price;
-  form.selling_price.value = p.selling_price; form.reorder_level.value = p.reorder_level;
-  form.spec_summary.value = p.spec_summary || '';
-  document.getElementById('editing-id').value = id;
-  if (p.image_path) {
-    const preview = document.getElementById('image-preview');
-    preview.src = p.image_path; preview.style.display = 'block';
-  }
-  showAddPanel('Edit product');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
 async function deleteProduct(id, name) {
   if (!confirm(`Remove "${name}" from the catalog?`)) return;
@@ -94,50 +75,34 @@ async function deleteProduct(id, name) {
   } catch (err) { toast(err.message, true); }
 }
 
-function pickImage(productId) {
-  window._currentImageProductId = productId;
-  document.getElementById('row-image-input').click();
-}
-
-document.getElementById('row-image-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  const productId = window._currentImageProductId;
-  if (!file || !productId) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res = await fetch(`/products/${productId}/image`, { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Image upload failed'); }
-    toast('Photo updated');
-    loadProducts();
-  } catch (err) {
-    toast(err.message, true);
-  } finally {
-    e.target.value = '';
-  }
-});
-
 async function loadProducts() {
-  productsCache = await api('/products/');
+  const [products, datasheets] = await Promise.all([api('/products/'), api('/datasheets/')]);
+  productsCache = products;
+  datasheetCounts = {};
+  datasheets.forEach(d => {
+    if (d.product_id) datasheetCounts[d.product_id] = (datasheetCounts[d.product_id] || 0) + 1;
+  });
+
   DataTable.render({
     containerId: 'products-table',
     storageKey: 'products',
     emptyMessage: 'No products yet — add your first light fitting or automation product above.',
     columns: [
       { key: 'photo', label: 'Photo', sortable: false, width: '56px', value: () => '', render: p => p.image_path
-          ? `<img src="${p.image_path}" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;padding:2px;">`
-          : `<div style="width:44px;height:44px;border:1px dashed var(--line);border-radius:4px;"></div>` },
-      { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<span class="mono">${p.sku}</span>` },
-      { key: 'name', label: 'Name', value: p => p.name, render: p => p.name },
+          ? `<img src="${p.image_path}" class="thumb" onclick="event.stopPropagation(); openLightbox('${p.image_path}')" title="Click to enlarge">`
+          : `<div class="thumb-empty"></div>` },
+      { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<a href="/products/view/${p.id}" class="mono">${p.sku}</a>` },
+      { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
+      { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
+        render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : '—' },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },
     ],
     rows: productsCache,
     actions: p => `
-      <button class="btn btn-ghost btn-sm" onclick="pickImage(${p.id})">Photo</button>
-      <button class="btn btn-ghost btn-sm" onclick="editProduct(${p.id})">Edit</button>
+      <a class="btn btn-ghost btn-sm" href="/products/view/${p.id}">Open</a>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>
     `,
   });
@@ -149,30 +114,11 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   payload.cost_price = parseFloat(payload.cost_price || 0);
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
-  const editingId = document.getElementById('editing-id').value;
-
   try {
-    let product;
-    if (editingId) {
-      product = await api('/products/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
-    } else {
-      product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
-    }
-
-    const imageFile = document.getElementById('product-image').files[0];
-    if (imageFile) {
-      const fd = new FormData();
-      fd.append('file', imageFile);
-      const res = await fetch(`/products/${product.id}/image`, { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Image upload failed'); }
-    }
-
-    toast(editingId ? 'Product updated' : 'Product added');
-    hideAddPanel();
-    loadProducts();
-  } catch (err) {
-    toast(err.message, true);
-  }
+    const product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Product added — add a photo and datasheets on its page');
+    location.href = '/products/view/' + product.id;
+  } catch (err) { toast(err.message, true); }
 });
 
 loadProducts();

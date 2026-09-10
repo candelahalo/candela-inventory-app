@@ -19,6 +19,17 @@ def ui_products(request: Request):
     return templates.TemplateResponse("products.html", {"request": request, "active": "products"})
 
 
+@router.get("/products/view/{product_id}")
+def ui_product_detail(product_id: int, request: Request, db: Session = Depends(get_db)):
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return templates.TemplateResponse(
+        "product_detail.html",
+        {"request": request, "active": "products", "product_id": product_id},
+    )
+
+
 @router.get("/stock")
 def ui_stock(request: Request):
     return templates.TemplateResponse("stock.html", {"request": request, "active": "stock"})

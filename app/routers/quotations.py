@@ -14,6 +14,7 @@ import os
 from app.database import get_db
 from app import models, schemas
 from app.utils import url_to_disk_path, get_user_name, log_activity, is_admin
+from app.settings import BASE_URL
 
 router = APIRouter(prefix="/quotations", tags=["Quotations"])
 templates = Jinja2Templates(directory="app/templates")
@@ -179,8 +180,22 @@ def quotation_pdf(quotation_id: int, db: Session = Depends(get_db)):
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
 
+    # Map product -> its most recent datasheet, so the product name in the
+    # document can link straight to the spec sheet.
+    product_ids = [i.product_id for i in quotation.items if i.product_id]
+    datasheet_links = {}
+    if product_ids:
+        sheets = (
+            db.query(models.Datasheet)
+            .filter(models.Datasheet.product_id.in_(product_ids))
+            .order_by(models.Datasheet.uploaded_at.desc())
+            .all()
+        )
+        for s in sheets:
+            datasheet_links.setdefault(s.product_id, f"{BASE_URL}/datasheets/{s.id}/preview")
+
     html_str = templates.get_template("quotation_pdf.html").render(
-        {"q": quotation, "request": None}
+        {"q": quotation, "request": None, "datasheet_links": datasheet_links}
     )
     pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
     filename = f"{quotation.quote_number.replace('/', '-')}.pdf"
@@ -196,6 +211,19 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+
+    # Map product -> its most recent datasheet for clickable links in the sheet
+    product_ids = [i.product_id for i in quotation.items if i.product_id]
+    datasheet_links = {}
+    if product_ids:
+        sheets = (
+            db.query(models.Datasheet)
+            .filter(models.Datasheet.product_id.in_(product_ids))
+            .order_by(models.Datasheet.uploaded_at.desc())
+            .all()
+        )
+        for s in sheets:
+            datasheet_links.setdefault(s.product_id, f"{BASE_URL}/datasheets/{s.id}/preview")
 
     from openpyxl.worksheet.page import PageMargins
     from openpyxl.cell.rich_text import CellRichText, TextBlock
@@ -421,6 +449,7 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     type_font = InlineFont(rFont=FONT, b=True, sz=8.5, color=AMBER)
     brand_font = InlineFont(rFont=FONT, b=False, sz=10, color=FAINT)
     spec_font = InlineFont(rFont=FONT, b=False, sz=8.5, color=MUTED)
+    link_font = InlineFont(rFont=FONT, b=True, sz=8, color=AMBER, u="single")
 
     row = header_row + 1
     for idx, item in enumerate(quotation.items, start=1):
@@ -441,6 +470,9 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         blocks.append(TextBlock(title_font, product.name if product else ""))
         if product and product.brand:
             blocks.append(TextBlock(brand_font, f"  — {product.brand}"))
+        ds_url = datasheet_links.get(item.product_id)
+        if ds_url:
+            blocks.append(TextBlock(link_font, "   ▸ datasheet"))
         if item.description:
             blocks.append(TextBlock(spec_font, "\n" + item.description))
 
@@ -448,6 +480,8 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         desc_cell.value = CellRichText(*blocks)
         desc_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         desc_cell.border = border
+        if ds_url:
+            desc_cell.hyperlink = ds_url
         if fill: desc_cell.fill = fill
 
         for col, val in [(4, product.unit if product else "pcs"), (5, item.quantity),

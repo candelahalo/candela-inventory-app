@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Product{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 id="prod-name">Loading…</h1>
+    <p id="prod-meta"></p>
+  </div>
+  <a href="/products" class="btn btn-ghost">← All products</a>
+</div>
+
+<div class="product-detail-grid">
+  <div class="panel">
+    <h2>Photo</h2>
+    <div class="photo-box" id="photo-box">
+      <img id="prod-photo" style="display:none;" onclick="openLightbox(this.src)" title="Click to enlarge">
+      <div id="photo-empty" class="photo-empty">No photo yet</div>
+    </div>
+    <div style="margin-top:14px;">
+      <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('photo-input').click()">Upload photo</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Details</h2>
+    <form id="product-form">
+      <div class="form-grid">
+        <div class="field"><label>SKU</label><input name="sku" required></div>
+        <div class="field"><label>Name</label><input name="name" required></div>
+        <div class="field"><label>Category</label><input name="category"></div>
+        <div class="field"><label>Brand</label><input name="brand"></div>
+        <div class="field"><label>Unit</label><input name="unit"></div>
+        <div class="field"><label>Reorder level</label><input name="reorder_level" type="number"></div>
+        <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01"></div>
+        <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01"></div>
+        <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="page-head" style="margin-bottom:16px;">
+    <h2 style="margin:0;">Datasheets</h2>
+    <button class="btn btn-ghost btn-sm" id="show-ds-btn">+ Upload datasheet</button>
+  </div>
+  <p style="color:var(--muted); font-size:13px; margin-top:-8px;">
+    Attached datasheets are linked from the product name in quotation PDFs and Excel files,
+    so clients can open the spec sheet directly.
+  </p>
+
+  <div id="ds-panel" style="display:none; padding:16px; background:var(--paper-2); border-radius:var(--radius); margin-bottom:16px;">
+    <form id="datasheet-form">
+      <div class="form-grid">
+        <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom — Spec Sheet"></div>
+        <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
+        <div class="field"><label>Category</label><input name="category" placeholder="Track Lighting, LED Drivers, ..."></div>
+        <div class="field span2"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf" required></div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-sm">Upload</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ds-panel').style.display='none';">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="datasheets-table"></div>
+</div>
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img">
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const productId = {{ product_id }};
+let product = null;
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+async function loadProduct() {
+  product = await api('/products/' + productId);
+  document.getElementById('prod-name').textContent = product.name;
+  document.getElementById('prod-meta').textContent = product.sku + (product.brand ? ' · ' + product.brand : '');
+
+  const form = document.getElementById('product-form');
+  form.sku.value = product.sku;
+  form.name.value = product.name;
+  form.category.value = product.category || '';
+  form.brand.value = product.brand || '';
+  form.unit.value = product.unit || 'pcs';
+  form.reorder_level.value = product.reorder_level;
+  form.cost_price.value = product.cost_price;
+  form.selling_price.value = product.selling_price;
+  form.spec_summary.value = product.spec_summary || '';
+
+  const photo = document.getElementById('prod-photo');
+  if (product.image_path) {
+    photo.src = product.image_path;
+    photo.style.display = 'block';
+    document.getElementById('photo-empty').style.display = 'none';
+  } else {
+    photo.style.display = 'none';
+    document.getElementById('photo-empty').style.display = 'flex';
+  }
+}
+
+document.getElementById('photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`/products/${productId}/image`, { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
+    toast('Photo updated');
+    loadProduct();
+  } catch (err) { toast(err.message, true); }
+  finally { e.target.value = ''; }
+});
+
+document.getElementById('product-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  payload.cost_price = parseFloat(payload.cost_price || 0);
+  payload.selling_price = parseFloat(payload.selling_price || 0);
+  payload.reorder_level = parseInt(payload.reorder_level || 0);
+  try {
+    await api('/products/' + productId, { method: 'PUT', body: JSON.stringify(payload) });
+    toast('Product updated');
+    loadProduct();
+  } catch (err) { toast(err.message, true); }
+});
+
+document.getElementById('show-ds-btn').addEventListener('click', () => {
+  document.getElementById('ds-panel').style.display = 'block';
+});
+
+async function loadDatasheets() {
+  const sheets = await api('/datasheets/?product_id=' + productId);
+  DataTable.render({
+    containerId: 'datasheets-table',
+    storageKey: 'product-datasheets',
+    emptyMessage: 'No datasheets attached to this product yet.',
+    columns: [
+      { key: 'title', label: 'Title', value: d => d.title, render: d => d.title },
+      { key: 'brand', label: 'Brand', value: d => d.brand || '', render: d => d.brand || '—' },
+      { key: 'category', label: 'Category', value: d => d.category || '', render: d => d.category || '—' },
+      { key: 'uploaded', label: 'Uploaded', value: d => d.uploaded_at, render: d => fmtDate(d.uploaded_at) },
+    ],
+    rows: sheets,
+    actions: d => `
+      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/preview" target="_blank">Preview</a>
+      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/download">Download</a>
+      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteDatasheet(${d.id})">Delete</button>
+    `,
+  });
+}
+
+async function deleteDatasheet(id) {
+  if (!confirm('Delete this datasheet?')) return;
+  try {
+    await api('/datasheets/' + id, { method: 'DELETE' });
+    toast('Datasheet deleted');
+    loadDatasheets();
+  } catch (err) { toast(err.message, true); }
+}
+
+document.getElementById('datasheet-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const file = document.getElementById('ds-file').files[0];
+  if (!file) { toast('Choose a PDF file', true); return; }
+
+  const fd = new FormData();
+  fd.append('title', form.title.value);
+  fd.append('brand', form.brand.value);
+  fd.append('category', form.category.value);
+  fd.append('product_id', productId);
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: { 'X-User-Name': getUserName() } });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
+    toast('Datasheet uploaded');
+    form.reset();
+    document.getElementById('ds-panel').style.display = 'none';
+    loadDatasheets();
+  } catch (err) { toast(err.message, true); }
+});
+
+(async () => {
+  await loadProduct();
+  await loadDatasheets();
+})();
+</script>
+{% endblock %}
