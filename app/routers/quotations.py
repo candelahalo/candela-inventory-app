@@ -51,6 +51,10 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
         item_data = item.model_dump()
         if not item_data.get("description") and prod and prod.spec_summary:
             item_data["description"] = prod.spec_summary
+        # Snapshot the cost at quoting time so margin stays accurate even if
+        # the product's cost price changes later.
+        if item_data.get("unit_cost") is None:
+            item_data["unit_cost"] = prod.cost_price if prod else 0.0
         quotation.items.append(models.QuotationItem(**item_data))
 
     db.add(quotation)
@@ -91,6 +95,10 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
         item_data = item.model_dump()
         if not item_data.get("description") and prod and prod.spec_summary:
             item_data["description"] = prod.spec_summary
+        # Snapshot the cost at quoting time so margin stays accurate even if
+        # the product's cost price changes later.
+        if item_data.get("unit_cost") is None:
+            item_data["unit_cost"] = prod.cost_price if prod else 0.0
         quotation.items.append(models.QuotationItem(**item_data))
 
     log_activity(db, user, "quotation", quotation.id, quotation.quote_number, "updated")

@@ -134,6 +134,22 @@ class Quotation(Base):
         return round(sum(item.line_total for item in self.items), 2)
 
     @property
+    def total_cost(self):
+        """Total cost of goods on this quotation (snapshot costs)."""
+        return round(sum(item.line_cost for item in self.items), 2)
+
+    @property
+    def total_margin(self):
+        """Profit on goods, before freight/transportation and excluding VAT."""
+        return round(self.gross_total - self.total_cost, 2)
+
+    @property
+    def total_margin_pct(self):
+        if not self.gross_total:
+            return 0.0
+        return round(self.total_margin / self.gross_total * 100, 1)
+
+    @property
     def transportation_amount(self):
         """Numeric value of transportation_charges, or 0 when it's free text
         like 'Included' (which shouldn't be added to the total)."""
@@ -174,6 +190,7 @@ class QuotationItem(Base):
     description = Column(Text)  # multi-line spec block; defaults from product.spec_summary if left blank
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
+    unit_cost = Column(Float, default=0.0)  # snapshot of product cost at quoting time, so margin stays historically accurate
     discount_pct = Column(Float, default=0.0)
 
     quotation = relationship("Quotation", back_populates="items")
@@ -182,6 +199,22 @@ class QuotationItem(Base):
     @property
     def line_total(self):
         return round(self.quantity * self.unit_price * (1 - self.discount_pct / 100), 2)
+
+    @property
+    def line_cost(self):
+        return round(self.quantity * (self.unit_cost or 0), 2)
+
+    @property
+    def line_margin(self):
+        """Profit in currency on this line, after any discount."""
+        return round(self.line_total - self.line_cost, 2)
+
+    @property
+    def line_margin_pct(self):
+        """Margin as a % of the selling price (not a markup on cost)."""
+        if not self.line_total:
+            return 0.0
+        return round(self.line_margin / self.line_total * 100, 1)
 
 
 class Project(Base):

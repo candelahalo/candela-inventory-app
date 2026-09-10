@@ -100,6 +100,7 @@ class QuotationItemCreate(BaseModel):
     description: Optional[str] = None
     quantity: int
     unit_price: float
+    unit_cost: Optional[float] = None  # omitted on create -> snapshotted from the product
     discount_pct: float = 0.0
 
 
@@ -107,6 +108,9 @@ class QuotationItemOut(QuotationItemCreate):
     model_config = ConfigDict(from_attributes=True)
     id: int
     line_total: float
+    line_cost: float
+    line_margin: float
+    line_margin_pct: float
 
 
 class QuotationCreate(BaseModel):
@@ -157,6 +161,9 @@ class QuotationOut(BaseModel):
     total_with_vat: float
     transportation_amount: float
     transportation_is_text: bool
+    total_cost: float
+    total_margin: float
+    total_margin_pct: float
 
 
 # ---------- Project ----------

@@ -305,3 +305,50 @@ th.num { }
   .stat .num { font-size: 22px; }
   .page-head h1 { font-size: 22px; }
 }
+
+/* ---------- Margin / profit (internal only) ---------- */
+.line-margin {
+  padding: 2px 12px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+.line-margin.ok { color: var(--green); }
+.line-margin.low { color: var(--amber-deep); }
+.line-margin.neg { color: var(--red); font-weight: 600; }
+
+.margin-summary {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  max-width: 420px;
+}
+.margin-summary .ms-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.margin-summary .ms-row strong { font-family: var(--font-mono); color: var(--ink); font-weight: 500; }
+.margin-summary .ms-profit {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.margin-summary .ms-profit strong { font-weight: 700; font-size: 16px; }
+.margin-summary .ms-profit strong.ok { color: var(--green); }
+.margin-summary .ms-profit strong.low { color: var(--amber-deep); }
+.margin-summary .ms-profit strong.neg { color: var(--red); }
+.margin-summary .ms-note { margin-top: 10px; font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+.margin-cell { font-family: var(--font-mono); font-size: 13px; display: inline-flex; flex-direction: column; line-height: 1.25; }
+.margin-cell small { font-size: 11px; opacity: 0.75; }
+.margin-cell.ok { color: var(--green); }
+.margin-cell.low { color: var(--amber-deep); }
+.margin-cell.neg { color: var(--red); font-weight: 600; }
