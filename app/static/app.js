@@ -2,7 +2,9 @@
 
 function getUserName() {
   let name = localStorage.getItem('candela_user_name');
-  if (!name) {
+  // "Unknown" was a fallback from an earlier version that prompted for a name.
+  // Treat it as unset so existing browsers pick up the current default.
+  if (!name || name === 'Unknown') {
     name = 'admin';
     localStorage.setItem('candela_user_name', name);
   }
