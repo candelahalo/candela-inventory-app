@@ -23,7 +23,15 @@
         </div>
         <div class="combo-hint" id="customer-hint"></div>
       </div>
-      <div class="field"><label>Project (optional)</label><select name="project_id" id="q-project"><option value="">— None —</option></select></div>
+      <div class="field">
+        <label>Project (optional)</label>
+        <div class="combo" id="project-combo">
+          <input id="q-project-input" autocomplete="off" placeholder="Type to search, or enter a new project">
+          <input type="hidden" name="project_id" id="q-project-id">
+          <div class="combo-list" id="project-list"></div>
+        </div>
+        <div class="combo-hint" id="project-hint"></div>
+      </div>
       <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
       <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
       <div class="field"><label>Currency</label><input name="currency" value="AED"></div>
@@ -183,6 +191,7 @@ function hideAddPanel() {
   document.getElementById('editing-id').value = '';
   document.getElementById('line-items').innerHTML = '';
   setCustomer(null);
+  setProject(null);
 }
 document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); if (!document.getElementById('line-items').children.length) addLine(); });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
@@ -191,7 +200,7 @@ async function editQuotation(id) {
   const q = await api('/quotations/' + id);
   const form = document.getElementById('quote-form');
   setCustomer(q.customer_id);
-  form.project_id.value = q.project_id || '';
+  setProject(q.project_id);
   form.attention_to.value = q.attention_to || '';
   form.subject.value = q.subject || '';
   form.currency.value = q.currency;
@@ -280,10 +289,76 @@ document.addEventListener('click', (e) => {
   }
 });
 
+
+// ---------- Project type-ahead ----------
+// Same idea as the customer field: pick an existing job, or type a new
+// name and the project is created (against this customer) on save.
+function setProject(id) {
+  const p = projectsCache.find(x => x.id === id);
+  document.getElementById('q-project-id').value = id || '';
+  document.getElementById('q-project-input').value = p ? p.name : '';
+  updateProjectHint();
+}
+
+function updateProjectHint() {
+  const hint = document.getElementById('project-hint');
+  const typed = document.getElementById('q-project-input').value.trim();
+  const id = document.getElementById('q-project-id').value;
+  if (id) {
+    const p = projectsCache.find(x => x.id === parseInt(id));
+    hint.textContent = p ? `${p.project_number} · ${p.status}` : '';
+    hint.className = 'combo-hint';
+  } else if (typed) {
+    hint.textContent = `"${typed}" will be created as a new project at Enquiry stage.`;
+    hint.className = 'combo-hint is-new';
+  } else {
+    hint.textContent = '';
+    hint.className = 'combo-hint';
+  }
+}
+
+function renderProjectOptions(filter) {
+  const list = document.getElementById('project-list');
+  const q = (filter || '').toLowerCase();
+  const matches = projectsCache
+    .filter(p => !q || p.name.toLowerCase().includes(q) || (p.project_number || '').toLowerCase().includes(q))
+    .slice(0, 8);
+
+  if (!matches.length) {
+    list.innerHTML = q
+      ? `<div class="combo-empty">No match — this will be created as a new project.</div>`
+      : `<div class="combo-empty">No projects yet — type a name to create one.</div>`;
+  } else {
+    list.innerHTML = matches.map(p => `
+      <button type="button" class="combo-option" onclick="pickProject(${p.id})">
+        ${p.name}<span>${p.project_number} · ${p.status}</span>
+      </button>`).join('');
+  }
+  list.classList.add('open');
+}
+
+function pickProject(id) {
+  setProject(id);
+  document.getElementById('project-list').classList.remove('open');
+}
+
+document.getElementById('q-project-input').addEventListener('input', (e) => {
+  document.getElementById('q-project-id').value = '';
+  renderProjectOptions(e.target.value);
+  updateProjectHint();
+});
+document.getElementById('q-project-input').addEventListener('focus', (e) => {
+  renderProjectOptions(e.target.value);
+});
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('project-combo').contains(e.target)) {
+    document.getElementById('project-list').classList.remove('open');
+  }
+});
+
 async function loadFormData() {
   const [products, customers, projects] = await Promise.all([api('/products/'), api('/customers/'), api('/projects/')]);
   productsCache = products; customersCache = customers; projectsCache = projects;
-  document.getElementById('q-project').innerHTML += projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
   if (!document.getElementById('line-items').children.length) addLine();
 }
 
@@ -348,7 +423,10 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   if (!customerId && !customerName) { toast('Choose a customer or type a new name', true); return; }
   payload.customer_id = customerId ? parseInt(customerId) : null;
   payload.customer_name = customerId ? null : customerName;
-  if (payload.project_id) payload.project_id = parseInt(payload.project_id);
+  const projectId = document.getElementById('q-project-id').value;
+  const projectName = document.getElementById('q-project-input').value.trim();
+  payload.project_id = projectId ? parseInt(projectId) : null;
+  payload.project_name = projectId ? null : (projectName || null);
   payload.freight_charges = parseFloat(payload.freight_charges || 0);
   payload.vat_percent = parseFloat(payload.vat_percent || 0);
   // Sent as a string so it can hold either a figure ("500") or words ("Included")

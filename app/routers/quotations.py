@@ -85,19 +85,59 @@ def _resolve_customer(payload, db: Session, user: str) -> models.Customer:
     return customer
 
 
+def _resolve_project(payload, customer: models.Customer, db: Session, user: str):
+    """Find the project by id, or by name - creating it against this
+    customer if the name is new. Returns None when no project is given,
+    since a quotation doesn't have to belong to one."""
+    if payload.project_id:
+        project = db.query(models.Project).get(payload.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return project
+
+    name = (getattr(payload, "project_name", None) or "").strip()
+    if not name:
+        return None
+
+    existing = (
+        db.query(models.Project)
+        .filter(func.lower(models.Project.name) == name.lower())
+        .first()
+    )
+    if existing:
+        return existing
+
+    count = db.query(models.Project).count() + 1
+    project = models.Project(
+        project_number=f"PRJ-{count:05d}",
+        name=name,
+        customer_id=customer.id,
+        status=models.ProjectStatus.enquiry,
+    )
+    db.add(project)
+    db.flush()
+    project.status_history.append(
+        models.ProjectStatusHistory(status=models.ProjectStatus.enquiry,
+                                    notes="Created while raising a quotation")
+    )
+    log_activity(db, user, "project", project.id, f"{project.project_number} — {project.name}",
+                 "created", "added while raising a quotation")
+    return project
+
+
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
 def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
-    if payload.project_id:
-        project = db.query(models.Project).get(payload.project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
+    project = _resolve_project(payload, customer, db, current.username)
 
-    data = payload.model_dump(exclude={"items", "customer_name", "customer_id"})
+    data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
+                                       "project_name", "project_id"})
     quotation = models.Quotation(quote_number=_next_quote_number(db),
-                                 customer_id=customer.id, **data)
+                                 customer_id=customer.id,
+                                 project_id=project.id if project else None,
+                                 **data)
     for item in payload.items:
         prod = db.query(models.Product).get(item.product_id)
         item_data = item.model_dump()
@@ -134,11 +174,14 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
+    project = _resolve_project(payload, customer, db, current.username)
 
-    data = payload.model_dump(exclude={"items", "customer_name", "customer_id"})
+    data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
+                                       "project_name", "project_id"})
     for key, value in data.items():
         setattr(quotation, key, value)
     quotation.customer_id = customer.id
+    quotation.project_id = project.id if project else None
 
     quotation.items.clear()
     db.flush()

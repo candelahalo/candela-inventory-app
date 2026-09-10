@@ -119,6 +119,9 @@ class QuotationCreate(BaseModel):
     # so a quotation can be raised for a new client without a separate step.
     customer_name: Optional[str] = None
     project_id: Optional[int] = None
+    # If no project_id is given, a project with this name is found or created
+    # against the same customer, so a quotation can start a new job directly.
+    project_name: Optional[str] = None
     notes: Optional[str] = None
     valid_until: Optional[datetime] = None
     attention_to: Optional[str] = None
