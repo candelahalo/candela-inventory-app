@@ -386,12 +386,21 @@ async function loadQuotations() {
     columns: columns,
     rows: quotes,
     actions: q => `
-      <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/pdf">PDF</a>
-      <a class="btn btn-ghost btn-sm" href="/quotations/${q.id}/excel">Excel</a>
+      <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">Edit</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
     `,
   });
+}
+
+async function downloadDoc(id, kind) {
+  // Downloads open through plain navigation, which can't send an auth
+  // header - so a short-lived download-only token travels in the URL.
+  try {
+    const r = await api('/auth/download-token', { method: 'POST' });
+    window.open(`/quotations/${id}/${kind}?token=${encodeURIComponent(r.token)}`, '_blank');
+  } catch (err) { toast(err.message, true); }
 }
 
 async function deleteQuotation(id, quoteNumber) {

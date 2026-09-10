@@ -1,6 +1,6 @@
 import io
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -20,6 +20,12 @@ from app.settings import BASE_URL
 
 router = APIRouter(prefix="/quotations", tags=["Quotations"],
                    dependencies=[Depends(auth.get_current_user)])
+
+# PDF and Excel open via plain browser navigation (window.open / an <a> href),
+# which cannot set an Authorization header. They authenticate with the same
+# 60-second download token the backup download uses, so the real session token
+# never travels in a URL.
+download_router = APIRouter(prefix="/quotations", tags=["Quotations (download)"])
 templates = Jinja2Templates(directory="app/templates")
 
 # Cost/margin fields are stripped from API responses for non-admin users.
@@ -247,8 +253,9 @@ def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     return new_quote
 
 
-@router.get("/{quotation_id}/pdf")
-def quotation_pdf(quotation_id: int, db: Session = Depends(get_db)):
+@download_router.get("/{quotation_id}/pdf")
+def quotation_pdf(quotation_id: int, token: str = Query(...), db: Session = Depends(get_db)):
+    auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
@@ -279,8 +286,9 @@ def quotation_pdf(quotation_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{quotation_id}/excel")
-def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
+@download_router.get("/{quotation_id}/excel")
+def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = Depends(get_db)):
+    auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
