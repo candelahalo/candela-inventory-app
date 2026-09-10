@@ -194,9 +194,31 @@ th.num { }
 .line-items { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; }
 .line-item-block { border-bottom: 1px solid var(--paper-2); }
 .line-item-block:last-child { border-bottom: none; }
-.line-item-row { display: grid; grid-template-columns: 60px 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; padding: 10px 12px 4px; align-items: end; }
-.line-item-row .field label { font-size: 11px; }
-.remove-line { background: none; border: none; color: var(--red); cursor: pointer; font-size: 18px; line-height: 1; padding: 8px; }
+.line-item-row {
+  display: grid;
+  grid-template-columns: 52px minmax(160px, 2.4fr) 82px 66px 88px 88px 66px 26px;
+  gap: 10px;
+  padding: 12px 12px 6px;
+  align-items: end;
+}
+.line-item-row .field label { font-size: 11px; white-space: nowrap; }
+.line-item-row .field input, .line-item-row .field select { min-width: 0; }
+.remove-line {
+  background: none; border: none; color: var(--red); cursor: pointer;
+  font-size: 17px; line-height: 1; padding: 0 0 9px; align-self: end;
+}
+.remove-line:hover { color: #A33F2E; }
+
+/* Description + line profit share one row: label left, profit right */
+.line-item-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 4px;
+}
+.line-item-foot label { font-size: 11px; font-weight: 600; }
+.line-item-block .li-desc { width: calc(100% - 24px); margin: 0 12px 12px; }
 
 /* ---------- Kanban ---------- */
 .board-scroll {
@@ -308,10 +330,10 @@ th.num { }
 
 /* ---------- Margin / profit (internal only) ---------- */
 .line-margin {
-  padding: 2px 12px 8px;
   font-size: 12px;
   font-family: var(--font-mono);
   color: var(--muted);
+  white-space: nowrap;
 }
 .line-margin.ok { color: var(--green); }
 .line-margin.low { color: var(--amber-deep); }
@@ -352,3 +374,28 @@ th.num { }
 .margin-cell.ok { color: var(--green); }
 .margin-cell.low { color: var(--amber-deep); }
 .margin-cell.neg { color: var(--red); font-weight: 600; }
+
+/* Line-item description textarea (sits outside .field, needs its own styling) */
+.line-item-block .li-desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-sizing: border-box;
+}
+.line-item-block .li-desc:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: -1px;
+  background: var(--white);
+}
+
+/* Line items stack on narrow screens instead of squeezing */
+@media (max-width: 1100px) {
+  .line-item-row { grid-template-columns: 52px 1fr 1fr 26px; }
+}
+@media (max-width: 700px) {
+  .line-item-row { grid-template-columns: 1fr 1fr; }
+  .line-item-row .field:first-child { grid-column: 1 / -1; }
+}

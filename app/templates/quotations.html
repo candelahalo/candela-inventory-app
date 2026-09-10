@@ -71,10 +71,13 @@ function lineRow(item) {
       <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
       <div class="field li-cost-field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
-      <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();">×</button>
+      <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();" title="Remove line">×</button>
     </div>
-    <div class="line-margin" data-margin>—</div>
-    <div class="field" style="padding: 0 12px 12px;"><label>Description (defaults from product spec)</label><textarea class="li-desc" rows="2">${item && item.description ? item.description : ''}</textarea></div>
+    <div class="line-item-foot">
+      <label>Description (defaults from product spec)</label>
+      <span class="line-margin" data-margin>—</span>
+    </div>
+    <textarea class="li-desc" rows="2">${item && item.description ? item.description : ''}</textarea>
   </div>`;
 }
 
