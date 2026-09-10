@@ -82,23 +82,32 @@ cd /opt/candela-inventory-app && git fetch origin && git reset --hard origin/mai
 
 ## Deploy (WITH schema change)
 
-Alembic migration files are **not committed** (only `alembic/versions/.gitkeep`
-is), so the usual approach has been to rebuild the database. This wipes data —
-fine so far because it's still test data, but **once real data is in, switch to
-proper incremental migrations instead.**
+**Migrations are committed to the repo.** Never drop the database on deploy —
+that destroys real quotations, stock history, and the link between products and
+their uploaded photos.
 
 ```bash
 cd /opt/candela-inventory-app && git fetch origin && git reset --hard origin/main && \
-systemctl stop candela-app && \
-sudo -u postgres psql -c "DROP DATABASE candela_app;" && \
-sudo -u postgres psql -c "CREATE DATABASE candela_app OWNER candela_user;" && \
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE candela_app TO candela_user;" && \
-rm -rf alembic/versions/*.py && \
-alembic revision --autogenerate -m "describe change" && \
+source venv/bin/activate && pip install -r requirements.txt && \
 alembic upgrade head && \
-python3 scripts/seed_data.py && \
-python3 scripts/add_placeholder_images.py && \
-systemctl start candela-app
+systemctl restart candela-app
+```
+
+When changing models, generate a migration **locally**, review it, and commit it:
+
+```bash
+alembic revision --autogenerate -m "what changed"
+# review the generated file in alembic/versions/ before committing
+```
+
+## Uploaded files
+
+Product photos and datasheets live in `app/static/uploads/` and are
+**gitignored** — deploys must never touch them. They are not in the repo, so
+**back them up separately**:
+
+```bash
+tar czf ~/candela-uploads-$(date +%F).tar.gz -C /opt/candela-inventory-app app/static/uploads
 ```
 
 ## Known gotchas hit before

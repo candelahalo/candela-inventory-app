@@ -1,7 +1,13 @@
 """
 Assigns a generated placeholder photo to every product that doesn't already
-have a real image. Safe to run any time - only fills in blanks, never
-overwrites a product that already has an image_path set.
+have an image. Safe to run any time - only fills in blanks, never overwrites a
+product that already has an image_path set.
+
+NOTE: this can only see what's in the database. If the database is rebuilt,
+products lose their image_path and this script will assign fresh placeholders
+even where a real photo was previously uploaded (the file itself survives in
+app/static/uploads/products/, it's just no longer referenced). That's why
+deploys must use `alembic upgrade head` rather than dropping the database.
 
 Usage (on the server, inside the venv):
     python3 scripts/add_placeholder_images.py
