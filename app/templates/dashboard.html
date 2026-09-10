@@ -17,7 +17,13 @@
     <h2>Pipeline</h2>
     <a href="/projects" class="panel-link">All projects →</a>
   </div>
-  <div class="funnel" id="funnel"></div>
+
+  <!-- A lit rail: each stage is a node on the line, and the rail glows
+       through the stages where work actually is. -->
+  <div class="rail-scroll">
+    <div class="rail" id="rail"></div>
+  </div>
+
   <div class="stage-detail" id="stage-detail"></div>
 </div>
 {% endblock %}
@@ -31,26 +37,36 @@ const STAGE_LABELS = {
 let boardData = null;
 let selectedStage = null;
 
-function renderFunnel() {
+function renderRail() {
   const { stages, totals } = boardData;
-  const peak = Math.max(1, ...stages.map(s => totals[s].count));
-  document.getElementById('funnel').innerHTML = stages.map(s => {
-    const t = totals[s];
-    const empty = t.count === 0;
-    const pct = empty ? 0 : Math.max(14, (t.count / peak) * 100);
-    return `
-      <button class="funnel-stage ${s === selectedStage ? 'selected' : ''} ${empty ? 'empty' : ''}"
-              onclick="selectStage('${s}')">
-        <div class="fs-bar-track"><div class="fs-bar" style="height:${pct}%"></div></div>
-        <div class="fs-count">${t.count}</div>
-        <div class="fs-label">${STAGE_LABELS[s]}</div>
-      </button>`;
-  }).join('');
+  // The rail lights up as far as the furthest stage that still holds work,
+  // so you can see at a glance how far the pipeline actually reaches.
+  const lastActive = stages.reduce((acc, s, i) => totals[s].count ? i : acc, -1);
+  const litPct = lastActive < 0 ? 0 : (lastActive / (stages.length - 1)) * 100;
+
+  document.getElementById('rail').innerHTML = `
+    <div class="rail-line"><div class="rail-lit" style="width:${litPct}%"></div></div>
+    <div class="rail-nodes">
+      ${stages.map((s, i) => {
+        const n = totals[s].count;
+        const cls = [
+          'node',
+          n ? 'has' : 'empty',
+          s === selectedStage ? 'selected' : '',
+          i <= lastActive && n ? 'lit' : '',
+        ].join(' ');
+        return `
+          <button class="${cls}" onclick="selectStage('${s}')" title="${STAGE_LABELS[s]}">
+            <span class="node-dot">${n || ''}</span>
+            <span class="node-label">${STAGE_LABELS[s]}</span>
+          </button>`;
+      }).join('')}
+    </div>`;
 }
 
 function selectStage(stage) {
   selectedStage = (selectedStage === stage) ? null : stage;
-  renderFunnel();
+  renderRail();
   renderStageDetail();
 }
 
@@ -100,7 +116,7 @@ async function loadDashboard() {
     row.children[2].querySelector('.num').textContent = products.length;
     row.children[3].querySelector('.num').textContent = lowStock.length;
 
-    renderFunnel();
+    renderRail();
     renderStageDetail();
   } catch (e) {
     toast('Could not load dashboard: ' + e.message, true);
