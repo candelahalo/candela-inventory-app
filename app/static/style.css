@@ -504,3 +504,46 @@ th.num { }
   font-size: 12.5px; color: var(--muted); cursor: pointer; margin-top: 4px;
 }
 .inline-check input { width: auto; }
+
+/* ---------- Modal (permissions picker) ---------- */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(20, 19, 17, 0.45);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal-card {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 26px 28px;
+  width: 460px;
+  max-width: 92vw;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.modal-card h2 { font-family: var(--font-head); font-size: 17px; margin: 0 0 4px; }
+.modal-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+.modal-actions-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.perms-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.perms-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--paper-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+.perms-row:last-child { border-bottom: none; }
+.perms-row:hover { background: var(--paper); }
+.perms-row input { width: auto; margin: 0; }
+.modal-note { font-size: 12.5px; color: var(--amber-deep); min-height: 18px; margin: 10px 0 4px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

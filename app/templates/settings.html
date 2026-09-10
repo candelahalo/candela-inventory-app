@@ -61,6 +61,25 @@
   <button class="btn btn-ghost" id="take-backup-btn">Take backup now</button>
   <div id="backups-table" style="margin-top:16px;"></div>
 </div>
+
+<!-- ============ CHOOSE SCREENS MODAL ============ -->
+<div id="perms-overlay" class="modal-overlay">
+  <div class="modal-card">
+    <h2>What can they open?</h2>
+    <p class="modal-sub">Tick the screens <strong id="perms-user"></strong> is allowed to use.</p>
+    <div class="modal-actions-row">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="permsSetAll(true)">Tick everything</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="permsSetAll(false)">Untick everything</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="permsUseRoleDefault()">Use role default</button>
+    </div>
+    <div id="perms-list" class="perms-list"></div>
+    <div class="modal-note" id="perms-note"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closePerms()">Cancel</button>
+      <button type="button" class="btn" onclick="savePerms()">Save</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -84,9 +103,79 @@ document.getElementById('password-form').addEventListener('submit', async (e) =>
   } catch (err) { toast(err.message, true); }
 });
 
+// Friendly names for the screens, so the permissions list reads like
+// the menu rather than internal ids.
+const SCREEN_LABELS = {
+  dashboard: "Dashboard", projects: "Projects", quotations: "Quotations",
+  stock: "Stock", products: "Products", customers: "Customers",
+  activity: "Activity", settings: "Settings",
+};
+let permsUserId = null;
+let usersCache = [];
+let screensCfg = null;
+
+async function openPerms(id, username) {
+  permsUserId = id;
+  document.getElementById('perms-user').textContent = username;
+  document.getElementById('perms-note').textContent = '';
+  const u = usersCache.find(x => x.id === id);
+  if (!screensCfg) screensCfg = await api('/users/screens');
+  // No explicit list yet -> show what the role gives them by default.
+  const current = (u.permissions || '').trim()
+    ? u.permissions.split(',')
+    : (screensCfg.roles[u.role] || []);
+  document.getElementById('perms-list').innerHTML = screensCfg.all_screens.map(s => `
+    <label class="perms-row">
+      <input type="checkbox" value="${s}" ${current.includes(s) ? 'checked' : ''}>
+      ${SCREEN_LABELS[s] || s}
+    </label>`).join('');
+  document.getElementById('perms-overlay').classList.add('open');
+}
+
+function permsSetAll(on) {
+  document.querySelectorAll('#perms-list input').forEach(i => { i.checked = on; });
+  document.getElementById('perms-note').textContent = '';
+}
+
+// Put the ticks back to whatever this person's role gives by default,
+// so an admin can undo fiddling without remembering the original set.
+async function permsUseRoleDefault() {
+  if (!permsUserId) return;
+  const u = usersCache.find(x => x.id === permsUserId);
+  if (!screensCfg) screensCfg = await api('/users/screens');
+  const def = screensCfg.roles[u.role] || [];
+  document.querySelectorAll('#perms-list input').forEach(i => { i.checked = def.includes(i.value); });
+  document.getElementById('perms-note').textContent = `Set back to the default for a ${u.role} login.`;
+}
+
+function closePerms() {
+  permsUserId = null;
+  document.getElementById('perms-overlay').classList.remove('open');
+}
+
+async function savePerms() {
+  if (!permsUserId) return;
+  const picked = [...document.querySelectorAll('#perms-list input:checked')].map(i => i.value);
+  if (!picked.length) {
+    document.getElementById('perms-note').textContent = "Tick at least one screen, or they can't use the app at all.";
+    return;
+  }
+  try {
+    await api('/users/' + permsUserId + '/permissions', {
+      method: 'PUT', body: JSON.stringify({ permissions: picked }),
+    });
+    closePerms();
+    toast("Saved. They'll see the change next time they sign in.");
+    loadUsers();
+  } catch (err) {
+    document.getElementById('perms-note').textContent = err.message;
+  }
+}
+
 // ---------- Staff logins (admin only) ----------
 async function loadUsers() {
-  const users = await api('/users');
+  usersCache = await api('/users');
+  if (!screensCfg) screensCfg = await api('/users/screens');
   DataTable.render({
     containerId: 'users-table',
     storageKey: 'users',
@@ -95,9 +184,12 @@ async function loadUsers() {
       { key: 'username', label: 'Username', value: u => u.username, render: u => `<span class="mono">${u.username}</span>` },
       { key: 'full_name', label: 'Name', value: u => u.full_name, render: u => u.full_name },
       { key: 'role', label: 'Role', value: u => u.role, render: u => `<span class="badge">${u.role}</span>` },
+      { key: 'canopen', label: 'Can open', sortable: false, value: () => '', render: u => u.role === 'admin'
+          ? '<span style="color:var(--muted);">Everything</span>'
+          : `<button class="btn btn-ghost btn-sm" onclick="openPerms(${u.id}, '${u.username}')">Choose screens</button>` },
       { key: 'created', label: 'Created', value: u => u.created_at, render: u => fmtDate(u.created_at) },
     ],
-    rows: users,
+    rows: usersCache,
     actions: u => `
       <button class="btn btn-ghost btn-sm" onclick="resetPassword(${u.id}, '${u.username}')">Reset password</button>
       ${u.username === me.username ? '' : `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>`}
