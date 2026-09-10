@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from weasyprint import HTML
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
@@ -55,11 +56,38 @@ def list_quotations(project_id: Optional[int] = None, db: Session = Depends(get_
     return _strip_margin(payload, current.role == "admin")
 
 
+def _resolve_customer(payload, db: Session, user: str) -> models.Customer:
+    """Find the customer by id, or by name - creating them if the name is new.
+
+    Lets a quotation be raised for a walk-in client without having to add
+    them on the Customers page first.
+    """
+    if payload.customer_id:
+        customer = db.query(models.Customer).get(payload.customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        return customer
+
+    name = (payload.customer_name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Choose a customer or type a new name.")
+
+    # Match case-insensitively so "ACME" doesn't create a twin of "Acme"
+    existing = db.query(models.Customer).filter(func.lower(models.Customer.name) == name.lower()).first()
+    if existing:
+        return existing
+
+    customer = models.Customer(name=name)
+    db.add(customer)
+    db.flush()
+    log_activity(db, user, "customer", customer.id, customer.name,
+                 "created", "added while raising a quotation")
+    return customer
+
+
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
 def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
-    customer = db.query(models.Customer).get(payload.customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
     if payload.project_id:
@@ -67,8 +95,9 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-    data = payload.model_dump(exclude={"items"})
-    quotation = models.Quotation(quote_number=_next_quote_number(db), **data)
+    data = payload.model_dump(exclude={"items", "customer_name", "customer_id"})
+    quotation = models.Quotation(quote_number=_next_quote_number(db),
+                                 customer_id=customer.id, **data)
     for item in payload.items:
         prod = db.query(models.Product).get(item.product_id)
         item_data = item.model_dump()
@@ -102,15 +131,14 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    customer = db.query(models.Customer).get(payload.customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
 
-    data = payload.model_dump(exclude={"items"})
+    data = payload.model_dump(exclude={"items", "customer_name", "customer_id"})
     for key, value in data.items():
         setattr(quotation, key, value)
+    quotation.customer_id = customer.id
 
     quotation.items.clear()
     db.flush()

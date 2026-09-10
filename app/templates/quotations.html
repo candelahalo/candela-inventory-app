@@ -14,7 +14,15 @@
   <form id="quote-form">
     <input type="hidden" id="editing-id">
     <div class="form-grid">
-      <div class="field"><label>Customer</label><select name="customer_id" id="q-customer" required></select></div>
+      <div class="field">
+        <label>Customer</label>
+        <div class="combo" id="customer-combo">
+          <input id="q-customer-input" autocomplete="off" placeholder="Type to search, or enter a new name">
+          <input type="hidden" name="customer_id" id="q-customer-id">
+          <div class="combo-list" id="customer-list"></div>
+        </div>
+        <div class="combo-hint" id="customer-hint"></div>
+      </div>
       <div class="field"><label>Project (optional)</label><select name="project_id" id="q-project"><option value="">— None —</option></select></div>
       <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
       <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
@@ -174,6 +182,7 @@ function hideAddPanel() {
   document.getElementById('quote-form').reset();
   document.getElementById('editing-id').value = '';
   document.getElementById('line-items').innerHTML = '';
+  setCustomer(null);
 }
 document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); if (!document.getElementById('line-items').children.length) addLine(); });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
@@ -181,7 +190,7 @@ document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
 async function editQuotation(id) {
   const q = await api('/quotations/' + id);
   const form = document.getElementById('quote-form');
-  form.customer_id.value = q.customer_id;
+  setCustomer(q.customer_id);
   form.project_id.value = q.project_id || '';
   form.attention_to.value = q.attention_to || '';
   form.subject.value = q.subject || '';
@@ -203,10 +212,77 @@ async function editQuotation(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+
+// ---------- Customer type-ahead ----------
+// Free text rather than a dropdown: pick an existing client as you type,
+// or just type a new name and it gets created when the quotation saves.
+function setCustomer(id) {
+  const c = customersCache.find(x => x.id === id);
+  document.getElementById('q-customer-id').value = id || '';
+  document.getElementById('q-customer-input').value = c ? c.name : '';
+  updateCustomerHint();
+}
+
+function updateCustomerHint() {
+  const hint = document.getElementById('customer-hint');
+  const typed = document.getElementById('q-customer-input').value.trim();
+  const id = document.getElementById('q-customer-id').value;
+  if (id) {
+    const c = customersCache.find(x => x.id === parseInt(id));
+    hint.textContent = c && c.company ? c.company : '';
+    hint.className = 'combo-hint';
+  } else if (typed) {
+    hint.textContent = `"${typed}" will be added as a new customer.`;
+    hint.className = 'combo-hint is-new';
+  } else {
+    hint.textContent = '';
+    hint.className = 'combo-hint';
+  }
+}
+
+function renderCustomerOptions(filter) {
+  const list = document.getElementById('customer-list');
+  const q = (filter || '').toLowerCase();
+  const matches = customersCache
+    .filter(c => !q || c.name.toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q))
+    .slice(0, 8);
+
+  if (!matches.length) {
+    list.innerHTML = q
+      ? `<div class="combo-empty">No match — this will be added as a new customer.</div>`
+      : `<div class="combo-empty">No customers yet — type a name to add one.</div>`;
+  } else {
+    list.innerHTML = matches.map(c => `
+      <button type="button" class="combo-option" onclick="pickCustomer(${c.id})">
+        ${c.name}${c.company ? `<span>${c.company}</span>` : ''}
+      </button>`).join('');
+  }
+  list.classList.add('open');
+}
+
+function pickCustomer(id) {
+  setCustomer(id);
+  document.getElementById('customer-list').classList.remove('open');
+}
+
+document.getElementById('q-customer-input').addEventListener('input', (e) => {
+  // Typing means they're no longer on the previously chosen customer
+  document.getElementById('q-customer-id').value = '';
+  renderCustomerOptions(e.target.value);
+  updateCustomerHint();
+});
+document.getElementById('q-customer-input').addEventListener('focus', (e) => {
+  renderCustomerOptions(e.target.value);
+});
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('customer-combo').contains(e.target)) {
+    document.getElementById('customer-list').classList.remove('open');
+  }
+});
+
 async function loadFormData() {
   const [products, customers, projects] = await Promise.all([api('/products/'), api('/customers/'), api('/projects/')]);
   productsCache = products; customersCache = customers; projectsCache = projects;
-  document.getElementById('q-customer').innerHTML = customers.map(c => `<option value="${c.id}">${c.name}${c.company ? ' — ' + c.company : ''}</option>`).join('');
   document.getElementById('q-project').innerHTML += projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
   if (!document.getElementById('line-items').children.length) addLine();
 }
@@ -267,7 +343,11 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   if (!items.length) { toast('Add at least one line item', true); return; }
 
   const payload = formToJSON(form);
-  payload.customer_id = parseInt(payload.customer_id);
+  const customerId = document.getElementById('q-customer-id').value;
+  const customerName = document.getElementById('q-customer-input').value.trim();
+  if (!customerId && !customerName) { toast('Choose a customer or type a new name', true); return; }
+  payload.customer_id = customerId ? parseInt(customerId) : null;
+  payload.customer_name = customerId ? null : customerName;
   if (payload.project_id) payload.project_id = parseInt(payload.project_id);
   payload.freight_charges = parseFloat(payload.freight_charges || 0);
   payload.vat_percent = parseFloat(payload.vat_percent || 0);

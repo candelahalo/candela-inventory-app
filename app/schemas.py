@@ -114,7 +114,10 @@ class QuotationItemOut(QuotationItemCreate):
 
 
 class QuotationCreate(BaseModel):
-    customer_id: int
+    customer_id: Optional[int] = None
+    # If no customer_id is given, a customer with this name is found or created,
+    # so a quotation can be raised for a new client without a separate step.
+    customer_name: Optional[str] = None
     project_id: Optional[int] = None
     notes: Optional[str] = None
     valid_until: Optional[datetime] = None
