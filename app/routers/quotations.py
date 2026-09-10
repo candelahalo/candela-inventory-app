@@ -449,7 +449,6 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
     type_font = InlineFont(rFont=FONT, b=True, sz=8.5, color=AMBER)
     brand_font = InlineFont(rFont=FONT, b=False, sz=10, color=FAINT)
     spec_font = InlineFont(rFont=FONT, b=False, sz=8.5, color=MUTED)
-    link_font = InlineFont(rFont=FONT, b=True, sz=8, color=AMBER, u="single")
 
     row = header_row + 1
     for idx, item in enumerate(quotation.items, start=1):
@@ -471,8 +470,6 @@ def quotation_excel(quotation_id: int, db: Session = Depends(get_db)):
         if product and product.brand:
             blocks.append(TextBlock(brand_font, f"  — {product.brand}"))
         ds_url = datasheet_links.get(item.product_id)
-        if ds_url:
-            blocks.append(TextBlock(link_font, "   ▸ datasheet"))
         if item.description:
             blocks.append(TextBlock(spec_font, "\n" + item.description))
 
