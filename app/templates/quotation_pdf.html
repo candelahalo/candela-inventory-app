@@ -111,13 +111,12 @@
 
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
   table.items col.c-idx { width: 22px; }
-  table.items col.c-img { width: 54px; }
+  table.items col.c-img { width: 58px; }
   table.items col.c-desc { width: auto; }
-  table.items col.c-unit { width: 30px; }
-  table.items col.c-qty { width: 30px; }
-  table.items col.c-price { width: 54px; }
-  table.items col.c-disc { width: 34px; }
-  table.items col.c-total { width: 60px; }
+  table.items col.c-unit { width: 34px; }
+  table.items col.c-qty { width: 32px; }
+  table.items col.c-price { width: 58px; }
+  table.items col.c-total { width: 64px; }
 
   table.items thead th {
     font-size: 8px;
@@ -153,6 +152,7 @@
   .totals-wrap { display: flex; justify-content: flex-end; margin-top: 4px; }
   .totals-box { width: 62mm; }
   .totals-box .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px; color: #56503F; }
+  .totals-box .row.discount { color: #2E7D52; font-weight: 600; }
   .totals-box .row.grand { border-top: 1.25px solid #201E1A; margin-top: 4px; padding-top: 9px; font-size: 12.5px; font-weight: 700; color: #201E1A; }
   .vat-note { font-size: 8px; color: #9A9382; font-style: italic; margin-top: 14px; text-align: right; }
 
@@ -226,11 +226,11 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
 
 <table class="items">
   <colgroup>
-    <col class="c-idx"><col class="c-img"><col class="c-desc"><col class="c-unit"><col class="c-qty"><col class="c-price"><col class="c-disc"><col class="c-total">
+    <col class="c-idx"><col class="c-img"><col class="c-desc"><col class="c-unit"><col class="c-qty"><col class="c-price"><col class="c-total">
   </colgroup>
   <thead>
     <tr>
-      <th class="center">#</th><th class="center">Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Disc</th><th class="num">Total</th>
+      <th class="center">#</th><th class="center">Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th>
     </tr>
   </thead>
   <tbody>
@@ -255,8 +255,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
       <td class="num">{{ item.product.unit if item.product else 'pcs' }}</td>
       <td class="num">{{ item.quantity }}</td>
       <td class="num">{{ "{:,.2f}".format(item.unit_price) }}</td>
-      <td class="num">{% if item.discount_pct %}{{ item.discount_pct | round(1) | int if item.discount_pct == item.discount_pct | round(0) else item.discount_pct }}%{% else %}—{% endif %}</td>
-      <td class="num">{{ "{:,.2f}".format(item.line_total) }}</td>
+      <td class="num">{{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -264,7 +263,9 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
 
 <div class="totals-wrap">
   <div class="totals-box">
-    <div class="row"><span>Gross Total</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</span></div>
+    <div class="row"><span>Subtotal</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</span></div>
+    {% if q.total_discount %}<div class="row discount"><span>Discount</span><span>− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</span></div>{% endif %}
+    <div class="row"><span>Total after discount</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</span></div>
     {% if q.freight_charges %}<div class="row"><span>Freight &amp; Customs</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</span></div>{% endif %}
     <div class="row"><span>Transportation</span><span>{% if q.transportation_is_text %}{{ q.transportation_charges }}{% else %}{{ q.currency }} {{ "{:,.2f}".format(q.transportation_amount) }}{% endif %}</span></div>
     <div class="row"><span>Subtotal (VAT excl.)</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}</span></div>

@@ -134,6 +134,17 @@ class Quotation(Base):
         return round(sum(item.line_total for item in self.items), 2)
 
     @property
+    def subtotal_before_discount(self):
+        """List price total, before any line discounts are applied."""
+        return round(sum(item.quantity * item.unit_price for item in self.items), 2)
+
+    @property
+    def total_discount(self):
+        """Total saving across all lines - shown as its own deduction line
+        on the quotation so the client can see what they've been given."""
+        return round(self.subtotal_before_discount - self.gross_total, 2)
+
+    @property
     def total_cost(self):
         """Total cost of goods on this quotation (snapshot costs)."""
         return round(sum(item.line_cost for item in self.items), 2)

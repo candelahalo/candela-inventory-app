@@ -495,29 +495,29 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
     ws.sheet_view.showGridLines = False
     # Sized to fit A4 portrait printable width (~185mm with 0.5in margins) at
     # 100% scale, so nothing gets shrunk down when printed.
-    widths = {"A": 4, "B": 10, "C": 36, "D": 7, "E": 6, "F": 10, "G": 6, "H": 12}
+    widths = {"A": 4, "B": 10, "C": 40, "D": 7, "E": 6, "F": 11, "G": 13}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
     add_logo(ws, "A1")
     ws.row_dimensions[1].height = 30
-    ws.merge_cells("C1:H1")
+    ws.merge_cells("C1:G1")
     ws["C1"] = quotation.quote_number
     ws["C1"].font = Font(name=FONT_MONO, size=9, color=FAINT)
     ws["C1"].alignment = Alignment(horizontal="right", vertical="center")
     ws.row_dimensions[2].height = 6
 
-    ws.merge_cells("A3:H3")
+    ws.merge_cells("A3:G3")
     ws["A3"] = "Itemized Schedule"
     ws["A3"].font = Font(name=FONT, size=17, bold=True, color=INK)
     ws.row_dimensions[3].height = 24
-    ws.merge_cells("A4:H4")
+    ws.merge_cells("A4:G4")
     ws["A4"] = quotation.subject or (quotation.project.name if quotation.project else "")
     ws["A4"].font = Font(name=FONT, size=10, color=FAINT)
     r = 6
 
     header_row = r
-    headers = ["#", "IMAGE", "DESCRIPTION", "UNIT", "QTY", "PRICE", "DISC", "TOTAL"]
+    headers = ["#", "IMAGE", "DESCRIPTION", "UNIT", "QTY", "PRICE", "TOTAL"]
     for i, h in enumerate(headers):
         cell = ws.cell(row=header_row, column=i + 1, value=h)
         cell.fill = PatternFill(start_color=INK, end_color=INK, fill_type="solid")
@@ -569,19 +569,11 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
             if col == 6:
                 c.number_format = '#,##0.00'
 
-        # Discount shown in its own column, and folded into the line-total
-        # formula so the sheet still recalculates when edited.
-        disc_cell = ws.cell(row=row, column=7, value=(item.discount_pct or 0) / 100)
-        disc_cell.number_format = '0%'
-        disc_cell.alignment = center
-        disc_cell.border = border
-        disc_cell.font = Font(name=FONT, size=9.5, color=INK)
-        if fill: disc_cell.fill = fill
-
-        # Line total is a live formula (qty × price, less any discount) so the
-        # sheet recalculates if someone edits quantities, rates or the discount.
-        total_cell = ws.cell(row=row, column=8)
-        total_cell.value = f"=E{row}*F{row}*(1-G{row})"
+        # Line total is the list price (qty × price). Any discount is taken
+        # off once in the totals block below, where it is far more visible
+        # to the client than a percentage buried in each row.
+        total_cell = ws.cell(row=row, column=7)
+        total_cell.value = f"=E{row}*F{row}"
         total_cell.alignment = center
         total_cell.border = border
         total_cell.font = Font(name=FONT, size=9.5, color=INK)
@@ -610,60 +602,63 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
     first_item_row = header_row + 1
     last_item_row = row - 1
 
-    freight_row = None
-    transport_row = None
-    subtotal_row = None
-    gross_row = None
+    # Each total is keyed explicitly rather than matched on its label -
+    # "Subtotal" and "Subtotal (VAT excl.)" are different lines and string
+    # matching confused the two.
+    rows_by_key = {}
+    money_fmt = f'#,##0.00 "{quotation.currency}"'
+
+    spec = [("items_subtotal", "Subtotal", False)]
+    if quotation.total_discount:
+        spec.append(("discount", "Discount", False))
+        spec.append(("after_discount", "Total after discount", False))
+    if quotation.freight_charges:
+        spec.append(("freight", "Freight & Customs", False))
+    spec.append(("transport", "Transportation", False))
+    spec.append(("net", "Subtotal (VAT excl.)", False))
+    spec.append(("vat", f"VAT ({quotation.vat_percent}%)", False))
+    spec.append(("total", "Total Due", True))
 
     row += 1
-    totals_spec = []
-    totals_spec.append(("Gross Total", f"=SUM(H{first_item_row}:H{last_item_row})", False))
-    if quotation.freight_charges:
-        totals_spec.append(("Freight & Customs", quotation.freight_charges, False))
-    totals_spec.append(("Transportation", None, False))
-    totals_spec.append(("Subtotal (VAT excl.)", None, False))
-    totals_spec.append((f"VAT ({quotation.vat_percent}%)", None, False))
-    totals_spec.append(("Total Due", None, True))
-
-    for label, value, is_grand in totals_spec:
-        ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=7)
+    for key, label, is_grand in spec:
+        ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=6)
         lbl_cell = ws.cell(row=row, column=5, value=label)
-        val_cell = ws.cell(row=row, column=8)
+        val_cell = ws.cell(row=row, column=7)
+        rows_by_key[key] = row
 
-        if label == "Gross Total":
-            gross_row = row
-            val_cell.value = value
-            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
-        elif label == "Freight & Customs":
-            freight_row = row
-            val_cell.value = value
-            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
-        elif label == "Transportation":
-            transport_row = row
+        R = rows_by_key
+        if key == "items_subtotal":
+            val_cell.value = f"=SUM(G{first_item_row}:G{last_item_row})"
+        elif key == "discount":
+            val_cell.value = -quotation.total_discount
+        elif key == "after_discount":
+            val_cell.value = f"=G{R['items_subtotal']}+G{R['discount']}"
+        elif key == "freight":
+            val_cell.value = quotation.freight_charges
+        elif key == "transport":
             if quotation.transportation_is_text:
                 # Free text like "Included" - shown as-is and excluded from the sum
                 val_cell.value = quotation.transportation_charges
             else:
                 val_cell.value = quotation.transportation_amount
-                val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
-        elif label.startswith("Subtotal"):
-            subtotal_row = row
-            parts = [f"H{gross_row}"]
-            if freight_row:
-                parts.append(f"H{freight_row}")
-            if transport_row and not quotation.transportation_is_text:
-                parts.append(f"H{transport_row}")
+        elif key == "net":
+            base = R.get("after_discount", R["items_subtotal"])
+            parts = [f"G{base}"]
+            if "freight" in R:
+                parts.append(f"G{R['freight']}")
+            if not quotation.transportation_is_text:
+                parts.append(f"G{R['transport']}")
             val_cell.value = "=" + "+".join(parts)
-            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
-        elif label.startswith("VAT"):
-            vat_row = row
-            val_cell.value = f"=H{subtotal_row}*{quotation.vat_percent / 100}"
-            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
+        elif key == "vat":
+            val_cell.value = f"=G{R['net']}*{quotation.vat_percent / 100}"
         else:
-            val_cell.value = f"=H{subtotal_row}+H{vat_row}"
-            val_cell.number_format = f'#,##0.00 "{quotation.currency}"'
+            val_cell.value = f"=G{R['net']}+G{R['vat']}"
 
-        f = Font(name=FONT, bold=True, size=12 if is_grand else 10, color=INK if is_grand else MUTED)
+        if not (key == "transport" and quotation.transportation_is_text):
+            val_cell.number_format = money_fmt
+
+        colour = "2E7D52" if key == "discount" else (INK if is_grand else MUTED)
+        f = Font(name=FONT, bold=True, size=12 if is_grand else 10, color=colour)
         lbl_cell.font = f
         val_cell.font = f
         lbl_cell.alignment = Alignment(horizontal="right", vertical="center")
@@ -676,7 +671,7 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
         row += 1
 
     row += 1
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
     ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(italic=True, size=8, color=MUTED)
 
     ws.page_setup.orientation = "portrait"

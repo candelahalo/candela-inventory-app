@@ -162,6 +162,8 @@ class QuotationOut(BaseModel):
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float
+    subtotal_before_discount: float
+    total_discount: float
     grand_total: float
     vat_amount: float
     total_with_vat: float
