@@ -609,7 +609,7 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
     money_fmt = f'#,##0.00 "{quotation.currency}"'
 
     spec = [("items_subtotal", "Subtotal", False)]
-    if quotation.total_discount:
+    if abs(quotation.total_discount) >= 0.01:
         spec.append(("discount", "Discount", False))
         spec.append(("after_discount", "Total after discount", False))
     if quotation.freight_charges:

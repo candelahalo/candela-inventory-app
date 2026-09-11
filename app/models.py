@@ -141,8 +141,14 @@ class Quotation(Base):
     @property
     def total_discount(self):
         """Total saving across all lines - shown as its own deduction line
-        on the quotation so the client can see what they've been given."""
-        return round(self.subtotal_before_discount - self.gross_total, 2)
+        on the quotation so the client can see what they've been given.
+
+        Summed from each line's own discount amount rather than diffing
+        subtotal_before_discount against gross_total: those two are each
+        rounded independently (once per line, once as a whole), so with
+        unit prices carrying 3+ decimal places that diff can land on a
+        stray +/-0.01 even when every discount_pct is 0."""
+        return round(sum(item.line_discount for item in self.items), 2)
 
     @property
     def total_cost(self):
@@ -210,6 +216,14 @@ class QuotationItem(Base):
     @property
     def line_total(self):
         return round(self.quantity * self.unit_price * (1 - self.discount_pct / 100), 2)
+
+    @property
+    def line_discount(self):
+        """Currency amount saved on this line. Exactly 0.0 when discount_pct
+        is 0, regardless of unit_price's decimal precision - multiplying by
+        zero can't produce rounding residue the way diffing two rounded
+        totals can."""
+        return round(self.quantity * self.unit_price * self.discount_pct / 100, 2)
 
     @property
     def line_cost(self):

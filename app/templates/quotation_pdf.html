@@ -264,7 +264,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
 <div class="totals-wrap">
   <div class="totals-box">
     <div class="row"><span>Subtotal</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</span></div>
-    {% if q.total_discount %}<div class="row discount"><span>Discount</span><span>− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</span></div>{% endif %}
+    {% if q.total_discount|abs >= 0.01 %}<div class="row discount"><span>Discount</span><span>− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</span></div>{% endif %}
     <div class="row"><span>Total after discount</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</span></div>
     {% if q.freight_charges %}<div class="row"><span>Freight &amp; Customs</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</span></div>{% endif %}
     <div class="row"><span>Transportation</span><span>{% if q.transportation_is_text %}{{ q.transportation_charges }}{% else %}{{ q.currency }} {{ "{:,.2f}".format(q.transportation_amount) }}{% endif %}</span></div>
