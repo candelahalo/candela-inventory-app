@@ -9,6 +9,7 @@
   --amber-deep: #B9760A;
   --green: #4C8F63;
   --red: #C1503D;
+  --red-light: #F7DDD7;
   --muted: #7A7364;
   --white: #FFFFFF;
   --radius: 5px;
@@ -88,13 +89,13 @@ a { color: inherit; text-decoration: none; }
   font-size: 14px;
   cursor: pointer;
 }
-.btn:hover { background: var(--amber-deep); }
+.btn:hover { background: var(--red-light); color: var(--red); }
 .btn-ghost {
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--line);
 }
-.btn-ghost:hover { background: var(--paper-2); }
+.btn-ghost:hover { background: var(--red-light); border-color: var(--red); }
 .btn-ghost.btn-danger { color: var(--red); }
 .btn-ghost.btn-danger:hover { background: #FBEFEC; border-color: #E8C4BB; }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
