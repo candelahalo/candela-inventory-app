@@ -35,6 +35,7 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
         project_number=_next_project_number(db),
         name=payload.name,
         customer_id=payload.customer_id,
+        category=payload.category,
         site_address=payload.site_address,
         start_date=payload.start_date,
         target_completion_date=payload.target_completion_date,

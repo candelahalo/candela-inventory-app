@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, ConfigDict
 
 from app.models import DocStatus, MovementType, ProjectStatus
@@ -178,6 +178,7 @@ class QuotationOut(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     customer_id: int
+    category: Optional[Literal["retail", "residential"]] = None
     site_address: Optional[str] = None
     start_date: Optional[datetime] = None
     target_completion_date: Optional[datetime] = None
@@ -198,6 +199,7 @@ class ProjectOut(BaseModel):
     project_number: Optional[str]
     name: str
     customer_id: int
+    category: Optional[str] = None
     site_address: Optional[str]
     status: ProjectStatus
     start_date: Optional[datetime]
