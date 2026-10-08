@@ -370,7 +370,7 @@ async function loadFormData() {
 async function loadQuotations() {
   const quotes = await api('/quotations/');
   const columns = [
-      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<span class="mono">${q.quote_number}</span>` },
+      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>` },
       { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
       { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : '—'; } },
       { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge">${q.status}</span>` },
