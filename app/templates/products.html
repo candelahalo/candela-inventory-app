@@ -133,11 +133,11 @@ function renderProducts() {
     storageKey: 'products',
     emptyMessage: 'No products yet — add your first light fitting or automation product above.',
     columns: [
-      { key: 'photo', label: 'Photo', sortable: false, width: '56px', value: () => '', render: p => p.image_path
+      { key: 'photo', label: 'Photo', sortable: false, width: '72px', value: () => '', render: p => p.image_path
           ? `<img src="${p.image_path}" class="thumb" onclick="event.stopPropagation(); openLightbox('${p.image_path}')" title="Click to enlarge">`
           : `<div class="thumb-empty"></div>` },
       { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<a href="/products/view/${p.id}" class="mono">${p.sku}</a>` },
-      { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}">${p.name}</a>` },
+      { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}" style="display:inline-block; min-width:170px;">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
       { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
         render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : '—' },

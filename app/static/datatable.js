@@ -52,7 +52,7 @@ const DataTable = (() => {
       const isSorted = s.sortKey === col.key;
       const arrow = isSorted ? (s.sortDir === 1 ? ' \u2191' : ' \u2193') : '';
       const sortable = col.sortable !== false;
-      return `<th draggable="true" data-key="${col.key}" class="${sortable ? 'th-sortable' : ''}" style="${col.width ? 'width:' + col.width + ';' : ''}">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
+      return `<th draggable="true" data-key="${col.key}" class="${sortable ? 'th-sortable' : ''}${col.numeric ? ' num' : ''}" style="${col.width ? 'width:' + col.width + ';' : ''}">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
     }).join('') + (actions ? '<th class="th-actions"></th>' : '');
 
     const bodyHtml = sortedRows.length
