@@ -1,9 +1,10 @@
+import io
 import os
 import uuid
 from pathlib import Path
 
 from fastapi import UploadFile, HTTPException, Header
-from PIL import Image, ImageOps, ImageChops
+from PIL import Image, ImageOps, ImageChops, ImageFilter
 
 UPLOAD_ROOT = Path("app/static/uploads")
 PRODUCT_IMAGE_DIR = UPLOAD_ROOT / "products"
@@ -14,6 +15,9 @@ DATASHEET_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 CANVAS_SIZE = 800  # every product photo becomes an 800x800 square, regardless of source shape
+TARGET_IMAGE_BYTES = 50 * 1024  # aim for ~50 KB per saved product photo
+MIN_JPEG_QUALITY = 72           # never go below this, even if the target isn't met - clarity wins
+Image.MAX_IMAGE_PIXELS = 80_000_000  # big camera photos are fine; refuse absurd "pixel bomb" files
 
 
 def log_activity(db, user: str, entity_type: str, entity_id, entity_label: str, action: str, details: str = None):
@@ -110,9 +114,32 @@ def save_product_image(file: UploadFile) -> str:
     canvas = Image.new("RGB", (CANVAS_SIZE, CANVAS_SIZE), (255, 255, 255))
     offset = ((CANVAS_SIZE - img.width) // 2, (CANVAS_SIZE - img.height) // 2)
     canvas.paste(img, offset)
-    canvas.save(dest, "JPEG", quality=90)
 
+    # A light sharpen after downscaling keeps edges, text and fine detail on
+    # fittings crisp, so the stronger compression below doesn't look soft.
+    canvas = canvas.filter(ImageFilter.UnsharpMask(radius=1.0, percent=60, threshold=2))
+
+    dest.write_bytes(_compress_jpeg(canvas))
     return f"/static/uploads/products/{filename}"
+
+
+def _compress_jpeg(img: Image.Image) -> bytes:
+    """
+    Encode as JPEG at the highest quality that still fits TARGET_IMAGE_BYTES.
+
+    Starts high and steps down only as far as needed, so a simple product shot
+    on a white background stays near-lossless while a busy photo gets squeezed
+    harder. Quality never drops below MIN_JPEG_QUALITY: past that point JPEG
+    starts to look blocky, so a slightly bigger file is the better trade.
+    """
+    best = None
+    for quality in (90, 86, 82, 78, 75, MIN_JPEG_QUALITY):
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=quality, optimize=True, progressive=True, subsampling="4:2:0")
+        best = buf.getvalue()
+        if len(best) <= TARGET_IMAGE_BYTES:
+            break
+    return best
 
 
 def save_datasheet(file: UploadFile) -> tuple[str, str]:

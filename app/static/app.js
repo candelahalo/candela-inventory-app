@@ -59,6 +59,48 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Shrink a photo in the browser before uploading it.
+// The web server in front of the app refuses uploads over 1 MB, and phone or
+// supplier photos are often 2-10 MB. Resizing here to at most 1600px on the
+// longest side (still twice what the app stores) and re-encoding as JPEG gets
+// any photo down to a few hundred KB, so it always goes through. The server
+// then does the final crop, centring and ~50 KB compression.
+const UPLOAD_MAX_SIDE = 1600;
+const UPLOAD_MAX_BYTES = 900 * 1024;
+
+async function shrinkImageForUpload(file) {
+  if (!file.type.startsWith('image/')) return file;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (e) {
+    return file;  // a format this browser can't decode - let the server judge it
+  }
+  const scale = Math.min(1, UPLOAD_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  // Small files that are already a reasonable size go up untouched.
+  if (scale === 1 && file.size <= UPLOAD_MAX_BYTES) { bitmap.close(); return file; }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';  // transparent PNGs get a white background, matching the server
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  let blob = null;
+  for (const quality of [0.92, 0.85, 0.75, 0.6]) {
+    blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (blob && blob.size <= UPLOAD_MAX_BYTES) break;
+  }
+  if (!blob) return file;
+  const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+  return new File([blob], name, { type: 'image/jpeg' });
+}
+
 function formToJSON(form) {
   const data = new FormData(form);
   const obj = {};
