@@ -7,7 +7,7 @@
     <p>Manufacturer spec sheets for every product and accessory.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
-    <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Upload datasheet</button></div>
+    <button class="btn" onclick="fillCategorySelect(document.getElementById('datasheet-form').category, ''); document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Upload datasheet</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
@@ -17,7 +17,7 @@
     <div class="form-grid">
       <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom - Track Spotlight"></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
-      <div class="field"><label>Category</label><input name="category" placeholder="Track Lighting, LED Drivers, ..."></div>
+      <div class="field"><label>Category</label><select name="category"></select></div>
       <div class="field span2"><label>Link to product (optional)</label><select name="product_id" id="ds-product"><option value="">— None —</option></select></div>
       <div class="field span2" id="ds-file-field"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf"></div>
     </div>
@@ -106,7 +106,7 @@ function editDatasheet(id) {
   const form = document.getElementById('datasheet-form');
   form.title.value = d.title;
   form.brand.value = d.brand || '';
-  form.category.value = d.category || '';
+  fillCategorySelect(form.category, d.category);
   form.product_id.value = d.product_id || '';
   document.getElementById('ds-editing-id').value = id;
   document.getElementById('ds-form-title').textContent = 'Edit datasheet details';

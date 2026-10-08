@@ -101,6 +101,30 @@ async function shrinkImageForUpload(file) {
   return new File([blob], name, { type: 'image/jpeg' });
 }
 
+// ---------- Product categories ----------
+// The categories used on halolights.uk. Products and datasheets pick from
+// this list so the spelling stays consistent everywhere.
+const PRODUCT_CATEGORIES = [
+  'Recessed Invisible', 'Recessed Visible', 'Semi Recessed', 'Low Voltage Track',
+  'Suspended', 'Led Flex', 'Surface Mounted', 'Accessories',
+];
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+// Fills a <select> with the category list. Something still carrying an older
+// category keeps it (marked "old category") until someone picks a new one.
+function fillCategorySelect(select, current) {
+  const opts = ['<option value="">Choose a category</option>'];
+  if (current && !PRODUCT_CATEGORIES.includes(current)) {
+    opts.push(`<option value="${escHtml(current)}">${escHtml(current)} (old category)</option>`);
+  }
+  PRODUCT_CATEGORIES.forEach(c => opts.push(`<option value="${c}">${c}</option>`));
+  select.innerHTML = opts.join('');
+  select.value = current || '';
+}
+
 function formToJSON(form) {
   const data = new FormData(form);
   const obj = {};

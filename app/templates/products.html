@@ -16,7 +16,7 @@
     <div class="form-grid">
       <div class="field"><label>SKU</label><input name="sku" required placeholder="CND-LED-001"></div>
       <div class="field"><label>Name</label><input name="name" required placeholder="LED Downlight 12W"></div>
-      <div class="field"><label>Category</label><input name="category" placeholder="Downlights, Smart Switches, ..."></div>
+      <div class="field"><label>Category</label><select name="category" id="p-category" required></select></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Optional"></div>
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
       <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
@@ -34,6 +34,8 @@
   </form>
 </div>
 
+<div class="tabs" id="category-tabs" role="tablist"></div>
+
 <div class="panel">
   <div id="products-table"></div>
 </div>
@@ -46,8 +48,35 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('report-btns').innerHTML = reportButtons('products');
+  // Exports follow the category tab that's showing.
+  document.getElementById('report-btns').innerHTML = reportButtons('products', { extra: 'productsReportParams()' });
 });
+
+// Category tabs: All, each HALO category, and "Other" for anything still on
+// an older category. Kept in the URL so a refresh lands on the same tab.
+let activeCategory = decodeURIComponent(location.hash.slice(1)) || 'all';
+const isOtherCategory = c => !PRODUCT_CATEGORIES.includes(c || '');
+
+function productsReportParams() {
+  return activeCategory === 'all' ? '' : '&category=' + encodeURIComponent(activeCategory);
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  history.replaceState(null, '', cat === 'all' ? location.pathname : '#' + encodeURIComponent(cat));
+  renderProducts();
+}
+
+function renderTabs() {
+  const count = cat => cat === 'all' ? productsCache.length
+    : cat === 'other' ? productsCache.filter(p => isOtherCategory(p.category)).length
+    : productsCache.filter(p => p.category === cat).length;
+  const cats = ['all', ...PRODUCT_CATEGORIES, ...(count('other') ? ['other'] : [])];
+  if (!cats.includes(activeCategory)) activeCategory = 'all';
+  document.getElementById('category-tabs').innerHTML = cats.map(c => `
+    <button type="button" class="tab${c === activeCategory ? ' active' : ''}" role="tab" aria-selected="${c === activeCategory}"
+      onclick="setCategory('${c}')">${c === 'all' ? 'All' : c === 'other' ? 'Other' : c} <span class="tab-count">${count(c)}</span></button>`).join('');
+}
 
 let productsCache = [];
 let datasheetCounts = {};
@@ -62,6 +91,9 @@ function closeLightbox() {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
 document.getElementById('show-add-btn').addEventListener('click', () => {
+  // A product added from a category tab starts in that category.
+  fillCategorySelect(document.getElementById('p-category'),
+    PRODUCT_CATEGORIES.includes(activeCategory) ? activeCategory : '');
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
 });
@@ -87,6 +119,14 @@ async function loadProducts() {
   datasheets.forEach(d => {
     if (d.product_id) datasheetCounts[d.product_id] = (datasheetCounts[d.product_id] || 0) + 1;
   });
+  renderProducts();
+}
+
+function renderProducts() {
+  renderTabs();
+  const rows = activeCategory === 'all' ? productsCache
+    : activeCategory === 'other' ? productsCache.filter(p => isOtherCategory(p.category))
+    : productsCache.filter(p => p.category === activeCategory);
 
   DataTable.render({
     containerId: 'products-table',
@@ -105,7 +145,7 @@ async function loadProducts() {
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },
     ],
-    rows: productsCache,
+    rows: rows,
     actions: p => `
       <a class="btn btn-ghost btn-sm" href="/products/view/${p.id}">Open</a>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>

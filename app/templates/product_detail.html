@@ -29,7 +29,7 @@
       <div class="form-grid">
         <div class="field"><label>SKU</label><input name="sku" required></div>
         <div class="field"><label>Name</label><input name="name" required></div>
-        <div class="field"><label>Category</label><input name="category"></div>
+        <div class="field"><label>Category</label><select name="category"></select></div>
         <div class="field"><label>Brand</label><input name="brand"></div>
         <div class="field"><label>Unit</label><input name="unit"></div>
         <div class="field"><label>Reorder level</label><input name="reorder_level" type="number"></div>
@@ -59,7 +59,7 @@
       <div class="form-grid">
         <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom — Spec Sheet"></div>
         <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
-        <div class="field"><label>Category</label><input name="category" placeholder="Track Lighting, LED Drivers, ..."></div>
+        <div class="field"><label>Category</label><select name="category"></select></div>
         <div class="field span2"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf" required></div>
       </div>
       <div class="form-actions">
@@ -100,7 +100,7 @@ async function loadProduct() {
   const form = document.getElementById('product-form');
   form.sku.value = product.sku;
   form.name.value = product.name;
-  form.category.value = product.category || '';
+  fillCategorySelect(form.category, product.category);
   form.brand.value = product.brand || '';
   form.unit.value = product.unit || 'pcs';
   form.reorder_level.value = product.reorder_level;
@@ -149,6 +149,10 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 });
 
 document.getElementById('show-ds-btn').addEventListener('click', () => {
+  // A datasheet attached here starts with the product's own brand and category.
+  const dsForm = document.getElementById('datasheet-form');
+  fillCategorySelect(dsForm.category, product && product.category);
+  if (product && !dsForm.brand.value) dsForm.brand.value = product.brand || '';
   document.getElementById('ds-panel').style.display = 'block';
 });
 

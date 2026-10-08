@@ -17,7 +17,13 @@ def _dt(value):
     return value
 
 
-CATEGORY_LABELS = {"retail": "Retail", "residential": "Residential"}
+CATEGORY_LABELS = {"retail": "Retail", "residential": "Residential"}  # project categories
+
+# Product categories, as used on halolights.uk (keep in step with app.js)
+PRODUCT_CATEGORIES = [
+    "Recessed Invisible", "Recessed Visible", "Semi Recessed", "Low Voltage Track",
+    "Suspended", "Led Flex", "Surface Mounted", "Accessories",
+]
 
 
 def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None):
@@ -25,6 +31,10 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
 
     if kind == "products":
         products = db.query(models.Product).filter(models.Product.is_active == True).order_by(models.Product.sku).all()  # noqa: E712
+        if category == "other":
+            products = [p for p in products if p.category not in PRODUCT_CATEGORIES]
+        elif category:
+            products = [p for p in products if p.category == category]
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
@@ -38,7 +48,10 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
         if admin:
             columns.insert(5, {"key": "cost_price", "label": "Cost", "kind": "money"})
         rows = [{c["key"]: getattr(p, c["key"]) for c in columns} for p in products]
-        return "Product Catalog", columns, rows
+        title = "Product Catalog"
+        if category:
+            title += " - " + ("Other categories" if category == "other" else category)
+        return title, columns, rows
 
     if kind == "stock":
         levels = stock_levels(db)
@@ -417,8 +430,10 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
 def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool = False,
                     category: Optional[str] = None, db: Session = Depends(get_db)):
     _check_fmt(fmt)
-    if category is not None and category not in CATEGORY_LABELS:
+    if kind == "projects" and category is not None and category not in CATEGORY_LABELS:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
+    if kind == "products" and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
+        raise HTTPException(status_code=400, detail="Unknown product category")
 
     user = auth.get_download_user_from_token(token, db)
     admin = user.role == "admin"
@@ -426,7 +441,8 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     title, columns, rows = _gather(kind, db, admin, category)
     subtitle = f"{len(rows)} record{'' if len(rows) == 1 else 's'} · generated {datetime.utcnow().strftime('%d %b %Y')}"
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
-    base = f"candela-{kind}-{category}-{stamp}" if category else f"candela-{kind}-{stamp}"
+    slug = (category or "").lower().replace(" ", "-")
+    base = f"candela-{kind}-{slug}-{stamp}" if category else f"candela-{kind}-{stamp}"
 
     if fmt == "pdf":
         return reports.build_pdf(title, rows, columns, subtitle=subtitle,
