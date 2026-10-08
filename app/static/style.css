@@ -29,6 +29,16 @@ body {
   line-height: 1.5;
 }
 
+/* Dashboard only: a soft warm wash, like lamp light falling across the page,
+   so the white cards sit on something instead of a flat cream. */
+body.page-dashboard {
+  background-color: #FAF2E3;
+  background-image:
+    radial-gradient(ellipse 900px 560px at 92% -8%, rgba(227, 150, 12, 0.16), transparent 70%),
+    radial-gradient(ellipse 700px 500px at 18% 105%, rgba(227, 150, 12, 0.08), transparent 70%);
+  background-attachment: fixed;
+}
+
 a { color: inherit; text-decoration: none; }
 
 .shell {
