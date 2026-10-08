@@ -80,8 +80,7 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // These export the whole list; the buttons inside the edit form cover one quotation.
-  document.getElementById('report-btns').innerHTML = reportButtons('quotations', { label: 'All quotations' });
+  setHeaderButtons(null);
 });
 
 let productsCache = [], customersCache = [], projectsCache = [];
@@ -196,7 +195,26 @@ function showAddPanel(title) {
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
 }
+// The Preview / PDF / Excel buttons at the top follow what's open: while a
+// saved quotation is open they act on that quotation alone; otherwise they
+// export the whole list.
+function setHeaderButtons(q) {
+  const el = document.getElementById('report-btns');
+  if (!q) {
+    el.innerHTML = reportButtons('quotations', { label: 'All quotations' });
+    return;
+  }
+  const num = String(q.quote_number).replace(/[<>&"]/g, '');
+  el.innerHTML = `
+    <div class="report-actions"><span class="report-label">${num}</span>
+      <button type="button" class="btn btn-ghost btn-sm" title="Open ${num} in a new tab" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
+      <button type="button" class="btn btn-ghost btn-sm" title="Download ${num} as PDF" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
+      <button type="button" class="btn btn-ghost btn-sm" title="Download ${num} as Excel" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
+    </div>`;
+}
+
 function hideAddPanel() {
+  setHeaderButtons(null);
   document.getElementById('add-panel').style.display = 'none';
   document.getElementById('show-add-btn').style.display = '';
   document.getElementById('quote-form').reset();
@@ -230,6 +248,7 @@ async function editQuotation(id) {
   document.getElementById('line-items').innerHTML = '';
   q.items.forEach(item => addLine(item));
   showAddPanel('Edit quotation ' + q.quote_number);
+  setHeaderButtons(q);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
