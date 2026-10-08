@@ -74,6 +74,19 @@
   tr { page-break-inside: avoid; }
 
   .empty { padding: 28px; text-align: center; color: #9A9382; font-style: italic; }
+
+  /* Record reports (one project / product / the dashboard) */
+  .details { width: 100%; margin: 0 0 20px; border-top: 1.25px solid #201E1A; }
+  .details td { padding: 6px 6px; font-size: 9.5px; border-bottom: 0.6px solid #EAE3D2; }
+  .details td.k { width: 26%; color: #56503F; font-weight: 600; white-space: nowrap; }
+  .details tr:nth-child(even) { background: none; }
+  h2 {
+    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    font-size: 11.5px; font-weight: 600; margin: 18px 0 8px;
+    page-break-after: avoid;
+  }
+  .section { margin-bottom: 6px; }
+  .section .empty { padding: 10px 6px; text-align: left; }
 </style>
 </head>
 <body>
@@ -81,36 +94,49 @@
 <div class="head">
   <img src="app/static/candela-logo-dark.png">
   <div class="meta">
-    Generated {{ generated.strftime('%d %b %Y') }}<br>
-    {{ count }} record{{ '' if count == 1 else 's' }}
+    Generated {{ generated.strftime('%d %b %Y') }}
+    {% if count is not none %}<br>{{ count }} record{{ '' if count == 1 else 's' }}{% endif %}
   </div>
 </div>
 
 <h1>{{ title }}</h1>
 {% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
 
-{% if rows %}
-<table>
-  <thead>
-    <tr>
-      {% for c in columns %}
-      <th class="{{ 'num' if c.kind in ('number','money') else '' }}"{% if c.width %} style="width:{{ c.width }};"{% endif %}>{{ c.label }}</th>
-      {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in rows %}
-    <tr>
-      {% for cell in row %}
-      <td class="{{ 'num' if cell.numeric else '' }}">{{ cell.text }}</td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="empty">Nothing to report.</div>
+{% if details %}
+<table class="details"><tbody>
+  {% for label, value in details %}
+  <tr><td class="k">{{ label }}</td><td>{{ value }}</td></tr>
+  {% endfor %}
+</tbody></table>
 {% endif %}
+
+{% for sec in sections %}
+<div class="section">
+  {% if sec.title %}<h2>{{ sec.title }}</h2>{% endif %}
+  {% if sec.rows %}
+  <table>
+    <thead>
+      <tr>
+        {% for c in sec.columns %}
+        <th class="{{ 'num' if c.kind in ('number','money') else '' }}"{% if c.width %} style="width:{{ c.width }};"{% endif %}>{{ c.label }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in sec.rows %}
+      <tr>
+        {% for cell in row %}
+        <td class="{{ 'num' if cell.numeric else '' }}">{{ cell.text }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ sec.empty }}</div>
+  {% endif %}
+</div>
+{% endfor %}
 
 </body>
 </html>

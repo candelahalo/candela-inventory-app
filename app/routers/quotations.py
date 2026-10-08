@@ -254,7 +254,7 @@ def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
 
 
 @download_router.get("/{quotation_id}/pdf")
-def quotation_pdf(quotation_id: int, token: str = Query(...), db: Session = Depends(get_db)):
+def quotation_pdf(quotation_id: int, token: str = Query(...), preview: bool = False, db: Session = Depends(get_db)):
     auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
@@ -279,10 +279,12 @@ def quotation_pdf(quotation_id: int, token: str = Query(...), db: Session = Depe
     )
     pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
     filename = f"{quotation.quote_number.replace('/', '-')}.pdf"
+    # preview=1 opens it in the browser's PDF viewer instead of downloading
+    disposition = "inline" if preview else "attachment"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
 
 

@@ -7,8 +7,7 @@
     <p>Who created, changed, or removed what, across the whole app.</p>
   </div>
   <div class="head-actions">
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('activity','pdf')">PDF</button>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('activity','xlsx')">Excel</button>
+    <span id="report-btns"></span>
   </div>
 </div>
 
@@ -33,6 +32,7 @@
 
 {% block script %}
 <script>
+document.getElementById('report-btns').innerHTML = reportButtons('activity');
 const ACTION_LABELS = { created: 'Created', updated: 'Updated', deleted: 'Deleted', status_changed: 'Status changed' };
 const ENTITY_LABELS = { product: 'Product', customer: 'Customer', warehouse: 'Warehouse', stock_movement: 'Stock movement', quotation: 'Quotation', project: 'Project', datasheet: 'Datasheet' };
 

@@ -48,7 +48,8 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('report-btns').innerHTML = reportButtons('projects');
+  // Exports follow the tab that's showing: Retail, Residential, or All.
+  document.getElementById('report-btns').innerHTML = reportButtons('projects', { extra: 'projectsReportParams()' });
 });
 
 let customersCache = [];
@@ -58,6 +59,10 @@ let projectsCache = [];
 // refresh or a shared link lands on the same tab.
 const CATEGORY_LABELS = { retail: 'Retail', residential: 'Residential' };
 let activeCategory = CATEGORY_LABELS[location.hash.slice(1)] ? location.hash.slice(1) : 'all';
+
+function projectsReportParams() {
+  return activeCategory === 'all' ? '' : '&category=' + activeCategory;
+}
 
 function setCategory(cat) {
   activeCategory = cat;

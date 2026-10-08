@@ -647,7 +647,9 @@ th.num { }
 .combo-hint.is-new { color: var(--amber-deep); font-weight: 500; }
 
 /* ---------- Report buttons in page headers ---------- */
-.report-actions { display: inline-flex; gap: 6px; }
+.report-actions { display: inline-flex; align-items: center; gap: 6px; }
+.report-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-right: 2px; }
+.head-actions .report-actions + .report-actions { margin-left: 10px; padding-left: 12px; border-left: 1px solid var(--line); }
 .page-head .report-actions { margin-left: auto; }
 .head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 

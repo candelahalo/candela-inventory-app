@@ -6,7 +6,8 @@
     <h1 id="proj-name">Loading…</h1>
     <p id="proj-meta"></p>
   </div>
-  <a href="/projects" class="btn btn-ghost">← All projects</a>
+  <div class="head-actions"><span id="report-btns"></span>
+    <a href="/projects" class="btn btn-ghost">← All projects</a></div>
 </div>
 
 <div class="panel">
@@ -47,6 +48,7 @@
 {% block script %}
 <script>
 const projectId = {{ project_id }};
+document.getElementById('report-btns').innerHTML = reportButtons('project/' + projectId);
 const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
 
 async function loadProject() {

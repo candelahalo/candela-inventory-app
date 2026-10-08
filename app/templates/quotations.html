@@ -391,6 +391,7 @@ async function loadQuotations() {
     columns: columns,
     rows: quotes,
     actions: q => `
+      <button class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">Edit</button>
@@ -399,13 +400,11 @@ async function loadQuotations() {
   });
 }
 
-async function downloadDoc(id, kind) {
-  // Downloads open through plain navigation, which can't send an auth
-  // header - so a short-lived download-only token travels in the URL.
-  try {
-    const r = await api('/auth/download-token', { method: 'POST' });
-    window.open(`/quotations/${id}/${kind}?token=${encodeURIComponent(r.token)}`, '_blank');
-  } catch (err) { toast(err.message, true); }
+// kind: 'preview' (PDF in a new tab), 'pdf' or 'excel' (downloads).
+function downloadDoc(id, kind) {
+  const preview = kind === 'preview';
+  return withDownloadToken(preview ? 'preview' : kind, token =>
+    `/quotations/${id}/${preview ? 'pdf' : kind}?token=${token}${preview ? '&preview=1' : ''}`);
 }
 
 async function deleteQuotation(id, quoteNumber) {

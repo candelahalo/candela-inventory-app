@@ -6,7 +6,8 @@
     <h1 id="prod-name">Loading…</h1>
     <p id="prod-meta"></p>
   </div>
-  <a href="/products" class="btn btn-ghost">← All products</a>
+  <div class="head-actions"><span id="report-btns"></span>
+    <a href="/products" class="btn btn-ghost">← All products</a></div>
 </div>
 
 <div class="product-detail-grid">
@@ -79,6 +80,7 @@
 {% block script %}
 <script>
 const productId = {{ product_id }};
+document.getElementById('report-btns').innerHTML = reportButtons('product/' + productId);
 let product = null;
 
 function openLightbox(src) {

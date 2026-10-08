@@ -3,6 +3,7 @@
 {% block content %}
 <div class="page-head">
   <h1>Dashboard</h1>
+  <div class="head-actions"><span class="report-label">Summary</span><span id="report-btns"></span></div>
 </div>
 
 <div class="stat-row" id="stat-row">
@@ -30,6 +31,7 @@
 
 {% block script %}
 <script>
+document.getElementById('report-btns').innerHTML = reportButtons('dashboard');
 const STAGE_LABELS = {
   enquiry: 'Enquiry', quoted: 'Quoted', approved: 'Approved', ordered: 'Ordered',
   delivered: 'Delivered', installed: 'Installed', commissioned: 'Commissioned', closed: 'Closed',

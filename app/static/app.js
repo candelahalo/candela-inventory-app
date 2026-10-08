@@ -150,24 +150,57 @@ function fmtDateTime(iso) {
   });
 }
 
-// ---------- Report downloads ----------
-// Every list page exports through the same endpoint pair. Downloads open
-// via plain navigation, so they carry a short-lived download token rather
-// than the session token.
-async function downloadReport(kind, fmt) {
+// ---------- Report downloads and previews ----------
+// Files open through plain navigation, which can't send the login header, so
+// each one carries a short-lived download token in its URL.
+//
+// mode 'preview' opens the PDF in a new tab. The tab is opened right away,
+// inside the click, so the browser's popup blocker allows it; its address is
+// filled in once the token comes back. 'pdf' and 'xlsx' download the file
+// without leaving the page.
+async function withDownloadToken(mode, buildUrl) {
+  const tab = mode === 'preview' ? window.open('', '_blank') : null;
+  if (tab) {
+    tab.document.title = 'Preparing preview…';
+    tab.document.body.innerHTML = '<p style="font:14px sans-serif;padding:32px;color:#7A7364">Preparing preview…</p>';
+  }
   try {
     const r = await api('/auth/download-token', { method: 'POST' });
-    window.open(`/reports/${kind}.${fmt}?token=${encodeURIComponent(r.token)}`, '_blank');
+    const url = buildUrl(encodeURIComponent(r.token));
+    if (mode === 'preview') {
+      if (tab) tab.location.replace(url); else window.open(url, '_blank');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
   } catch (err) {
+    if (tab) tab.close();
     toast(err.message, true);
   }
 }
 
-// Drops a PDF/Excel pair into a page header.
-function reportButtons(kind) {
+// kind is a list ('projects') or one record ('project/12', 'product/3').
+// fmt is 'preview', 'pdf' or 'xlsx'. extra is appended to the query string.
+function downloadReport(kind, fmt, extra = '') {
+  const file = fmt === 'preview' ? 'pdf' : fmt;
+  return withDownloadToken(fmt, token =>
+    `/reports/${kind}.${file}?token=${token}${fmt === 'preview' ? '&preview=1' : ''}${extra || ''}`);
+}
+
+// Preview / PDF / Excel buttons for a page header.
+// opts.label puts a small caption in front (for pages with two reports).
+// opts.extra is a JS expression evaluated on click, returning extra query
+// parameters (e.g. the Projects tab currently showing).
+function reportButtons(kind, opts = {}) {
+  const extra = opts.extra ? `, ${opts.extra}` : '';
+  const label = opts.label ? `<span class="report-label">${opts.label}</span>` : '';
   return `
-    <div class="report-actions">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('${kind}','pdf')">PDF</button>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('${kind}','xlsx')">Excel</button>
+    <div class="report-actions">${label}
+      <button type="button" class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadReport('${kind}','preview'${extra})">Preview</button>
+      <button type="button" class="btn btn-ghost btn-sm" title="Download as PDF" onclick="downloadReport('${kind}','pdf'${extra})">PDF</button>
+      <button type="button" class="btn btn-ghost btn-sm" title="Download as Excel" onclick="downloadReport('${kind}','xlsx'${extra})">Excel</button>
     </div>`;
 }

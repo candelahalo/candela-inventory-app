@@ -7,10 +7,7 @@
     <p>What's on hand, where, and what's moved recently.</p>
   </div>
   <div class="head-actions">
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('stock','pdf')">Stock PDF</button>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('stock','xlsx')">Stock Excel</button>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('movements','pdf')">Movements PDF</button>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="downloadReport('movements','xlsx')">Movements Excel</button>
+    <span id="report-btns"></span>
     <button class="btn btn-ghost" id="show-wh-btn">+ Warehouse</button>
     <button class="btn" id="show-move-btn">+ Record movement</button>
   </div>
@@ -74,6 +71,8 @@
 
 {% block script %}
 <script>
+document.getElementById('report-btns').innerHTML =
+  reportButtons('stock', { label: 'Stock' }) + reportButtons('movements', { label: 'Movements' });
 let productsCache = [], warehousesCache = [], projectsCache = [];
 
 function showWhPanel(title) { document.getElementById('wh-form-title').textContent = title; document.getElementById('wh-panel').style.display = 'block'; }

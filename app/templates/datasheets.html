@@ -6,7 +6,8 @@
     <h1>Datasheets</h1>
     <p>Manufacturer spec sheets for every product and accessory.</p>
   </div>
-  <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Upload datasheet</button>
+  <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn" onclick="document.getElementById('add-panel').style.display='block'; this.style.display='none';">+ Upload datasheet</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
@@ -38,6 +39,7 @@
 
 {% block script %}
 <script>
+document.getElementById('report-btns').innerHTML = reportButtons('datasheets');
 let productsCache = [];
 let allDatasheets = [];
 
