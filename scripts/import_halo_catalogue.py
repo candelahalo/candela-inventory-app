@@ -54,7 +54,10 @@ def sku_for(item):
 def name_for(item, specs):
     name = f"{item['series']} {item['variant']}"
     watt = specs.get("Wattage")
-    return f"{name} - {watt}" if watt and watt.upper() != "NA" else name
+    # LED strips are named by wattage already (e.g. "I LINE IP20 4.8W/m")
+    if not watt or watt.upper() == "NA" or "W/m" in item["variant"]:
+        return name
+    return f"{name} - {watt}"
 
 
 # ---------- spec block ----------
@@ -62,7 +65,7 @@ def name_for(item, specs):
 def _clean(v):
     if v is None:
         return None
-    v = " ".join(str(v).split())
+    v = " ".join(str(v).split()).strip(" ,;")
     if not v or v.upper() in ("NA", "N/A", "-"):
         return None
     v = v.replace("lm/w", "lm/W").replace("> 90+", ">90").replace("> 90", ">90").replace("< 19", "<19").replace("<19", "<19")
@@ -94,7 +97,7 @@ def spec_block(item):
     lines.append(_join(_kv("Dimensions", g("Fixture Dimension (mm)", "Dimension (mm)")),
                        _kv("Cut-out", item.get("cutout"))))
     lines.append(_join(_kv("Cutting unit", g("Cutting Unit")), _kv("Max length", g("Maximum Length")),
-                       _kv("LED pitch", g("LED Pitch"))))
+                       _kv("LED pitch", g("LED Pitch")), _kv("Bending diameter", g("Bending Diameter"))))
     lines.append(_join(_kv("CCT", g("CCT")), _kv("CRI", g("CRI")), g("Chromaticity Tolerance"), _kv("UGR", g("UGR"))))
     lines.append(_join(_kv("Tilt", g("Tilt Angle")), _kv("Rotate", g("Ratate Angle", "Rotate Angle")),
                        g("Ingress Protection"), g("Location")))
@@ -164,6 +167,8 @@ def main():
     print(f"Downloading {len(catalogue)} datasheets from halolights.uk ...")
     pdfs, failed = {}, []
     for n, item in enumerate(catalogue, 1):
+        if not item.get("file"):  # e.g. ILUX: no datasheet published, specs from the web page
+            continue
         try:
             pdfs[item["file"]] = fetch_pdf(item, files_dir)
         except Exception as e:
@@ -199,6 +204,11 @@ def main():
                 db.flush()
                 action = "created"
                 created += 1
+
+            if not item.get("file"):
+                log_activity(db, "system", "product", product.id, f"{product.sku} — {product.name}",
+                             action, "HALO catalogue import (specs from web page, no datasheet)")
+                continue
 
             if not product.image_path:
                 render = product_render(pdfs[item["file"]], item.get("photo"))
