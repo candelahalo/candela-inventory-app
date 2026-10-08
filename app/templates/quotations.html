@@ -61,6 +61,12 @@
 
     <div class="form-actions">
       <button type="submit" class="btn">Save quotation</button>
+      <span class="report-actions draft-actions" title="Shows exactly what's in this form, including unsaved changes">
+        <span class="report-label">This quotation</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('preview')">Preview</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('pdf')">PDF</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('excel')">Excel</button>
+      </span>
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
   </form>
@@ -74,7 +80,8 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('report-btns').innerHTML = reportButtons('quotations');
+  // These export the whole list; the buttons inside the edit form cover one quotation.
+  document.getElementById('report-btns').innerHTML = reportButtons('quotations', { label: 'All quotations' });
 });
 
 let productsCache = [], customersCache = [], projectsCache = [];
@@ -416,9 +423,10 @@ async function deleteQuotation(id, quoteNumber) {
   } catch (err) { toast(err.message, true); }
 }
 
-document.getElementById('quote-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
+// Reads the edit form into the shape the API expects. Returns null (after
+// showing why) if something required is missing.
+function collectQuotationPayload() {
+  const form = document.getElementById('quote-form');
   const items = [...document.querySelectorAll('.line-item-block')].map(block => ({
     product_id: parseInt(block.querySelector('.li-product').value),
     type_code: block.querySelector('.li-type').value || null,
@@ -428,12 +436,12 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
     unit_cost: parseFloat(block.querySelector('.li-cost').value || 0),
     discount_pct: parseFloat(block.querySelector('.li-disc').value || 0),
   }));
-  if (!items.length) { toast('Add at least one line item', true); return; }
+  if (!items.length) { toast('Add at least one line item', true); return null; }
 
   const payload = formToJSON(form);
   const customerId = document.getElementById('q-customer-id').value;
   const customerName = document.getElementById('q-customer-input').value.trim();
-  if (!customerId && !customerName) { toast('Choose a customer or type a new name', true); return; }
+  if (!customerId && !customerName) { toast('Choose a customer or type a new name', true); return null; }
   payload.customer_id = customerId ? parseInt(customerId) : null;
   payload.customer_name = customerId ? null : customerName;
   const projectId = document.getElementById('q-project-id').value;
@@ -445,6 +453,57 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   // Sent as a string so it can hold either a figure ("500") or words ("Included")
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
+  return payload;
+}
+
+// Preview / PDF / Excel of what's in the form right now - including unsaved
+// changes - without saving anything. Preview opens in a new tab.
+async function draftDocument(mode) {
+  const payload = collectQuotationPayload();
+  if (!payload) return;
+  // Open the tab inside the click so the popup blocker allows it.
+  const tab = mode === 'preview' ? window.open('', '_blank') : null;
+  if (tab) {
+    tab.document.title = 'Preparing preview…';
+    tab.document.body.innerHTML = '<p style="font:14px sans-serif;padding:32px;color:#7A7364">Preparing preview…</p>';
+  }
+  try {
+    const editingId = document.getElementById('editing-id').value;
+    const fmt = mode === 'excel' ? 'excel' : 'pdf';
+    const res = await fetch(`/quotations/draft/${fmt}${editingId ? '?editing_id=' + editingId : ''}`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not build the document - check the form');
+    }
+    const blob = await res.blob();
+    const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+    const filename = match ? match[1] : (fmt === 'pdf' ? 'quotation.pdf' : 'quotation.xlsx');
+    const url = URL.createObjectURL(blob);
+    if (tab) {
+      tab.location.replace(url);
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+  } catch (err) {
+    if (tab) tab.close();
+    toast(err.message, true);
+  }
+}
+
+document.getElementById('quote-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = collectQuotationPayload();
+  if (!payload) return;
   const editingId = document.getElementById('editing-id').value;
 
   try {

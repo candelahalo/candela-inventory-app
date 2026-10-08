@@ -226,7 +226,7 @@ th.num { }
   outline-offset: -1px;
   background: var(--white);
 }
-.form-actions { margin-top: 16px; display: flex; gap: 10px; }
+.form-actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 .line-items { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; }
 .line-item-block { border-bottom: 1px solid var(--paper-2); }
@@ -649,6 +649,7 @@ th.num { }
 /* ---------- Report buttons in page headers ---------- */
 .report-actions { display: inline-flex; align-items: center; gap: 6px; }
 .report-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-right: 2px; }
+.form-actions .draft-actions { margin: 0 6px; padding: 0 12px; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 .head-actions .report-actions + .report-actions { margin-left: 10px; padding-left: 12px; border-left: 1px solid var(--line); }
 .page-head .report-actions { margin-left: auto; }
 .head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

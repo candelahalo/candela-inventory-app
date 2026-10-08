@@ -131,6 +131,19 @@ def _resolve_project(payload, customer: models.Customer, db: Session, user: str)
     return project
 
 
+def _add_items(quotation, payload, db: Session):
+    for item in payload.items:
+        prod = db.query(models.Product).get(item.product_id)
+        item_data = item.model_dump()
+        if not item_data.get("description") and prod and prod.spec_summary:
+            item_data["description"] = prod.spec_summary
+        # Snapshot the cost at quoting time so margin stays accurate even if
+        # the product's cost price changes later.
+        if item_data.get("unit_cost") is None:
+            item_data["unit_cost"] = prod.cost_price if prod else 0.0
+        quotation.items.append(models.QuotationItem(**item_data))
+
+
 @router.post("/", response_model=schemas.QuotationOut, status_code=201)
 def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     customer = _resolve_customer(payload, db, current.username)
@@ -144,16 +157,7 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
                                  customer_id=customer.id,
                                  project_id=project.id if project else None,
                                  **data)
-    for item in payload.items:
-        prod = db.query(models.Product).get(item.product_id)
-        item_data = item.model_dump()
-        if not item_data.get("description") and prod and prod.spec_summary:
-            item_data["description"] = prod.spec_summary
-        # Snapshot the cost at quoting time so margin stays accurate even if
-        # the product's cost price changes later.
-        if item_data.get("unit_cost") is None:
-            item_data["unit_cost"] = prod.cost_price if prod else 0.0
-        quotation.items.append(models.QuotationItem(**item_data))
+    _add_items(quotation, payload, db)
 
     db.add(quotation)
     db.flush()
@@ -191,21 +195,57 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
 
     quotation.items.clear()
     db.flush()
-    for item in payload.items:
-        prod = db.query(models.Product).get(item.product_id)
-        item_data = item.model_dump()
-        if not item_data.get("description") and prod and prod.spec_summary:
-            item_data["description"] = prod.spec_summary
-        # Snapshot the cost at quoting time so margin stays accurate even if
-        # the product's cost price changes later.
-        if item_data.get("unit_cost") is None:
-            item_data["unit_cost"] = prod.cost_price if prod else 0.0
-        quotation.items.append(models.QuotationItem(**item_data))
+    _add_items(quotation, payload, db)
 
     log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "updated")
     db.commit()
     db.refresh(quotation)
     return quotation
+
+
+@router.post("/draft/{fmt}")
+def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optional[int] = None,
+                   db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """
+    Preview / PDF / Excel of a quotation exactly as it is in the edit form,
+    including changes that haven't been saved yet.
+
+    It runs the same steps as Save (so the document is identical to what
+    Save would produce), renders the file, then rolls the whole transaction
+    back - nothing is stored, not even a new customer or project typed into
+    the form.
+    """
+    if fmt not in ("pdf", "excel"):
+        raise HTTPException(status_code=404, detail="Format must be pdf or excel")
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Add at least one line item")
+    try:
+        customer = _resolve_customer(payload, db, current.username)
+        project = _resolve_project(payload, customer, db, current.username)
+        data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
+                                           "project_name", "project_id"})
+        if editing_id:
+            quotation = db.query(models.Quotation).get(editing_id)
+            if not quotation:
+                raise HTTPException(status_code=404, detail="Quotation not found")
+            for key, value in data.items():
+                setattr(quotation, key, value)
+            quotation.items.clear()
+            db.flush()
+        else:
+            quotation = models.Quotation(quote_number=_next_quote_number(db), **data)
+            db.add(quotation)
+        quotation.customer = customer
+        quotation.project = project
+        _add_items(quotation, payload, db)
+        db.flush()
+        db.refresh(quotation)
+
+        if fmt == "pdf":
+            return _quotation_pdf_response(quotation, db, inline=True)
+        return _quotation_excel_response(quotation, db)
+    finally:
+        db.rollback()
 
 
 @router.delete("/{quotation_id}", status_code=204)
@@ -259,7 +299,10 @@ def quotation_pdf(quotation_id: int, token: str = Query(...), preview: bool = Fa
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    return _quotation_pdf_response(quotation, db, inline=preview)
 
+
+def _quotation_pdf_response(quotation, db: Session, inline: bool = False):
     # Map product -> its most recent datasheet, so the product name in the
     # document can link straight to the spec sheet.
     product_ids = [i.product_id for i in quotation.items if i.product_id]
@@ -279,8 +322,8 @@ def quotation_pdf(quotation_id: int, token: str = Query(...), preview: bool = Fa
     )
     pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
     filename = f"{quotation.quote_number.replace('/', '-')}.pdf"
-    # preview=1 opens it in the browser's PDF viewer instead of downloading
-    disposition = "inline" if preview else "attachment"
+    # inline opens it in the browser's PDF viewer instead of downloading
+    disposition = "inline" if inline else "attachment"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
@@ -294,7 +337,10 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    return _quotation_excel_response(quotation, db)
 
+
+def _quotation_excel_response(quotation, db: Session):
     # Map product -> its most recent datasheet for clickable links in the sheet
     product_ids = [i.product_id for i in quotation.items if i.product_id]
     datasheet_links = {}
