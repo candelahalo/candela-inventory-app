@@ -6,7 +6,7 @@
 <title>{% block title %}Candela{% endblock %} — Operations</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=38">
+<link rel="stylesheet" href="/static/style.css?v=39">
 </head>
 <body class="page-{{ active or 'default' }}">
 <script>
@@ -17,7 +17,7 @@
 <div class="shell">
   <aside class="sidebar">
     <div class="brand">
-      <img src="/static/candela-logo-white.png" alt="Candela" class="brand-logo">
+      <img src="/static/candela-logo-white.png?v=2" alt="Candela" class="brand-logo">
     </div>
     <nav class="nav">
       <a href="/" data-screen="dashboard" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
@@ -38,8 +38,8 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="/static/app.js?v=38"></script>
-<script src="/static/datatable.js?v=38"></script>
+<script src="/static/app.js?v=39"></script>
+<script src="/static/datatable.js?v=39"></script>
 {% block script %}{% endblock %}
 </body>
 </html>
