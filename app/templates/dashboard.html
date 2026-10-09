@@ -3,149 +3,119 @@
 {% block content %}
 <div class="page-head">
   <h1>Dashboard</h1>
-  <div class="head-actions"><span class="report-label">Summary</span><span id="report-btns"></span></div>
+  <div class="head-actions"><span id="report-btns"></span></div>
 </div>
 
-<div class="stat-row" id="stat-row">
-  <a class="stat" href="/projects"><div class="num">—</div><div class="label">Active projects</div></a>
-  <a class="stat" href="/quotations#sent"><div class="num">—</div><div class="label">Awaiting client</div></a>
-  <a class="stat" href="/products"><div class="num">—</div><div class="label">Products</div></a>
-  <a class="stat warn" href="/stock"><div class="num">—</div><div class="label">Low stock</div></a>
+<!-- The money, at a glance -->
+<div class="hero">
+  <a class="hero-cell" href="/projects?stage=open">
+    <div class="hero-label">Pipeline</div>
+    <div class="hero-num" id="h-pipeline">—</div>
+    <div class="hero-sub" id="h-pipeline-n"></div>
+  </a>
+  <a class="hero-cell" href="/projects?stage=orders">
+    <div class="hero-label">Order book</div>
+    <div class="hero-num accent" id="h-orders">—</div>
+    <div class="hero-sub" id="h-orders-n"></div>
+  </a>
+  <a class="hero-cell" href="/projects?stage=closed">
+    <div class="hero-label">Completed</div>
+    <div class="hero-num" id="h-done">—</div>
+    <div class="hero-sub" id="h-done-n"></div>
+  </a>
 </div>
 
-<div class="panel" id="attention-panel" style="display:none;">
-  <div class="panel-head"><h2>Needs attention</h2><span class="muted-note" id="attention-count"></span></div>
-  <div class="attention" id="attention"></div>
-</div>
+<!-- What needs doing: counts only, details on click -->
+<div class="pulse" id="pulse"></div>
+<div class="pulse-list" id="pulse-list"></div>
 
-<div class="panel">
-  <div class="panel-head">
-    <h2>Pipeline</h2>
-    <a href="/projects" class="panel-link">All projects →</a>
-  </div>
-
-  <!-- A lit rail: each stage is a node on the line, and the rail glows
-       through the stages where work actually is. -->
-  <div class="rail-scroll">
-    <div class="rail" id="rail"></div>
-  </div>
-
-  <div class="stage-detail" id="stage-detail"></div>
+<!-- Where the jobs are -->
+<div class="flow-wrap">
+  <div class="flow" id="flow"></div>
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
 document.getElementById('report-btns').innerHTML = reportButtons('dashboard');
-const STAGE_LABELS = {
-  enquiry: 'Enquiry', quoted: 'Quoted', approved: 'Approved', ordered: 'Ordered',
-  delivered: 'Delivered', installed: 'Installed', commissioned: 'Commissioned', closed: 'Closed',
-};
-let boardData = null;
-let selectedStage = null;
+const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
+const LABEL = { enquiry: 'Enquiry', quoted: 'Quoted', approved: 'Approved', ordered: 'Ordered',
+  delivered: 'Delivered', installed: 'Installed', commissioned: 'Commissioned', closed: 'Closed' };
+const PIPE = ['enquiry', 'quoted'];
+const ORDERS = ['approved', 'ordered', 'delivered', 'installed', 'commissioned'];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function renderRail() {
-  const { stages, totals } = boardData;
-  // The rail lights up as far as the furthest stage that still holds work,
-  // so you can see at a glance how far the pipeline actually reaches.
-  const lastActive = stages.reduce((acc, s, i) => totals[s].count ? i : acc, -1);
-  const litPct = lastActive < 0 ? 0 : (lastActive / (stages.length - 1)) * 100;
+// "AED 1.25M" / "AED 48.6K" - the hero shows scale, not cents
+function short(v) {
+  if (!v) return 'AED 0';
+  if (v >= 1e6) return 'AED ' + (v / 1e6).toFixed(v >= 1e7 ? 1 : 2) + 'M';
+  if (v >= 1e3) return 'AED ' + (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K';
+  return 'AED ' + Math.round(v);
+}
+const sum = (t, keys, f) => keys.reduce((a, k) => a + (t[k] ? t[k][f] : 0), 0);
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  document.getElementById('rail').innerHTML = `
-    <div class="rail-line"><div class="rail-lit" style="width:${litPct}%"></div></div>
-    <div class="rail-nodes">
-      ${stages.map((s, i) => {
-        const n = totals[s].count;
-        const cls = [
-          'node',
-          n ? 'has' : 'empty',
-          s === selectedStage ? 'selected' : '',
-          i <= lastActive && n ? 'lit' : '',
-        ].join(' ');
-        return `
-          <button class="${cls}" onclick="selectStage('${s}')" title="${STAGE_LABELS[s]}">
-            <span class="node-dot">${n || ''}</span>
-            <span class="node-label">${STAGE_LABELS[s]}</span>
-          </button>`;
-      }).join('')}
-    </div>`;
+let attention = [];
+
+function renderHero(board) {
+  const t = board.totals;
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+  set('h-pipeline', short(sum(t, PIPE, 'value')));
+  set('h-pipeline-n', plural(sum(t, PIPE, 'count'), 'project'));
+  set('h-orders', short(sum(t, ORDERS, 'value')));
+  set('h-orders-n', plural(sum(t, ORDERS, 'count'), 'job') + ' running');
+  set('h-done', short(t.closed.value));
+  set('h-done-n', plural(t.closed.count, 'project'));
 }
 
-function selectStage(stage) {
-  selectedStage = (selectedStage === stage) ? null : stage;
-  renderRail();
-  renderStageDetail();
+function renderPulse(awaiting, lowStock, att) {
+  attention = att.items;
+  const urgent = att.items.filter(i => i.priority === 1).length;
+  const chips = [
+    { n: awaiting, label: 'awaiting client', href: '/quotations#sent', cls: 'blue' },
+    { n: att.total, label: 'to act on', toggle: true, cls: urgent ? 'red' : 'amber' },
+    { n: lowStock, label: 'low stock', href: '/stock', cls: lowStock ? 'red' : 'grey' },
+  ];
+  document.getElementById('pulse').innerHTML = chips.map(c => c.toggle
+    ? `<button type="button" class="chip ${c.cls} ${c.n ? '' : 'zero'}" onclick="toggleList()" ${c.n ? '' : 'disabled'}>
+         <span class="chip-n">${c.n}</span><span class="chip-l">${c.label}</span>${c.n ? '<span class="chip-caret">▾</span>' : ''}</button>`
+    : `<a class="chip ${c.cls} ${c.n ? '' : 'zero'}" href="${c.href}"><span class="chip-n">${c.n}</span><span class="chip-l">${c.label}</span></a>`
+  ).join('');
 }
 
-function projectCard(p) {
-  return `
-    <a class="pcard" href="/projects/view/${p.id}">
-      <span class="pcard-num">${p.project_number}</span>
-      <div class="pcard-name">${p.name}</div>
-    </a>`;
-}
-
-function renderStageDetail() {
-  const el = document.getElementById('stage-detail');
-  const { board, stages } = boardData;
-
-  if (!selectedStage) {
-    const active = stages.filter(s => s !== 'closed').flatMap(s => board[s]);
-    el.innerHTML = active.length
-      ? `<div class="pcard-grid">${active.map(projectCard).join('')}</div>`
-      : `<div class="empty-state"><p>No active projects.</p></div>`;
-    return;
+function toggleList() {
+  const el = document.getElementById('pulse-list');
+  if (el.classList.toggle('open')) {
+    el.innerHTML = attention.map(i => `
+      <a class="pl-item" href="${i.href}"><span class="pl-dot ${i.kind}"></span>${esc(i.title)}</a>`).join('');
   }
-
-  const items = board[selectedStage] || [];
-  el.innerHTML = `
-    <div class="stage-detail-head">${STAGE_LABELS[selectedStage]}
-      <button class="clear-stage" onclick="selectStage('${selectedStage}')">show all</button>
-    </div>
-    ${items.length
-      ? `<div class="pcard-grid">${items.map(projectCard).join('')}</div>`
-      : `<div class="empty-state"><p>Nothing here.</p></div>`}`;
 }
 
-function renderAttention(a) {
-  const panel = document.getElementById('attention-panel');
-  if (!a.items.length) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-  const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  document.getElementById('attention-count').textContent = a.total > a.items.length ? `Top ${a.items.length} of ${a.total}` : '';
-  document.getElementById('attention').innerHTML = a.items.map(i => `
-    <a class="att-item" href="${i.href}">
-      <span class="att-dot ${i.kind}"></span>
-      <span class="att-title">${esc(i.title)}</span>
-      <span class="att-detail">${esc(i.detail)}</span>
-    </a>`).join('');
+function renderFlow(board) {
+  const t = board.totals;
+  const max = Math.max(1, ...STAGES.map(s => t[s].count));
+  document.getElementById('flow').innerHTML = STAGES.map((s, i) => {
+    const n = t[s].count;
+    const h = n ? Math.max(14, Math.round(n / max * 100)) : 4;
+    return `<a class="flow-col ${n ? '' : 'empty'}" href="/projects?stage=${s}" title="${plural(n, 'project')} · ${short(t[s].value)}">
+      <div class="flow-n">${n}</div>
+      <div class="flow-bar-box"><div class="flow-bar ${ORDERS.includes(s) ? 'run' : (s === 'closed' ? 'done' : 'pipe')}" style="height:${h}%"></div></div>
+      <div class="flow-l">${LABEL[s]}</div>
+    </a>`;
+  }).join('');
 }
 
-async function loadDashboard() {
+(async () => {
   try {
-    const [board, products, quotations, lowStock, attention] = await Promise.all([
-      api('/projects/board/summary'),
-      api('/products/'),
-      api('/quotations/'),
-      api('/stock/low-stock'),
-      api('/projects/board/attention'),
+    const [board, quotations, lowStock, att] = await Promise.all([
+      api('/projects/board/summary'), api('/quotations/'), api('/stock/low-stock'), api('/projects/board/attention'),
     ]);
-    boardData = board;
-
-    const row = document.getElementById('stat-row');
-    row.children[0].querySelector('.num').textContent = board.active_count;
-    row.children[1].querySelector('.num').textContent = quotations.filter(q => q.status === 'sent').length;
-    row.children[2].querySelector('.num').textContent = products.length;
-    row.children[3].querySelector('.num').textContent = lowStock.length;
-
-    renderRail();
-    renderStageDetail();
-    renderAttention(attention);
+    renderHero(board);
+    renderPulse(quotations.filter(q => q.status === 'sent').length, lowStock.length, att);
+    renderFlow(board);
   } catch (e) {
     toast('Could not load dashboard: ' + e.message, true);
   }
-}
-
-loadDashboard();
+})();
 </script>
 {% endblock %}

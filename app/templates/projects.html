@@ -42,6 +42,7 @@
   <button type="button" class="tab" data-cat="residential" role="tab">Residential <span class="tab-count" id="count-residential">0</span></button>
 </div>
 
+<div class="stage-filter" id="stage-filter" style="display:none;"></div>
 <div class="panel"><div id="projects-table"></div></div>
 {% endblock %}
 
@@ -135,7 +136,19 @@ function renderProjects() {
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-selected', on);
   });
-  const rows = activeCategory === 'all' ? projectsCache : projectsCache.filter(p => p.category === activeCategory);
+  let rows = activeCategory === 'all' ? projectsCache : projectsCache.filter(p => p.category === activeCategory);
+  // Filter from the dashboard: ?stage=quoted, or a group (open / orders)
+  const stageParam = new URLSearchParams(location.search).get('stage');
+  const GROUPS = { open: ['enquiry', 'quoted'], orders: ['approved', 'ordered', 'delivered', 'installed', 'commissioned'] };
+  const GROUP_LABEL = { open: 'Pipeline (Enquiry & Quoted)', orders: 'Order book (Approved to Commissioned)' };
+  const sf = document.getElementById('stage-filter');
+  if (stageParam) {
+    const set = GROUPS[stageParam] || [stageParam];
+    rows = rows.filter(p => set.includes(p.status));
+    const label = GROUP_LABEL[stageParam] || (stageParam.charAt(0).toUpperCase() + stageParam.slice(1));
+    sf.innerHTML = `Showing <strong>${label}</strong> <a href="/projects" class="sf-clear" title="Show all">✕</a>`;
+    sf.style.display = 'inline-flex';
+  } else { sf.style.display = 'none'; }
   const emptyMessage = activeCategory === 'all'
     ? 'No projects yet — create your first one above to start tracking its live status.'
     : `No ${CATEGORY_LABELS[activeCategory].toLowerCase()} projects yet. Set a project's category from Edit, or create a new one here.`;
