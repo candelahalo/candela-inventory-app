@@ -140,7 +140,7 @@ function toast(message, isError = false) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'toast';
-    el.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:5px;font-family:IBM Plex Sans,sans-serif;font-size:14px;font-weight:500;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.15);';
+    el.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:5px;font-family:Inter,-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:500;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.15);';
     document.body.appendChild(el);
   }
   el.textContent = message;

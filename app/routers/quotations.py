@@ -366,8 +366,8 @@ def _quotation_excel_response(quotation, db: Session):
     AMBER = "C77D0A"
     LINE = "DED6C2"
     PAPER = "FBF9F4"
-    FONT = "IBM Plex Sans"
-    FONT_MONO = "IBM Plex Mono"
+    FONT = "Arial"
+    FONT_MONO = "Arial"
 
     center = Alignment(horizontal="center", vertical="center")
     center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -601,6 +601,7 @@ def _quotation_excel_response(quotation, db: Session):
 
         desc_cell = ws.cell(row=row, column=3)
         desc_cell.value = CellRichText(*blocks)
+        desc_cell.font = Font(name=FONT, size=10, color=INK)
         desc_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         desc_cell.border = border
         if ds_url:
@@ -720,7 +721,7 @@ def _quotation_excel_response(quotation, db: Session):
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
-    ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(italic=True, size=8, color=MUTED)
+    ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(name=FONT, italic=True, size=8, color=MUTED)
 
     ws.page_setup.orientation = "portrait"
     ws.page_setup.paperSize = ws.PAPERSIZE_A4

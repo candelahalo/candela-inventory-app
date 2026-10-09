@@ -29,7 +29,7 @@ MUTED = "56503F"
 FAINT = "9A9382"
 LINE = "DED6C2"
 PAPER = "FBF9F4"
-FONT = "IBM Plex Sans"
+FONT = "Arial"
 
 LOGO_PATH = "app/static/candela-logo-dark.png"
 

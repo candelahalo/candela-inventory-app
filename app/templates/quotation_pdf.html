@@ -4,19 +4,24 @@
 <meta charset="UTF-8">
 <title>{{ q.quote_number }}{% if q.subject %} - {{ q.subject }}{% endif %}</title>
 <style>
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('app/static/fonts/Inter-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('app/static/fonts/Inter-Medium.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('app/static/fonts/Inter-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('app/static/fonts/Inter-Bold.ttf') format('truetype'); }
+
   @page {
     size: A4;
     margin: 26mm 20mm 22mm 20mm;
     @top-right {
       content: "{{ q.quote_number }}";
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: 'Inter', sans-serif;
       font-size: 8px;
       letter-spacing: 0.06em;
       color: #9A9382;
     }
     @top-left {
       content: "CANDELA LIGHTING AND AUTOMATION LLC";
-      font-family: 'IBM Plex Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 8px;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -24,7 +29,7 @@
     }
     @bottom-center {
       content: "Page " counter(page) " of " counter(pages);
-      font-family: 'IBM Plex Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 8px;
       color: #9A9382;
     }
@@ -34,7 +39,7 @@
     @top-left { content: ""; }
     @bottom-center {
       content: "We Light Your Dreams…";
-      font-family: 'IBM Plex Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 9px;
       font-style: italic;
       color: #9A9382;
@@ -43,7 +48,7 @@
 
   * { box-sizing: border-box; }
   body {
-    font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10.3px;
     color: #201E1A;
     line-height: 1.6;
@@ -55,7 +60,7 @@
   .cover-brand img { height: 60px; }
 
   .cover-kicker {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 9.5px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -63,7 +68,7 @@
     margin-bottom: 10px;
   }
   h1.cover-title {
-    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 34px;
     font-weight: 600;
     margin: 0 0 6px;
@@ -103,7 +108,7 @@
   /* ---------- Item schedule ---------- */
   .schedule-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
   h2.schedule-title {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 16px;
     font-weight: 600;
     margin: 0;
@@ -144,7 +149,7 @@
 
   .item-img { width: 46px; height: 46px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
   .item-img-empty { width: 46px; height: 46px; border: 0.75px dashed #DED6C2; border-radius: 3px; }
-  .item-type { font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: #C77D0A; font-weight: 600; letter-spacing: 0.02em; }
+  .item-type { font-family: 'Inter', sans-serif; font-size: 8.5px; color: #C77D0A; font-weight: 600; letter-spacing: 0.02em; }
   .item-name { font-weight: 600; font-size: 10px; margin: 2px 0 4px; }
   .ds-link { color: inherit; text-decoration: none; }
   .item-spec { color: #56503F; font-size: 8.5px; line-height: 1.5; white-space: pre-line; }
@@ -161,7 +166,7 @@
   .tc-columns { column-count: 2; column-gap: 26px; }
   .tc-section { break-inside: avoid; margin-bottom: 18px; }
   .tc-section h3 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 10.5px;
     font-weight: 600;
     margin: 0 0 8px;

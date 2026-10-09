@@ -71,8 +71,9 @@ Pillow + numpy for image processing.
 - **CSS/JS have `?v=N` cache-busting** in `base.html`. **Bump N on every
   styling change**, otherwise browsers serve stale files and it looks like
   nothing changed.
-- **IBM Plex fonts must be installed on the server** (`fonts-ibm-plex`) or both
-  the PDF and Excel silently fall back to a generic sans-serif.
+- **Fonts:** the app uses **Inter** (bundled in `app/static/fonts/`, used by
+  both the web pages and WeasyPrint PDFs — no system font install needed).
+  Excel files use **Arial** so they look the same on any recipient's PC.
 
 ## Deploy (no schema change)
 

@@ -1,3 +1,8 @@
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/static/fonts/Inter-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/static/fonts/Inter-Medium.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/static/fonts/Inter-SemiBold.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('/static/fonts/Inter-Bold.woff2') format('woff2'); }
+
 :root {
   --ink: #1C1A16;
   --charcoal: #17161B;
@@ -13,9 +18,9 @@
   --muted: #7A7364;
   --white: #FFFFFF;
   --radius: 5px;
-  --font-head: 'Space Grotesk', sans-serif;
-  --font-body: 'IBM Plex Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-head: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -147,6 +152,7 @@ table.dt th.th-sortable:hover { color: var(--amber-deep); }
 table.dt th { cursor: grab; }
 table.dt th.dragging-col { opacity: 0.4; }
 table.dt th .sort-arrow { display: inline-block; width: 12px; color: var(--amber); font-weight: 700; }
+table.dt th .sort-arrow:empty { display: none; }
 table.dt th.th-actions { width: 1%; }
 td.row-actions { white-space: nowrap; text-align: right; }
 td.row-actions .btn-sm { margin-left: 4px; }
@@ -744,3 +750,10 @@ th.num { text-align: right; }
   .rail { min-width: 640px; }
   .node-label { font-size: 9.5px; }
 }
+
+
+/* Standard professional typography: one family, aligned figures */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+.stat .num, .margin-cell, .margin-summary strong, td.num { font-variant-numeric: tabular-nums; }
+td.mono, .mono { white-space: nowrap; }
+h1, h2, h3, .page-head h1 { letter-spacing: -0.01em; }
