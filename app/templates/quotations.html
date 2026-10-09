@@ -451,11 +451,10 @@ async function loadQuotations() {
       return `<span class="margin-cell ${cls}">${fmtMoney(q.total_margin)}<small>${q.total_margin_pct}%</small></span>`;
     } });
   }
-  columns.push({ key: 'date', label: 'Date', value: q => q.created_at, render: q => `<span class="nowrap">${fmtDate(q.created_at)}</span>` });
-  columns.push({ key: 'valid', label: 'Valid until', value: q => q.valid_until || '', render: q => {
-    if (!q.valid_until) return '—';
-    const expired = q.status === 'sent' && new Date(q.valid_until) < new Date();
-    return expired ? `<span class="badge low" title="Validity has passed">Expired</span>` : `<span class="nowrap">${fmtDate(q.valid_until)}</span>`;
+  columns.push({ key: 'date', label: 'Date', value: q => q.created_at, render: q => {
+    const expired = q.status === 'sent' && q.valid_until && new Date(q.valid_until) < new Date();
+    const sub = !q.valid_until ? '' : (expired ? '<span class="badge low">Expired</span>' : `<div class="sub nowrap">valid to ${fmtDate(q.valid_until)}</div>`);
+    return `<span class="nowrap">${fmtDate(q.created_at)}</span>${sub}`;
   } });
 
   DataTable.render({
@@ -467,8 +466,6 @@ async function loadQuotations() {
     actions: q => `
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">${q.status === 'accepted' ? 'Open' : 'Edit'}</button>
       <button class="btn btn-ghost btn-sm" title="Download PDF" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
-      <button class="btn btn-ghost btn-sm" title="Download Excel" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
-      <button class="btn btn-ghost btn-sm" title="Make a new version" onclick="reviseQuotation(${q.id})">Revise</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
     `,
   });
