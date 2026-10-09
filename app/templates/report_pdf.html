@@ -45,7 +45,7 @@
   }
 
   .head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
-  .head img { height: 30px; }
+  .head img { width: 52mm; height: auto; }
   .head .meta { text-align: right; font-size: 8px; color: #9A9382; line-height: 1.5; }
 
   h1 {
@@ -97,7 +97,7 @@
 <body>
 
 <div class="head">
-  <img src="app/static/candela-logo-dark.png">
+  <img src="app/static/candela-logo-doc.png">
   <div class="meta">
     Generated {{ generated.strftime('%d %b %Y') }}
     {% if count is not none %}<br>{{ count }} record{{ '' if count == 1 else 's' }}{% endif %}

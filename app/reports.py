@@ -31,7 +31,7 @@ LINE = "DED6C2"
 PAPER = "FBF9F4"
 FONT = "Arial"
 
-LOGO_PATH = "app/static/candela-logo-dark.png"
+LOGO_PATH = "app/static/candela-logo-doc.png"
 
 
 def _fmt(value, kind):
@@ -130,10 +130,10 @@ def _xl_letterhead(ws, title, subtitle, ncols):
         with PILImage.open(LOGO_PATH) as im:
             w, h = im.size
         img = XLImage(LOGO_PATH)
-        img.height = 30
-        img.width = int(w * (30 / h))
+        img.height = 40
+        img.width = int(w * (40 / h))
         ws.add_image(img, "A1")
-    ws.row_dimensions[1].height = 28
+    ws.row_dimensions[1].height = 34
 
     ws.merge_cells(f"A3:{last_col}3")
     ws["A3"] = title

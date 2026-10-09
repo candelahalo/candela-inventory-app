@@ -436,8 +436,8 @@ def _quotation_excel_response(quotation, db: Session):
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     thin_bottom = Border(bottom=Side(style="thin", color=INK))
 
-    def add_logo(ws, cell="A1", height=34):
-        logo_path = "app/static/candela-logo-dark.png"
+    def add_logo(ws, cell="A1", height=40):
+        logo_path = "app/static/candela-logo-doc.png"
         if os.path.exists(logo_path):
             with PILImage.open(logo_path) as im:
                 w, h = im.size
@@ -457,7 +457,7 @@ def _quotation_excel_response(quotation, db: Session):
     for col, w in {"A": 2, "B": 15, "C": 15, "D": 15, "E": 15, "F": 15, "G": 15}.items():
         cover.column_dimensions[col].width = w
 
-    add_logo(cover, "B2", height=38)
+    add_logo(cover, "B2", height=54)
     cover.row_dimensions[1].height = 8
     cover.row_dimensions[2].height = 30
     cover.row_dimensions[3].height = 30
@@ -603,12 +603,12 @@ def _quotation_excel_response(quotation, db: Session):
     ws.sheet_view.showGridLines = False
     # Sized to fit A4 portrait printable width (~185mm with 0.5in margins) at
     # 100% scale, so nothing gets shrunk down when printed.
-    widths = {"A": 4, "B": 10, "C": 40, "D": 7, "E": 6, "F": 11, "G": 13}
+    widths = {"A": 4, "B": 10, "C": 37, "D": 7, "E": 6, "F": 11, "G": 16}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
     add_logo(ws, "A1")
-    ws.row_dimensions[1].height = 30
+    ws.row_dimensions[1].height = 34
     ws.merge_cells("C1:G1")
     ws["C1"] = quotation.quote_number
     ws["C1"].font = Font(name=FONT_MONO, size=9, color=FAINT)
