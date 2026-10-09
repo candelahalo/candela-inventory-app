@@ -37,7 +37,7 @@
         <select name="role">
           <option value="office">Office</option>
           <option value="store">Store</option>
-          <option value="admin">Admin</option>
+          <option value="admin">Admin (sees profit &amp; margin)</option>
         </select>
       </div>
     </div>
@@ -73,6 +73,7 @@
       <button type="button" class="btn btn-ghost btn-sm" onclick="permsUseRoleDefault()">Use role default</button>
     </div>
     <div id="perms-list" class="perms-list"></div>
+    <div class="modal-note">Profit and margin are never shown to this login, whatever is ticked. Only Admin logins see them.</div>
     <div class="modal-note" id="perms-note"></div>
     <div class="modal-foot">
       <button type="button" class="btn btn-ghost" onclick="closePerms()">Cancel</button>
@@ -187,6 +188,9 @@ async function loadUsers() {
       { key: 'canopen', label: 'Can open', sortable: false, value: () => '', render: u => u.role === 'admin'
           ? '<span style="color:var(--muted);">Everything</span>'
           : `<button class="btn btn-ghost btn-sm" onclick="openPerms(${u.id}, '${u.username}')">Choose screens</button>` },
+      { key: 'margin', label: 'Profit & margin', value: u => u.role === 'admin' ? 1 : 0, render: u => u.role === 'admin'
+          ? '<span class="badge">Visible</span>'
+          : '<span style="color:var(--muted);">Hidden</span>' },
       { key: 'created', label: 'Created', value: u => u.created_at, render: u => fmtDate(u.created_at) },
     ],
     rows: usersCache,

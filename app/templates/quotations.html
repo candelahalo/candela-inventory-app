@@ -546,10 +546,12 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
     isAdmin = false;
   }
   if (!isAdmin) {
-    // Hide cost/margin UI entirely for non-admin users
-    document.getElementById('margin-summary').style.display = 'none';
+    // Profit/margin is admin-only: remove it from the page entirely (cost and
+    // selling prices stay visible). The server never sends margin figures to
+    // non-admins either.
+    document.getElementById('margin-summary').remove();
     const style = document.createElement('style');
-    style.textContent = '.li-cost-field, .line-margin { display: none !important; }';
+    style.textContent = '.line-margin { display: none !important; }';
     document.head.appendChild(style);
   }
   await loadFormData();

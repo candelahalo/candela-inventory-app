@@ -28,13 +28,22 @@ router = APIRouter(prefix="/quotations", tags=["Quotations"],
 download_router = APIRouter(prefix="/quotations", tags=["Quotations (download)"])
 templates = Jinja2Templates(directory="app/templates")
 
-# Cost/margin fields are stripped from API responses for non-admin users.
-MARGIN_FIELDS = {"total_cost", "total_margin", "total_margin_pct"}
-MARGIN_ITEM_FIELDS = {"unit_cost", "line_cost", "line_margin", "line_margin_pct"}
+# Profit/margin is ADMIN ONLY. It is tied to the user's role, not to which
+# screens they can open, and is removed from every API response here on the
+# server - so it cannot be seen even by inspecting the browser.
+# Cost and selling prices are fine for everyone.
+MARGIN_FIELDS = {"total_margin", "total_margin_pct"}
+MARGIN_ITEM_FIELDS = {"line_margin", "line_margin_pct"}
+
+
+def _out(quotation, current) -> dict:
+    """A quotation as JSON, with profit/margin removed for non-admins."""
+    payload = schemas.QuotationOut.model_validate(quotation).model_dump(mode="json")
+    return _strip_margin(payload, current.role == "admin")
 
 
 def _strip_margin(payload, admin: bool):
-    """Remove cost/margin figures unless the caller is an admin."""
+    """Remove profit/margin figures unless the caller is an admin."""
     if admin:
         return payload
     items = payload if isinstance(payload, list) else [payload]
@@ -144,7 +153,7 @@ def _add_items(quotation, payload, db: Session):
         quotation.items.append(models.QuotationItem(**item_data))
 
 
-@router.post("/", response_model=schemas.QuotationOut, status_code=201)
+@router.post("/", status_code=201)
 def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
@@ -164,7 +173,7 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
     log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "created")
     db.commit()
     db.refresh(quotation)
-    return quotation
+    return _out(quotation, current)
 
 
 @router.get("/{quotation_id}")
@@ -176,7 +185,7 @@ def get_quotation(quotation_id: int, db: Session = Depends(get_db), current: mod
     return _strip_margin(payload, current.role == "admin")
 
 
-@router.put("/{quotation_id}", response_model=schemas.QuotationOut)
+@router.put("/{quotation_id}")
 def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
@@ -200,7 +209,7 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "updated")
     db.commit()
     db.refresh(quotation)
-    return quotation
+    return _out(quotation, current)
 
 
 @router.post("/draft/{fmt}")
@@ -259,19 +268,19 @@ def delete_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
     return None
 
 
-@router.post("/{quotation_id}/status/{new_status}", response_model=schemas.QuotationOut)
-def update_status(quotation_id: int, new_status: models.DocStatus, db: Session = Depends(get_db)):
+@router.post("/{quotation_id}/status/{new_status}")
+def update_status(quotation_id: int, new_status: models.DocStatus, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
     quotation.status = new_status
     db.commit()
     db.refresh(quotation)
-    return quotation
+    return _out(quotation, current)
 
 
-@router.post("/{quotation_id}/revise", response_model=schemas.QuotationOut, status_code=201)
-def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db)):
+@router.post("/{quotation_id}/revise", status_code=201)
+def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     """Create a new version of an existing quotation (keeps history instead of overwriting)."""
     original = db.query(models.Quotation).get(quotation_id)
     if not original:
@@ -290,7 +299,7 @@ def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     db.add(new_quote)
     db.commit()
     db.refresh(new_quote)
-    return new_quote
+    return _out(new_quote, current)
 
 
 @download_router.get("/{quotation_id}/pdf")

@@ -44,9 +44,8 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
             {"key": "selling_price", "label": "Selling price", "kind": "money"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
         ]
-        # Cost is commercially sensitive - admin only, same rule as margins
-        if admin:
-            columns.insert(5, {"key": "cost_price", "label": "Cost", "kind": "money"})
+        # Cost is visible to everyone; only profit/margin is admin-only.
+        columns.insert(5, {"key": "cost_price", "label": "Cost", "kind": "money"})
         rows = [{c["key"]: getattr(p, c["key"]) for c in columns} for p in products]
         title = "Product Catalog"
         if category:
@@ -256,7 +255,7 @@ def project_report(project_id: int, fmt: str, token: str = Query(...), preview: 
         q_cols.insert(3, {"key": "margin", "label": "Profit", "kind": "money"})
     quotes = sorted(p.quotations, key=lambda q: q.created_at or datetime.min, reverse=True)
     q_rows = [{"quote_number": q.quote_number, "status": q.status.value, "total": q.total_with_vat,
-               "margin": q.total_margin, "created_at": q.created_at} for q in quotes]
+               "created_at": q.created_at, **({"margin": q.total_margin} if admin else {})} for q in quotes]
 
     products = {x.id: x for x in db.query(models.Product).all()}
     warehouses = {w.id: w for w in db.query(models.Warehouse).all()}
