@@ -267,19 +267,17 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   </tbody>
 </table>
 
+{% set delivery = (q.freight_charges or 0) + q.transportation_amount %}
 <div class="totals-wrap">
   <div class="totals-box">
     <div class="row"><span>Subtotal</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</span></div>
     {% if q.total_discount|abs >= 0.01 %}<div class="row discount"><span>Discount</span><span>− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</span></div>{% endif %}
-    <div class="row"><span>Total after discount</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.gross_total) }}</span></div>
-    {% if q.freight_charges %}<div class="row"><span>Freight &amp; Customs</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.freight_charges) }}</span></div>{% endif %}
-    <div class="row"><span>Transportation</span><span>{% if q.transportation_is_text %}{{ q.transportation_charges }}{% else %}{{ q.currency }} {{ "{:,.2f}".format(q.transportation_amount) }}{% endif %}</span></div>
-    <div class="row"><span>Subtotal (VAT excl.)</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}</span></div>
-    <div class="row"><span>VAT ({{ q.vat_percent }}%)</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</span></div>
-    <div class="row grand"><span>Total Due</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</span></div>
+    {% if delivery %}<div class="row"><span>Delivery</span><span>{{ q.currency }} {{ "{:,.2f}".format(delivery) }}</span></div>
+    {% elif q.transportation_is_text %}<div class="row"><span>Delivery</span><span>{{ q.transportation_charges }}</span></div>{% endif %}
+    <div class="row"><span>VAT {{ "%g"|format(q.vat_percent) }}%</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</span></div>
+    <div class="row grand"><span>Total</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</span></div>
   </div>
 </div>
-<div class="vat-note">Standard {{ q.vat_percent }}% VAT applies as per UAE Federal Tax Law.</div>
 
 <div class="page-break"></div>
 

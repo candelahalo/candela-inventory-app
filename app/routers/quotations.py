@@ -717,16 +717,18 @@ def _quotation_excel_response(quotation, db: Session):
     rows_by_key = {}
     money_fmt = f'#,##0.00 "{quotation.currency}"'
 
+    # Standard, short totals: Subtotal, Discount (if any), Delivery (if any),
+    # VAT, Total.
+    delivery_amount = round((quotation.freight_charges or 0) + quotation.transportation_amount, 2)
+    delivery_text = quotation.transportation_charges if (quotation.transportation_is_text and not delivery_amount) else None
+
     spec = [("items_subtotal", "Subtotal", False)]
     if abs(quotation.total_discount) >= 0.01:
         spec.append(("discount", "Discount", False))
-        spec.append(("after_discount", "Total after discount", False))
-    if quotation.freight_charges:
-        spec.append(("freight", "Freight & Customs", False))
-    spec.append(("transport", "Transportation", False))
-    spec.append(("net", "Subtotal (VAT excl.)", False))
-    spec.append(("vat", f"VAT ({quotation.vat_percent}%)", False))
-    spec.append(("total", "Total Due", True))
+    if delivery_amount or delivery_text:
+        spec.append(("delivery", "Delivery", False))
+    spec.append(("vat", f"VAT {quotation.vat_percent:g}%", False))
+    spec.append(("total", "Total", True))
 
     row += 1
     for key, label, is_grand in spec:
@@ -740,30 +742,25 @@ def _quotation_excel_response(quotation, db: Session):
             val_cell.value = f"=SUM(G{first_item_row}:G{last_item_row})"
         elif key == "discount":
             val_cell.value = -quotation.total_discount
-        elif key == "after_discount":
-            val_cell.value = f"=G{R['items_subtotal']}+G{R['discount']}"
-        elif key == "freight":
-            val_cell.value = quotation.freight_charges
-        elif key == "transport":
-            if quotation.transportation_is_text:
-                # Free text like "Included" - shown as-is and excluded from the sum
-                val_cell.value = quotation.transportation_charges
-            else:
-                val_cell.value = quotation.transportation_amount
-        elif key == "net":
-            base = R.get("after_discount", R["items_subtotal"])
-            parts = [f"G{base}"]
-            if "freight" in R:
-                parts.append(f"G{R['freight']}")
-            if not quotation.transportation_is_text:
-                parts.append(f"G{R['transport']}")
-            val_cell.value = "=" + "+".join(parts)
+        elif key == "delivery":
+            val_cell.value = delivery_text if delivery_text else delivery_amount
         elif key == "vat":
-            val_cell.value = f"=G{R['net']}*{quotation.vat_percent / 100}"
+            parts = [f"G{R['items_subtotal']}"]
+            if "discount" in R:
+                parts.append(f"G{R['discount']}")
+            if "delivery" in R and not delivery_text:
+                parts.append(f"G{R['delivery']}")
+            val_cell.value = f"=({'+'.join(parts)})*{quotation.vat_percent / 100}"
         else:
-            val_cell.value = f"=G{R['net']}+G{R['vat']}"
+            parts = [f"G{R['items_subtotal']}"]
+            if "discount" in R:
+                parts.append(f"G{R['discount']}")
+            if "delivery" in R and not delivery_text:
+                parts.append(f"G{R['delivery']}")
+            parts.append(f"G{R['vat']}")
+            val_cell.value = "=" + "+".join(parts)
 
-        if not (key == "transport" and quotation.transportation_is_text):
+        if not (key == "delivery" and delivery_text):
             val_cell.number_format = money_fmt
 
         colour = "2E7D52" if key == "discount" else (INK if is_grand else MUTED)
@@ -779,9 +776,6 @@ def _quotation_excel_response(quotation, db: Session):
         ws.row_dimensions[row].height = 20 if is_grand else 16
         row += 1
 
-    row += 1
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
-    ws.cell(row=row, column=1, value=f"Standard {quotation.vat_percent}% VAT applies as per UAE Federal Tax Law.").font = Font(name=FONT, italic=True, size=8, color=MUTED)
 
     ws.page_setup.orientation = "portrait"
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
