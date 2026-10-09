@@ -44,6 +44,24 @@
   </div>
 </div>
 
+<div class="kpis" id="usage-kpis"></div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Stock by warehouse</h2>
+    <div id="usage-stock"></div>
+  </div>
+  <div class="panel">
+    <h2>Reserved for approved projects</h2>
+    <div id="usage-reserved"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Recent quotations</h2>
+  <div id="usage-quotes"></div>
+</div>
+
 <div class="panel">
   <div class="page-head" style="margin-bottom:16px;">
     <h2 style="margin:0;">Datasheets</h2>
@@ -91,6 +109,38 @@ function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+async function loadUsage() {
+  const u = await api(`/products/${productId}/usage`);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const low = u.available < u.reorder_level;
+  document.getElementById('usage-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-num">${u.on_hand}</div><div class="kpi-label">On hand</div></div>
+    <div class="kpi"><div class="kpi-num">${u.reserved_total}</div><div class="kpi-label">Reserved for jobs</div></div>
+    <div class="kpi"><div class="kpi-num" style="${low ? 'color:var(--red)' : ''}">${u.available}</div><div class="kpi-label">Free to use</div></div>
+    <div class="kpi"><div class="kpi-num">${u.reorder_level}</div><div class="kpi-label">Reorder level</div></div>`;
+  DataTable.render({ containerId: 'usage-stock', storageKey: 'product-stock', emptyMessage: 'No stock recorded.',
+    columns: [
+      { key: 'wh', label: 'Warehouse', value: r => r.warehouse, render: r => esc(r.warehouse) },
+      { key: 'qty', label: 'On hand', numeric: true, value: r => r.on_hand, render: r => r.on_hand },
+    ], rows: u.stock });
+  DataTable.render({ containerId: 'usage-reserved', storageKey: 'product-reserved', emptyMessage: 'Not needed by any approved project.',
+    columns: [
+      { key: 'p', label: 'Project', value: r => r.project_number, render: r => `<a class="panel-link" href="/projects/view/${r.project_id}">${esc(r.project_number)}</a> <span class="sub">${esc(r.name)}</span>` },
+      { key: 'qty', label: 'Still to issue', numeric: true, value: r => r.qty, render: r => r.qty },
+    ], rows: u.reserved });
+  const ST = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
+  DataTable.render({ containerId: 'usage-quotes', storageKey: 'product-quotes', emptyMessage: 'Not on any quotation yet.',
+    columns: [
+      { key: 'q', label: 'Quote #', value: r => r.quote_number, render: r => `<a class="panel-link mono" href="/quotations?edit=${r.id}">${esc(r.quote_number)}</a>` },
+      { key: 'c', label: 'Customer', value: r => r.customer, render: r => esc(r.customer) },
+      { key: 's', label: 'Status', value: r => r.status, render: r => `<span class="badge st-${r.status}">${ST[r.status]}</span>` },
+      { key: 'qty', label: 'Qty', numeric: true, value: r => r.quantity, render: r => r.quantity },
+      { key: 'price', label: 'Unit price', numeric: true, value: r => r.unit_price, render: r => fmtMoney(r.unit_price) },
+      { key: 'd', label: 'Date', value: r => r.created_at, render: r => fmtDate(r.created_at) },
+    ], rows: u.quotations });
+}
+loadUsage();
 
 async function loadProduct() {
   product = await api('/products/' + productId);

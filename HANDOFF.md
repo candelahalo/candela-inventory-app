@@ -48,6 +48,32 @@ Pillow + numpy for image processing.
 - **Datasheets** — manufacturer PDF spec sheets, filterable, preview + download
 - **Activity** — audit trail of every create/update/delete
 
+## How the modules link together (app/workflow.py)
+
+All cross-module rules live in `app/workflow.py` so every screen behaves the same:
+
+- Quotation saved for a project → project moves to **Quoted**.
+- Quotation status **Sent** → project Quoted; **Accepted** → project **Approved**
+  and the quotation is locked (use **Revise** → `QTN/CND/0012-R1`); **Rejected**
+  → noted on the project timeline.
+- Stock issued (movement type `out`) to a project → once everything on the
+  accepted quotation has gone to site, project moves to **Delivered**.
+- Automatic moves only go forward, never back, and are logged on the project
+  timeline ("Automatic — …") and in Activity.
+- Stock out can't exceed what's in that warehouse.
+- Quote and project numbers continue from the highest ever issued (deleting
+  one never causes a duplicate-number error).
+- A project with quotations or stock movements can't be deleted (close it).
+- Project page: materials required vs issued vs in stock, "Issue" to site.
+- Customer page (`/customers/view/{id}`): projects, quotations, totals.
+- Product page: stock by warehouse, reserved for approved jobs, recent quotes.
+- Dashboard "Needs attention": expired/expiring/unanswered quotations,
+  stock shortfalls on approved jobs, projects idle 14+ days.
+- Deep links: `/quotations?edit=ID`, `/quotations?new=1&project=ID`,
+  `/quotations?new=1&customer=ID`, `/projects?new=1&customer=ID`.
+- Profit/margin is admin-only by **role** (stripped server-side); cost price
+  is visible to everyone.
+
 ## Important conventions / decisions already made
 
 - **Stock levels are computed** from the movement ledger, never stored as a

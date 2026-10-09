@@ -11,7 +11,20 @@
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2 id="form-title">New quotation</h2>
+  <div class="editor-head">
+    <h2 id="form-title">New quotation</h2>
+    <div class="status-bar" id="status-bar" style="display:none;">
+      <span class="status-bar-label">Status</span>
+      <div class="seg" id="status-seg">
+        <button type="button" data-st="draft">Draft</button>
+        <button type="button" data-st="sent">Sent</button>
+        <button type="button" data-st="accepted">Accepted</button>
+        <button type="button" data-st="rejected">Rejected</button>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="revise-btn" title="Make a new version (R1, R2…) and keep this one unchanged">Revise</button>
+    </div>
+  </div>
+  <div class="lock-note" id="lock-note" style="display:none;">Accepted by the client, so this quotation is locked. Use <strong>Revise</strong> to make a new version.</div>
   <form id="quote-form">
     <input type="hidden" id="editing-id">
     <div class="form-grid">
@@ -72,6 +85,14 @@
   </form>
 </div>
 
+<div class="tabs" id="status-tabs" role="tablist">
+  <button type="button" class="tab" data-st="all">All <span class="tab-count" id="qc-all">0</span></button>
+  <button type="button" class="tab" data-st="draft">Draft <span class="tab-count" id="qc-draft">0</span></button>
+  <button type="button" class="tab" data-st="sent">Sent <span class="tab-count" id="qc-sent">0</span></button>
+  <button type="button" class="tab" data-st="accepted">Accepted <span class="tab-count" id="qc-accepted">0</span></button>
+  <button type="button" class="tab" data-st="rejected">Rejected <span class="tab-count" id="qc-rejected">0</span></button>
+</div>
+
 <div class="panel">
   <div id="quotations-table"></div>
 </div>
@@ -84,7 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let productsCache = [], customersCache = [], projectsCache = [];
+let quotesCache = [];
 let isAdmin = false;
+let openQuote = null;   // the saved quotation currently in the editor
+const STATUS_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
+let activeStatus = STATUS_LABEL[location.hash.slice(1)] ? location.hash.slice(1) : 'all';
+
+function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[st] || st}</span>`; }
 
 function lineRow(item) {
   const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}">${p.sku} — ${p.name}</option>`).join('');
@@ -222,6 +249,9 @@ function hideAddPanel() {
   document.getElementById('line-items').innerHTML = '';
   setCustomer(null);
   setProject(null);
+  openQuote = null;
+  showStatusBar(null);
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash);
 }
 document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); if (!document.getElementById('line-items').children.length) addLine(); });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
@@ -247,8 +277,10 @@ async function editQuotation(id) {
   document.getElementById('editing-id').value = id;
   document.getElementById('line-items').innerHTML = '';
   q.items.forEach(item => addLine(item));
-  showAddPanel('Edit quotation ' + q.quote_number);
+  showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
+  openQuote = q;
+  showStatusBar(q);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -351,7 +383,10 @@ function updateProjectHint() {
 function renderProjectOptions(filter) {
   const list = document.getElementById('project-list');
   const q = (filter || '').toLowerCase();
+  // Once a customer is chosen, only offer that customer's projects
+  const custId = parseInt(document.getElementById('q-customer-id').value) || null;
   const matches = projectsCache
+    .filter(p => !custId || p.customer_id === custId)
     .filter(p => !q || p.name.toLowerCase().includes(q) || (p.project_number || '').toLowerCase().includes(q))
     .slice(0, 8);
 
@@ -370,6 +405,8 @@ function renderProjectOptions(filter) {
 
 function pickProject(id) {
   setProject(id);
+  const p = projectsCache.find(x => x.id === id);
+  if (p && !document.getElementById('q-customer-id').value) setCustomer(p.customer_id);
   document.getElementById('project-list').classList.remove('open');
 }
 
@@ -395,11 +432,17 @@ async function loadFormData() {
 
 async function loadQuotations() {
   const quotes = await api('/quotations/');
+  quotesCache = quotes;
+  renderStatusTabs();
+  const shown = activeStatus === 'all' ? quotes : quotes.filter(q => q.status === activeStatus);
   const columns = [
-      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>` },
+      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono nowrap" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>` },
       { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
-      { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : '—'; } },
-      { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge">${q.status}</span>` },
+      { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.project_number}</a>` : '—'; } },
+      { key: 'status', label: 'Status', value: q => q.status, render: q => `
+        <select class="status-select st-${q.status}" onchange="changeStatus(${q.id}, this.value)" title="Change status">
+          ${Object.keys(STATUS_LABEL).map(st => `<option value="${st}" ${st === q.status ? 'selected' : ''}>${STATUS_LABEL[st]}</option>`).join('')}
+        </select>` },
       { key: 'total', label: 'Total (incl. VAT)', numeric: true, value: q => q.total_with_vat, render: q => fmtMoney(q.total_with_vat) },
   ];
   if (isAdmin) {
@@ -408,22 +451,103 @@ async function loadQuotations() {
       return `<span class="margin-cell ${cls}">${fmtMoney(q.total_margin)}<small>${q.total_margin_pct}%</small></span>`;
     } });
   }
-  columns.push({ key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) });
+  columns.push({ key: 'date', label: 'Date', value: q => q.created_at, render: q => `<span class="nowrap">${fmtDate(q.created_at)}</span>` });
+  columns.push({ key: 'valid', label: 'Valid until', value: q => q.valid_until || '', render: q => {
+    if (!q.valid_until) return '—';
+    const expired = q.status === 'sent' && new Date(q.valid_until) < new Date();
+    return expired ? `<span class="badge low" title="Validity has passed">Expired</span>` : `<span class="nowrap">${fmtDate(q.valid_until)}</span>`;
+  } });
 
   DataTable.render({
     containerId: 'quotations-table',
     storageKey: 'quotations',
-    emptyMessage: 'No quotations yet — create your first one above.',
+    emptyMessage: activeStatus === 'all' ? 'No quotations yet — create your first one above.' : `No ${STATUS_LABEL[activeStatus].toLowerCase()} quotations.`,
     columns: columns,
-    rows: quotes,
+    rows: shown,
     actions: q => `
-      <button class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
-      <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
-      <button class="btn btn-ghost btn-sm" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
-      <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">${q.status === 'accepted' ? 'Open' : 'Edit'}</button>
+      <button class="btn btn-ghost btn-sm" title="Download PDF" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
+      <button class="btn btn-ghost btn-sm" title="Download Excel" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
+      <button class="btn btn-ghost btn-sm" title="Make a new version" onclick="reviseQuotation(${q.id})">Revise</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
     `,
   });
+}
+
+function renderStatusTabs() {
+  const counts = { all: quotesCache.length, draft: 0, sent: 0, accepted: 0, rejected: 0 };
+  quotesCache.forEach(q => { counts[q.status] = (counts[q.status] || 0) + 1; });
+  Object.keys(counts).forEach(k => { const el = document.getElementById('qc-' + k); if (el) el.textContent = counts[k]; });
+  document.querySelectorAll('#status-tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.st === activeStatus));
+}
+document.querySelectorAll('#status-tabs .tab').forEach(b => b.addEventListener('click', () => {
+  activeStatus = b.dataset.st;
+  history.replaceState(null, '', location.pathname + location.search + (activeStatus === 'all' ? '' : '#' + activeStatus));
+  loadQuotations();
+}));
+
+const STATUS_HINT = {
+  sent: 'Marked as sent — the project moves to Quoted.',
+  accepted: 'Accepted — the project moves to Approved and this quotation is now locked.',
+  rejected: 'Marked as rejected — noted on the project timeline.',
+  draft: 'Back to draft.',
+};
+
+async function changeStatus(id, status) {
+  const q = quotesCache.find(x => x.id === id) || openQuote;
+  if (status === 'accepted' && !confirm(`Mark ${q ? q.quote_number : 'this quotation'} as accepted by the client?\n\nIts project moves to Approved and the quotation is locked.`)) {
+    loadQuotations(); return;
+  }
+  try {
+    const updated = await api(`/quotations/${id}/status/${status}`, { method: 'POST' });
+    toast(updated.project_id ? STATUS_HINT[status] : 'Status updated');
+    if (openQuote && openQuote.id === id) { openQuote = updated; showStatusBar(updated); }
+    projectsCache = await api('/projects/');
+    loadQuotations();
+  } catch (err) { toast(err.message, true); loadQuotations(); }
+}
+
+async function reviseQuotation(id) {
+  try {
+    const q = await api(`/quotations/${id}/revise`, { method: 'POST' });
+    toast(`${q.quote_number} created as a draft`);
+    await loadQuotations();
+    editQuotation(q.id);
+  } catch (err) { toast(err.message, true); }
+}
+
+// Status buttons + lock while a saved quotation is open
+function showStatusBar(q) {
+  const bar = document.getElementById('status-bar');
+  const lock = document.getElementById('lock-note');
+  const form = document.getElementById('quote-form');
+  bar.style.display = q ? 'flex' : 'none';
+  const locked = !!q && q.status === 'accepted';
+  lock.style.display = locked ? 'block' : 'none';
+  form.querySelectorAll('input, select, textarea, #add-line, .remove-line').forEach(el => { el.disabled = locked; });
+  form.querySelector('button[type=submit]').style.display = locked ? 'none' : '';
+  form.querySelector('.draft-actions').style.display = locked ? 'none' : '';
+  if (!q) return;
+  document.querySelectorAll('#status-seg button').forEach(b => b.classList.toggle('on', b.dataset.st === q.status));
+}
+document.querySelectorAll('#status-seg button').forEach(b => b.addEventListener('click', () => {
+  if (openQuote && b.dataset.st !== openQuote.status) changeStatus(openQuote.id, b.dataset.st);
+}));
+document.getElementById('revise-btn').addEventListener('click', () => { if (openQuote) reviseQuotation(openQuote.id); });
+
+// Links from other pages: /quotations?edit=12  or  /quotations?new=1&project=5&customer=3
+async function openFromLink() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('edit')) {
+    editQuotation(parseInt(params.get('edit')));
+  } else if (params.get('new')) {
+    showAddPanel('New quotation');
+    const projectId = parseInt(params.get('project')) || null;
+    const customerId = parseInt(params.get('customer')) || null;
+    const p = projectsCache.find(x => x.id === projectId);
+    setCustomer(p ? p.customer_id : customerId);
+    if (p) setProject(p.id);
+  }
 }
 
 // kind: 'preview' (PDF in a new tab), 'pdf' or 'excel' (downloads).
@@ -530,10 +654,11 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
       await api('/quotations/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
       toast('Quotation updated');
     } else {
-      await api('/quotations/', { method: 'POST', body: JSON.stringify(payload) });
-      toast('Quotation created');
+      const created = await api('/quotations/', { method: 'POST', body: JSON.stringify(payload) });
+      toast(created.project_id ? `${created.quote_number} created — project updated` : `${created.quote_number} created`);
     }
     hideAddPanel();
+    [customersCache, projectsCache] = await Promise.all([api('/customers/'), api('/projects/')]);
     loadQuotations();
   } catch (err) { toast(err.message, true); }
 });
@@ -556,6 +681,7 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   }
   await loadFormData();
   await loadQuotations();
+  openFromLink();
 })();
 </script>
 {% endblock %}

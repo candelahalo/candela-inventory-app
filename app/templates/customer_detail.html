@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Customer{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 id="c-name">Loading…</h1>
+    <p id="c-meta"></p>
+  </div>
+  <div class="head-actions">
+    <button class="btn btn-ghost" id="edit-btn">Edit</button>
+    <a class="btn btn-ghost" id="new-project-btn" href="#">+ New project</a>
+    <a class="btn" id="new-quote-btn" href="#">+ New quotation</a>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="panel" id="edit-panel" style="display:none;">
+  <h2>Edit customer</h2>
+  <form id="customer-form">
+    <div class="form-grid">
+      <div class="field"><label>Name</label><input name="name" required></div>
+      <div class="field"><label>Company</label><input name="company"></div>
+      <div class="field"><label>Email</label><input name="email" type="email"></div>
+      <div class="field"><label>Phone</label><input name="phone"></div>
+      <div class="field"><label>TRN</label><input name="trn"></div>
+      <div class="field span2"><label>Address</label><textarea name="address" rows="2"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save changes</button>
+      <button type="button" class="btn btn-ghost" id="edit-cancel">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Contact</h2>
+    <table class="kv"><tbody id="contact-body"></tbody></table>
+  </div>
+  <div class="panel">
+    <h2>Projects</h2>
+    <div id="projects-table"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Quotations</h2>
+  <div id="quotes-table"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const customerId = {{ customer_id }};
+const ST_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+document.getElementById('new-quote-btn').href = '/quotations?new=1&customer=' + customerId;
+document.getElementById('new-project-btn').href = '/projects?new=1&customer=' + customerId;
+let data = null;
+
+async function load() {
+  data = await api(`/customers/${customerId}/summary`);
+  const c = data.customer;
+  document.getElementById('c-name').textContent = c.name;
+  document.getElementById('c-meta').textContent = [c.company, c.email, c.phone].filter(Boolean).join(' · ') || 'Customer';
+  document.title = c.name + ' · Candela';
+
+  const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  document.getElementById('contact-body').innerHTML =
+    row('Company', esc(c.company) || '—') +
+    row('Email', c.email ? `<a class="panel-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—') +
+    row('Phone', c.phone ? `<a class="panel-link" href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—') +
+    row('TRN', esc(c.trn) || '—') +
+    row('Address', esc(c.address) || '—') +
+    row('Customer since', fmtDate(c.created_at));
+
+  const t = data.totals;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-num">${t.open_projects}</div><div class="kpi-label">Open project${t.open_projects === 1 ? '' : 's'}</div></div>
+    <div class="kpi"><div class="kpi-num">${data.quotations.length}</div><div class="kpi-label">Quotation${data.quotations.length === 1 ? '' : 's'}</div></div>
+    <div class="kpi"><div class="kpi-num">${fmtMoney(t.quoted)}</div><div class="kpi-label">Total quoted</div></div>
+    <div class="kpi"><div class="kpi-num">${fmtMoney(t.accepted)}</div><div class="kpi-label">Total accepted</div></div>`;
+
+  DataTable.render({
+    containerId: 'projects-table', storageKey: 'customer-projects',
+    emptyMessage: 'No projects yet.',
+    columns: [
+      { key: 'num', label: 'Project', value: p => p.project_number, render: p => `<a class="panel-link" href="/projects/view/${p.id}">${esc(p.name)}</a><div class="sub mono">${esc(p.project_number)}</div>` },
+      { key: 'status', label: 'Stage', value: p => p.status, render: p => `<span class="badge stage-${p.status}">${cap(p.status)}</span>` },
+    ],
+    rows: data.projects,
+  });
+  DataTable.render({
+    containerId: 'quotes-table', storageKey: 'customer-quotes',
+    emptyMessage: 'No quotations yet.',
+    columns: [
+      { key: 'num', label: 'Quote #', value: q => q.quote_number, render: q => `<a class="panel-link mono" href="/quotations?edit=${q.id}">${esc(q.quote_number)}</a>` },
+      { key: 'project', label: 'Project', value: q => q.project || '', render: q => q.project_id ? `<a class="panel-link" href="/projects/view/${q.project_id}">${esc(q.project)}</a>` : '—' },
+      { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge st-${q.status}">${ST_LABEL[q.status]}</span>` },
+      { key: 'total', label: 'Total (incl. VAT)', numeric: true, value: q => q.total, render: q => fmtMoney(q.total) },
+      { key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) },
+    ],
+    rows: data.quotations,
+    actions: q => `<a class="btn btn-ghost btn-sm" href="/quotations?edit=${q.id}">Open</a>`,
+  });
+}
+
+document.getElementById('edit-btn').addEventListener('click', () => {
+  const f = document.getElementById('customer-form');
+  ['name', 'company', 'email', 'phone', 'trn', 'address'].forEach(k => { f[k].value = data.customer[k] || ''; });
+  document.getElementById('edit-panel').style.display = 'block';
+});
+document.getElementById('edit-cancel').addEventListener('click', () => { document.getElementById('edit-panel').style.display = 'none'; });
+document.getElementById('customer-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/customers/' + customerId, { method: 'PUT', body: JSON.stringify(formToJSON(e.target)) });
+    document.getElementById('edit-panel').style.display = 'none';
+    toast('Customer updated');
+    load();
+  } catch (err) { toast(err.message, true); }
+});
+
+load();
+</script>
+{% endblock %}

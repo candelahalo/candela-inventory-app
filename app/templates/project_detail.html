@@ -7,41 +7,81 @@
     <p id="proj-meta"></p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
-    <a href="/projects" class="btn btn-ghost">← All projects</a></div>
+    <button class="btn btn-ghost" id="edit-btn">Edit</button>
+    <a class="btn" id="new-quote-btn" href="#">+ New quotation</a></div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="panel" id="edit-panel" style="display:none;">
+  <h2>Edit project</h2>
+  <form id="project-form">
+    <div class="form-grid">
+      <div class="field span2"><label>Project name</label><input name="name" required></div>
+      <div class="field"><label>Customer</label><select name="customer_id" id="p-customer" required></select></div>
+      <div class="field"><label>Category</label>
+        <select name="category">
+          <option value="">Not set</option>
+          <option value="retail">Retail</option>
+          <option value="residential">Residential</option>
+        </select>
+      </div>
+      <div class="field"><label>Start date</label><input name="start_date" type="date"></div>
+      <div class="field"><label>Target completion</label><input name="target_completion_date" type="date"></div>
+      <div class="field span2"><label>Site address</label><textarea name="site_address" rows="2"></textarea></div>
+      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save changes</button>
+      <button type="button" class="btn btn-ghost" id="edit-cancel">Cancel</button>
+    </div>
+  </form>
 </div>
 
 <div class="panel">
-  <h2>Status</h2>
+  <div class="panel-head"><h2>Status</h2><span class="muted-note">Moves automatically with quotations and deliveries — or click a stage.</span></div>
   <div class="stepper" id="stepper"></div>
-  <p style="color:var(--muted); font-size:13px; margin:0;">Click a stage to move the project there — it's logged to the timeline below.</p>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Details</h2>
+    <table class="kv"><tbody id="details-body"></tbody></table>
+  </div>
+  <div class="panel">
+    <h2>Timeline</h2>
+    <ul class="timeline" id="timeline"></ul>
+  </div>
 </div>
 
 <div class="panel">
-  <h2>Details</h2>
-  <table id="details-table"><tbody></tbody></table>
+  <div class="panel-head"><h2>Quotations</h2></div>
+  <div id="quotes-table"></div>
 </div>
 
 <div class="panel">
-  <h2>Linked quotations</h2>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Quote #</th><th>Status</th><th class="num">Total</th><th>Date</th></tr></thead>
-    <tbody id="quotes-body"></tbody>
-  </table></div>
-  <div class="empty-state" id="quotes-empty" style="display:none;"><p>No quotations linked to this project yet.</p></div>
+  <div class="panel-head">
+    <h2>Materials</h2>
+    <span class="muted-note" id="mat-source"></span>
+  </div>
+  <div id="issue-panel" class="issue-panel" style="display:none;">
+    <form id="issue-form" class="issue-form">
+      <div class="field"><label>Product</label><select name="product_id" id="is-product" required></select></div>
+      <div class="field"><label>From warehouse</label><select name="warehouse_id" id="is-warehouse" required></select></div>
+      <div class="field"><label>Qty</label><input name="quantity" type="number" min="1" required></div>
+      <div class="field"><label>Reference</label><input name="reference" placeholder="Delivery note no."></div>
+      <div class="issue-actions">
+        <button type="submit" class="btn btn-sm">Issue to site</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="hideIssue()">Cancel</button>
+      </div>
+    </form>
+  </div>
+  <div id="materials-table"></div>
 </div>
 
 <div class="panel">
   <h2>Stock movements for this site</h2>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="num">Qty</th></tr></thead>
-    <tbody id="stock-body"></tbody>
-  </table></div>
-  <div class="empty-state" id="stock-empty" style="display:none;"><p>No stock has been recorded against this project yet.</p></div>
-</div>
-
-<div class="panel">
-  <h2>Timeline</h2>
-  <ul class="timeline" id="timeline"></ul>
+  <div id="moves-table"></div>
 </div>
 {% endblock %}
 
@@ -49,72 +89,192 @@
 <script>
 const projectId = {{ project_id }};
 document.getElementById('report-btns').innerHTML = reportButtons('project/' + projectId);
+document.getElementById('new-quote-btn').href = '/quotations?new=1&project=' + projectId;
 const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
+const ST_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
+let project = null, customers = [], products = {}, warehouses = [], materials = null;
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
 async function loadProject() {
-  const project = await api('/projects/' + projectId);
+  project = await api('/projects/' + projectId);
+  const cust = customers.find(c => c.id === project.customer_id);
   document.getElementById('proj-name').textContent = project.name;
-  document.getElementById('proj-meta').textContent = project.project_number + ' · ' + project.status;
+  document.getElementById('proj-meta').innerHTML =
+    `${esc(project.project_number)} · ${cust ? `<a class="panel-link" href="/customers/view/${cust.id}">${esc(cust.name)}</a>` : ''}`;
+  document.title = project.project_number + ' · Candela';
 
-  const stepper = document.getElementById('stepper');
   const currentIdx = STAGES.indexOf(project.status);
-  stepper.innerHTML = STAGES.map((s, i) => {
+  document.getElementById('stepper').innerHTML = STAGES.map((s, i) => {
     const cls = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : '');
-    return `<button class="step ${cls}" onclick="advance('${s}')">${s}</button>`;
+    return `<button class="step ${cls}" onclick="advance('${s}')">${cap(s)}</button>`;
   }).join('');
 
-  document.getElementById('details-table').querySelector('tbody').innerHTML = `
-    <tr><td style="color:var(--muted); width:180px;">Site address</td><td>${project.site_address || '—'}</td></tr>
-    <tr><td style="color:var(--muted);">Start date</td><td>${fmtDate(project.start_date)}</td></tr>
-    <tr><td style="color:var(--muted);">Target completion</td><td>${fmtDate(project.target_completion_date)}</td></tr>
-    <tr><td style="color:var(--muted);">Notes</td><td>${project.notes || '—'}</td></tr>
-  `;
+  const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  document.getElementById('details-body').innerHTML =
+    row('Customer', cust ? `<a class="panel-link" href="/customers/view/${cust.id}">${esc(cust.name)}</a>${cust.phone ? ' · ' + esc(cust.phone) : ''}` : '—') +
+    row('Category', project.category ? `<span class="badge cat-${project.category}">${cap(project.category)}</span>` : '—') +
+    row('Site address', esc(project.site_address) || '—') +
+    row('Start date', fmtDate(project.start_date)) +
+    row('Target completion', fmtDate(project.target_completion_date)) +
+    row('Notes', esc(project.notes) || '—');
 
   document.getElementById('timeline').innerHTML = [...project.status_history].reverse().map(h => `
     <li>
-      <span><span class="badge stage-${h.status}">${h.status}</span> ${h.notes ? '<span class="t-note">— ' + h.notes + '</span>' : ''}</span>
-      <span class="t-when">${fmtDate(h.changed_at)}</span>
+      <span><span class="badge stage-${h.status}">${cap(h.status)}</span> ${h.notes ? '<span class="t-note">' + esc(h.notes) + '</span>' : ''}</span>
+      <span class="t-when">${fmtDateTime(h.changed_at)}</span>
     </li>`).join('');
 }
 
 async function advance(status) {
-  const notes = prompt(`Move this project to "${status}"? Add a note (optional):`, '');
+  if (project && status === project.status) return;
+  const notes = prompt(`Move this project to "${cap(status)}"? Add a note (optional):`, '');
   if (notes === null) return;
   try {
     await api('/projects/' + projectId + '/status', { method: 'POST', body: JSON.stringify({ status, notes: notes || null }) });
     toast('Status updated');
-    loadProject();
+    await loadProject(); renderKpis();
   } catch (err) { toast(err.message, true); }
 }
 
+let quotes = [];
 async function loadQuotes() {
-  const quotes = await api('/quotations/?project_id=' + projectId);
-  document.getElementById('quotes-empty').style.display = quotes.length ? 'none' : 'block';
-  document.getElementById('quotes-body').innerHTML = quotes.map(q => {
-    const total = q.items.reduce((sum, i) => sum + i.line_total, 0);
-    return `<tr>
-      <td class="mono">${q.quote_number}</td>
-      <td><span class="badge">${q.status}</span></td>
-      <td class="num">${fmtMoney(total)}</td>
-      <td>${fmtDate(q.created_at)}</td>
-    </tr>`;
-  }).join('');
+  quotes = await api('/quotations/?project_id=' + projectId);
+  DataTable.render({
+    containerId: 'quotes-table',
+    storageKey: 'project-quotes',
+    emptyMessage: 'No quotations yet — use “+ New quotation” to price this job.',
+    columns: [
+      { key: 'num', label: 'Quote #', value: q => q.quote_number, render: q => `<a class="panel-link mono" href="/quotations?edit=${q.id}">${esc(q.quote_number)}</a>` },
+      { key: 'subject', label: 'Subject', value: q => q.subject || '', render: q => esc(q.subject) || '—' },
+      { key: 'status', label: 'Status', value: q => q.status, render: q => `<span class="badge st-${q.status}">${ST_LABEL[q.status]}</span>` },
+      { key: 'total', label: 'Total (incl. VAT)', numeric: true, value: q => q.total_with_vat, render: q => fmtMoney(q.total_with_vat) },
+      { key: 'date', label: 'Date', value: q => q.created_at, render: q => fmtDate(q.created_at) },
+    ],
+    rows: quotes,
+    actions: q => `<a class="btn btn-ghost btn-sm" href="/quotations?edit=${q.id}">Open</a>`,
+  });
 }
 
-async function loadStock() {
-  const movements = await api('/stock/movements?project_id=' + projectId);
-  document.getElementById('stock-empty').style.display = movements.length ? 'none' : 'block';
-  document.getElementById('stock-body').innerHTML = movements.map(m => `
-    <tr>
-      <td>${fmtDate(m.created_at)}</td>
-      <td><span class="badge">${m.movement_type}</span></td>
-      <td>${m.reference || '—'}</td>
-      <td class="num">${m.quantity}</td>
-    </tr>`).join('');
+async function loadMaterials() {
+  materials = await api(`/projects/${projectId}/materials`);
+  const src = materials.quotation;
+  document.getElementById('mat-source').innerHTML = src
+    ? `From <a class="panel-link" href="/quotations?edit=${src.id}">${esc(src.quote_number)}</a> (${ST_LABEL[src.status].toLowerCase()})`
+    : 'Appears once a quotation is raised';
+  DataTable.render({
+    containerId: 'materials-table',
+    storageKey: 'project-materials',
+    emptyMessage: 'Nothing yet — materials come from this project’s quotation.',
+    columns: [
+      { key: 'sku', label: 'SKU', value: r => r.sku, render: r => `<a class="mono panel-link" href="/products/view/${r.product_id}">${esc(r.sku)}</a>` },
+      { key: 'name', label: 'Product', value: r => r.name, render: r => esc(r.name) },
+      { key: 'required', label: 'Required', numeric: true, value: r => r.required, render: r => r.required },
+      { key: 'issued', label: 'Issued', numeric: true, value: r => r.issued, render: r => r.issued },
+      { key: 'balance', label: 'To issue', numeric: true, value: r => r.balance, render: r => r.balance ? `<strong>${r.balance}</strong>` : '<span class="ok-text">✓</span>' },
+      { key: 'on_hand', label: 'In stock', numeric: true, value: r => r.on_hand, render: r => r.on_hand },
+      { key: 'short', label: 'Shortfall', numeric: true, value: r => r.shortfall, render: r => r.shortfall ? `<span class="badge low">${r.shortfall} short</span>` : '—' },
+    ],
+    rows: materials.rows,
+    actions: r => r.balance > 0 && r.on_hand > 0 ? `<button class="btn btn-ghost btn-sm" onclick="showIssue(${r.product_id})">Issue</button>` : '',
+  });
+  const isel = document.getElementById('is-product');
+  isel.innerHTML = materials.rows.map(r => `<option value="${r.product_id}">${esc(r.sku)} — ${esc(r.name)}</option>`).join('');
 }
 
-loadProject();
-loadQuotes();
-loadStock();
+function showIssue(productId) {
+  const r = materials.rows.find(x => x.product_id === productId);
+  document.getElementById('is-product').value = productId;
+  document.querySelector('#issue-form [name=quantity]').value = r ? Math.min(r.balance, r.on_hand) : 1;
+  document.getElementById('issue-panel').style.display = 'block';
+}
+function hideIssue() { document.getElementById('issue-panel').style.display = 'none'; document.getElementById('issue-form').reset(); }
+
+document.getElementById('issue-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const before = project.status;
+  try {
+    await api('/stock/movements', { method: 'POST', body: JSON.stringify({
+      product_id: parseInt(f.product_id.value), warehouse_id: parseInt(f.warehouse_id.value),
+      movement_type: 'out', quantity: parseInt(f.quantity.value),
+      reference: f.reference.value || 'Issued to ' + project.project_number, project_id: projectId,
+    }) });
+    hideIssue();
+    await Promise.all([loadProject(), loadMaterials(), loadMoves()]);
+    renderKpis();
+    toast(project.status !== before ? `Issued — all materials delivered, project moved to ${cap(project.status)}` : 'Issued to site');
+  } catch (err) { toast(err.message, true); }
+});
+
+async function loadMoves() {
+  const moves = await api('/stock/movements?project_id=' + projectId);
+  const whName = id => (warehouses.find(w => w.id === id) || {}).name || '—';
+  DataTable.render({
+    containerId: 'moves-table',
+    storageKey: 'project-moves',
+    emptyMessage: 'No stock has been issued to this site yet.',
+    columns: [
+      { key: 'date', label: 'Date', value: m => m.created_at, render: m => fmtDate(m.created_at) },
+      { key: 'product', label: 'Product', value: m => (products[m.product_id] || {}).name || '', render: m => { const p = products[m.product_id]; return p ? `<span class="mono">${esc(p.sku)}</span> ${esc(p.name)}` : '—'; } },
+      { key: 'type', label: 'Type', value: m => m.movement_type, render: m => `<span class="badge">${m.movement_type === 'out' ? 'Issued' : (m.movement_type === 'in' ? 'Returned' : 'Adjustment')}</span>` },
+      { key: 'wh', label: 'Warehouse', value: m => whName(m.warehouse_id), render: m => esc(whName(m.warehouse_id)) },
+      { key: 'ref', label: 'Reference', value: m => m.reference || '', render: m => esc(m.reference) || '—' },
+      { key: 'qty', label: 'Qty', numeric: true, value: m => m.quantity, render: m => m.quantity },
+    ],
+    rows: moves,
+  });
+}
+
+function renderKpis() {
+  const governing = quotes.find(q => q.status === 'accepted') || quotes[0];
+  const t = materials ? materials : { total_required: 0, total_issued: 0 };
+  const pct = t.total_required ? Math.round(t.total_issued / t.total_required * 100) : 0;
+  const lastChange = project.status_history.length ? project.status_history[project.status_history.length - 1].changed_at : project.created_at;
+  const days = Math.max(0, Math.floor((Date.now() - new Date(lastChange + (String(lastChange).endsWith('Z') ? '' : 'Z'))) / 86400000));
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-num">${cap(project.status)}</div><div class="kpi-label">${days} day${days === 1 ? '' : 's'} at this stage</div></div>
+    <div class="kpi"><div class="kpi-num">${governing ? fmtMoney(governing.total_with_vat) : '—'}</div><div class="kpi-label">${governing ? (governing.status === 'accepted' ? 'Order value' : 'Quoted value') : 'Not quoted yet'}</div></div>
+    <div class="kpi"><div class="kpi-num">${quotes.length}</div><div class="kpi-label">Quotation${quotes.length === 1 ? '' : 's'}</div></div>
+    <div class="kpi"><div class="kpi-num">${t.total_required ? pct + '%' : '—'}</div><div class="kpi-label">Materials issued</div></div>`;
+}
+
+// ---------- Edit ----------
+document.getElementById('edit-btn').addEventListener('click', () => {
+  const f = document.getElementById('project-form');
+  document.getElementById('p-customer').innerHTML = customers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  f.name.value = project.name;
+  f.customer_id.value = project.customer_id;
+  f.category.value = project.category || '';
+  f.start_date.value = project.start_date ? project.start_date.substring(0, 10) : '';
+  f.target_completion_date.value = project.target_completion_date ? project.target_completion_date.substring(0, 10) : '';
+  f.site_address.value = project.site_address || '';
+  f.notes.value = project.notes || '';
+  document.getElementById('edit-panel').style.display = 'block';
+});
+document.getElementById('edit-cancel').addEventListener('click', () => { document.getElementById('edit-panel').style.display = 'none'; });
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = formToJSON(e.target);
+  payload.customer_id = parseInt(payload.customer_id);
+  payload.category = payload.category || null;
+  ['start_date', 'target_completion_date', 'site_address', 'notes'].forEach(k => { if (!payload[k]) payload[k] = null; });
+  try {
+    await api('/projects/' + projectId, { method: 'PUT', body: JSON.stringify(payload) });
+    document.getElementById('edit-panel').style.display = 'none';
+    toast('Project updated');
+    loadProject();
+  } catch (err) { toast(err.message, true); }
+});
+
+(async () => {
+  const [c, p, w] = await Promise.all([api('/customers/'), api('/products/?active_only=false'), api('/stock/warehouses')]);
+  customers = c; warehouses = w;
+  p.forEach(x => { products[x.id] = x; });
+  document.getElementById('is-warehouse').innerHTML = warehouses.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  await Promise.all([loadProject(), loadQuotes(), loadMaterials(), loadMoves()]);
+  renderKpis();
+})();
 </script>
 {% endblock %}

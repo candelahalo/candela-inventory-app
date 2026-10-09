@@ -7,6 +7,7 @@ from app.database import get_db
 from app import models, schemas
 from app.utils import log_activity
 from app import auth
+from app import workflow
 
 router = APIRouter(prefix="/stock", tags=["Stock"],
                    dependencies=[Depends(auth.get_current_user)])
@@ -61,18 +62,36 @@ def create_movement(payload: schemas.StockMovementCreate, db: Session = Depends(
     warehouse = db.query(models.Warehouse).get(payload.warehouse_id)
     if not product or not warehouse:
         raise HTTPException(status_code=404, detail="Product or warehouse not found")
+    project = None
     if payload.project_id:
         project = db.query(models.Project).get(payload.project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+    if payload.movement_type != models.MovementType.adjustment and payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be more than zero")
+    if payload.quantity == 0:
+        raise HTTPException(status_code=400, detail="Quantity cannot be zero")
+    if payload.movement_type == models.MovementType.out:
+        available = workflow.on_hand(db, product.id, warehouse.id)
+        if payload.quantity > available:
+            raise HTTPException(status_code=400,
+                                detail=f"Only {available} {product.unit or 'pcs'} of {product.sku} in {warehouse.name}. "
+                                       "Record the stock coming in first.")
+    elif payload.movement_type == models.MovementType.adjustment and payload.quantity < 0:
+        available = workflow.on_hand(db, product.id, warehouse.id)
+        if available + payload.quantity < 0:
+            raise HTTPException(status_code=400,
+                                detail=f"That would take {product.sku} below zero in {warehouse.name} (on hand: {available}).")
 
     movement = models.StockMovement(**payload.model_dump())
     db.add(movement)
     db.flush()
     log_activity(db, current.username, "stock_movement", movement.id,
         f"{product.sku} · {warehouse.name}", "created",
-        f"{payload.movement_type.value} {payload.quantity}",
+        f"{payload.movement_type.value} {payload.quantity}" + (f" · {project.project_number}" if project else ""),
     )
+    if project is not None and payload.movement_type == models.MovementType.out:
+        workflow.check_delivery_complete(db, project, current.username)
     db.commit()
     db.refresh(movement)
     return movement

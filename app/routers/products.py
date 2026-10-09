@@ -81,3 +81,44 @@ def upload_product_image(product_id: int, file: UploadFile = File(...), db: Sess
     db.commit()
     db.refresh(product)
     return product
+
+
+@router.get("/{product_id}/usage")
+def product_usage(product_id: int, db: Session = Depends(get_db)):
+    """Stock by warehouse, what open jobs still need, and where it's been quoted."""
+    from app import workflow
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    stock = []
+    for wh in db.query(models.Warehouse).order_by(models.Warehouse.name).all():
+        qty = workflow.on_hand(db, product_id, wh.id)
+        if qty or any(m.warehouse_id == wh.id for m in product.stock_movements):
+            stock.append({"warehouse": wh.name, "on_hand": qty})
+    total = sum(s["on_hand"] for s in stock)
+
+    reserved = []
+    for p in db.query(models.Project).filter(models.Project.status != models.ProjectStatus.closed).all():
+        gq = workflow.governing_quotation(p)
+        if not gq or gq.status != models.DocStatus.accepted:
+            continue
+        if not any(i.product_id == product_id for i in gq.items):
+            continue
+        row = next((r for r in workflow.project_materials(db, p)["rows"] if r["product_id"] == product_id), None)
+        if row and row["balance"]:
+            reserved.append({"project_id": p.id, "project_number": p.project_number, "name": p.name, "qty": row["balance"]})
+    reserved_total = sum(r["qty"] for r in reserved)
+
+    quotes = []
+    rows = (db.query(models.QuotationItem).filter(models.QuotationItem.product_id == product_id)
+            .join(models.Quotation).order_by(models.Quotation.created_at.desc()).limit(15).all())
+    for it in rows:
+        q = it.quotation
+        quotes.append({"id": q.id, "quote_number": q.quote_number, "status": q.status.value,
+                       "customer": q.customer.name if q.customer else "", "quantity": it.quantity,
+                       "unit_price": it.unit_price, "created_at": q.created_at.isoformat()})
+
+    return {"stock": stock, "on_hand": total, "reserved": reserved, "reserved_total": reserved_total,
+            "available": total - reserved_total, "reorder_level": product.reorder_level or 0,
+            "quotations": quotes}

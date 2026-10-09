@@ -757,3 +757,68 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .stat .num, .margin-cell, .margin-summary strong, td.num { font-variant-numeric: tabular-nums; }
 td.mono, .mono { white-space: nowrap; }
 h1, h2, h3, .page-head h1 { letter-spacing: -0.01em; }
+
+/* ---------- Quotation status ---------- */
+.badge.st-draft { background: #EFE9DC; color: #6B6045; }
+.badge.st-sent { background: #E8EEF5; color: #3D5F80; }
+.badge.st-accepted { background: #E5EFE6; color: #3E7248; }
+.badge.st-rejected { background: #F7E2DC; color: var(--red); }
+.status-select {
+  font: inherit; font-size: 12.5px; font-weight: 600; border: 0; border-radius: 10px;
+  padding: 3px 22px 3px 10px; cursor: pointer; appearance: none; -webkit-appearance: none;
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23776' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+.status-select.st-draft { background-color: #EFE9DC; color: #6B6045; }
+.status-select.st-sent { background-color: #E8EEF5; color: #3D5F80; }
+.status-select.st-accepted { background-color: #E5EFE6; color: #3E7248; }
+.status-select.st-rejected { background-color: #F7E2DC; color: var(--red); }
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.editor-head h2 { margin: 0; }
+.status-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.status-bar-label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #fff; }
+.seg button { font: inherit; font-size: 13px; font-weight: 500; border: 0; background: transparent; padding: 6px 12px; color: var(--muted); cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { color: var(--ink); background: var(--paper); }
+.seg button.on[data-st="draft"] { background: #EFE9DC; color: #6B6045; font-weight: 600; }
+.seg button.on[data-st="sent"] { background: #E8EEF5; color: #3D5F80; font-weight: 600; }
+.seg button.on[data-st="accepted"] { background: #E5EFE6; color: #3E7248; font-weight: 600; }
+.seg button.on[data-st="rejected"] { background: #F7E2DC; color: var(--red); font-weight: 600; }
+.lock-note { background: #E5EFE6; color: #2F5C3A; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; margin-bottom: 16px; }
+
+/* ---------- Detail pages (project, customer) ---------- */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; min-width: 0; }
+.kpi-num { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-label { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.grid-2 > .panel { min-width: 0; }
+table.kv td { border-bottom: 1px solid var(--paper-2); padding: 9px 8px; vertical-align: top; }
+table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
+.muted-note { color: var(--muted); font-size: 12.5px; }
+.sub { color: var(--muted); font-size: 12px; margin-top: 1px; }
+.ok-text { color: var(--green); font-weight: 600; }
+.issue-panel { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.issue-form { display: grid; grid-template-columns: 2fr 1.3fr 0.6fr 1.2fr auto; gap: 12px; align-items: end; }
+.issue-form .field { margin: 0; }
+.issue-actions { display: flex; gap: 6px; }
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; gap: 0; }
+  .issue-form { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- Dashboard: needs attention ---------- */
+.attention { display: flex; flex-direction: column; }
+.att-item { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--paper-2); color: var(--ink); text-decoration: none; }
+.att-item:last-child { border-bottom: 0; }
+.att-item:hover { background: var(--paper); }
+.att-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--muted); }
+.att-dot.expired, .att-dot.shortage { background: var(--red); }
+.att-dot.expiring { background: var(--amber); }
+.att-dot.followup { background: #3D5F80; }
+.att-title { font-weight: 500; font-size: 14px; }
+.att-detail { color: var(--muted); font-size: 12.5px; margin-left: auto; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; }
+
+.nowrap { white-space: nowrap; }

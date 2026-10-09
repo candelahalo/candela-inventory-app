@@ -7,10 +7,15 @@
 </div>
 
 <div class="stat-row" id="stat-row">
-  <a class="stat" href="/projects"><div class="num">—</div><div class="label">Projects</div></a>
-  <a class="stat" href="/quotations"><div class="num">—</div><div class="label">Quotations</div></a>
+  <a class="stat" href="/projects"><div class="num">—</div><div class="label">Active projects</div></a>
+  <a class="stat" href="/quotations#sent"><div class="num">—</div><div class="label">Awaiting client</div></a>
   <a class="stat" href="/products"><div class="num">—</div><div class="label">Products</div></a>
   <a class="stat warn" href="/stock"><div class="num">—</div><div class="label">Low stock</div></a>
+</div>
+
+<div class="panel" id="attention-panel" style="display:none;">
+  <div class="panel-head"><h2>Needs attention</h2><span class="muted-note" id="attention-count"></span></div>
+  <div class="attention" id="attention"></div>
 </div>
 
 <div class="panel">
@@ -102,24 +107,40 @@ function renderStageDetail() {
       : `<div class="empty-state"><p>Nothing here.</p></div>`}`;
 }
 
+function renderAttention(a) {
+  const panel = document.getElementById('attention-panel');
+  if (!a.items.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  document.getElementById('attention-count').textContent = a.total > a.items.length ? `Top ${a.items.length} of ${a.total}` : '';
+  document.getElementById('attention').innerHTML = a.items.map(i => `
+    <a class="att-item" href="${i.href}">
+      <span class="att-dot ${i.kind}"></span>
+      <span class="att-title">${esc(i.title)}</span>
+      <span class="att-detail">${esc(i.detail)}</span>
+    </a>`).join('');
+}
+
 async function loadDashboard() {
   try {
-    const [board, products, quotations, lowStock] = await Promise.all([
+    const [board, products, quotations, lowStock, attention] = await Promise.all([
       api('/projects/board/summary'),
       api('/products/'),
       api('/quotations/'),
       api('/stock/low-stock'),
+      api('/projects/board/attention'),
     ]);
     boardData = board;
 
     const row = document.getElementById('stat-row');
     row.children[0].querySelector('.num').textContent = board.active_count;
-    row.children[1].querySelector('.num').textContent = quotations.length;
+    row.children[1].querySelector('.num').textContent = quotations.filter(q => q.status === 'sent').length;
     row.children[2].querySelector('.num').textContent = products.length;
     row.children[3].querySelector('.num').textContent = lowStock.length;
 
     renderRail();
     renderStageDetail();
+    renderAttention(attention);
   } catch (e) {
     toast('Could not load dashboard: ' + e.message, true);
   }

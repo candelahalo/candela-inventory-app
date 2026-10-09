@@ -16,7 +16,10 @@ from app.database import get_db
 from app import models, schemas
 from app.utils import url_to_disk_path, log_activity
 from app import auth
+from app import workflow
 from app.settings import BASE_URL
+from datetime import datetime, timedelta
+import re
 
 router = APIRouter(prefix="/quotations", tags=["Quotations"],
                    dependencies=[Depends(auth.get_current_user)])
@@ -56,9 +59,22 @@ def _strip_margin(payload, admin: bool):
     return payload
 
 
+QUOTE_PREFIX = "QTN/CND/"
+VALIDITY_DAYS = 30
+LOCKED_MSG = ("This quotation has been accepted, so it is locked. "
+              "Use Revise to make a new version, or set its status back to Sent first.")
+
+
 def _next_quote_number(db: Session) -> str:
-    count = db.query(models.Quotation).count() + 1
-    return f"QTN/CND/{count:04d}"
+    """Next number after the highest one ever issued - a deleted quotation's
+    number is never reused, and deletions can't cause a duplicate-number
+    error the way counting rows did."""
+    highest = 0
+    for (num,) in db.query(models.Quotation.quote_number).all():
+        m = re.match(re.escape(QUOTE_PREFIX) + r"(\d+)", num or "")
+        if m:
+            highest = max(highest, int(m.group(1)))
+    return f"{QUOTE_PREFIX}{highest + 1:04d}"
 
 
 @router.get("/")
@@ -122,9 +138,8 @@ def _resolve_project(payload, customer: models.Customer, db: Session, user: str)
     if existing:
         return existing
 
-    count = db.query(models.Project).count() + 1
     project = models.Project(
-        project_number=f"PRJ-{count:05d}",
+        project_number=workflow.next_project_number(db),
         name=name,
         customer_id=customer.id,
         status=models.ProjectStatus.enquiry,
@@ -162,15 +177,19 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
                                        "project_name", "project_id"})
+    if not data.get("valid_until"):
+        data["valid_until"] = datetime.utcnow() + timedelta(days=VALIDITY_DAYS)
     quotation = models.Quotation(quote_number=_next_quote_number(db),
                                  customer_id=customer.id,
-                                 project_id=project.id if project else None,
                                  **data)
+    quotation.project = project
     _add_items(quotation, payload, db)
 
     db.add(quotation)
     db.flush()
-    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "created")
+    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "created",
+                 f"for {customer.name}" + (f" · {project.project_number}" if project else ""))
+    workflow.on_quotation_saved(db, quotation, current.username, created=True)
     db.commit()
     db.refresh(quotation)
     return _out(quotation, current)
@@ -190,23 +209,28 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    if quotation.status == models.DocStatus.accepted:
+        raise HTTPException(status_code=400, detail=LOCKED_MSG)
     customer = _resolve_customer(payload, db, current.username)
     if not payload.items:
         raise HTTPException(status_code=400, detail="Quotation must have at least one item")
     project = _resolve_project(payload, customer, db, current.username)
+    old_project_id = quotation.project_id
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
                                        "project_name", "project_id"})
     for key, value in data.items():
         setattr(quotation, key, value)
     quotation.customer_id = customer.id
-    quotation.project_id = project.id if project else None
+    quotation.project = project
 
     quotation.items.clear()
     db.flush()
     _add_items(quotation, payload, db)
 
     log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "updated")
+    if project and project.id != old_project_id:
+        workflow.on_quotation_saved(db, quotation, current.username, created=True)
     db.commit()
     db.refresh(quotation)
     return _out(quotation, current)
@@ -263,6 +287,8 @@ def delete_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
     log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number, "deleted")
+    if quotation.project is not None:
+        workflow.note_on_project(db, quotation.project, f"{quotation.quote_number} deleted")
     db.delete(quotation)
     db.commit()
     return None
@@ -273,30 +299,55 @@ def update_status(quotation_id: int, new_status: models.DocStatus, db: Session =
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    old = quotation.status
+    if old == new_status:
+        return _out(quotation, current)
     quotation.status = new_status
+    log_activity(db, current.username, "quotation", quotation.id, quotation.quote_number,
+                 "status_changed", f"{old.value} → {new_status.value}")
+    workflow.on_quotation_status(db, quotation, old, new_status, current.username)
     db.commit()
     db.refresh(quotation)
     return _out(quotation, current)
 
 
 @router.post("/{quotation_id}/revise", status_code=201)
-def revise_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
-    """Create a new version of an existing quotation (keeps history instead of overwriting)."""
+def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """Make a new version of a quotation (e.g. QTN/CND/0012-R1) as a draft,
+    copying every line, so the original stays exactly as the client saw it."""
     original = db.query(models.Quotation).get(quotation_id)
     if not original:
         raise HTTPException(status_code=404, detail="Original quotation not found")
 
-    data = payload.model_dump(exclude={"items", "project_id"})
-    new_quote = models.Quotation(
-        quote_number=f"{original.quote_number}-v{original.version + 1}",
-        project_id=payload.project_id or original.project_id,
-        version=original.version + 1,
-        **data,
-    )
-    for item in payload.items:
-        new_quote.items.append(models.QuotationItem(**item.model_dump()))
+    base = re.sub(r"-R\d+$", "", original.quote_number or "")
+    existing = {n for (n,) in db.query(models.Quotation.quote_number)
+                .filter(models.Quotation.quote_number.like(base + "-R%")).all()}
+    rev = 1
+    while f"{base}-R{rev}" in existing:
+        rev += 1
 
+    copy_fields = ["customer_id", "project_id", "notes", "attention_to", "subject", "currency", "scope",
+                   "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
+                   "vat_percent", "prepared_by_name", "prepared_by_title"]
+    new_quote = models.Quotation(
+        quote_number=f"{base}-R{rev}",
+        version=(original.version or 1) + 1,
+        status=models.DocStatus.draft,
+        valid_until=datetime.utcnow() + timedelta(days=VALIDITY_DAYS),
+        **{f: getattr(original, f) for f in copy_fields},
+    )
+    for item in original.items:
+        new_quote.items.append(models.QuotationItem(
+            product_id=item.product_id, type_code=item.type_code, description=item.description,
+            quantity=item.quantity, unit_price=item.unit_price, unit_cost=item.unit_cost,
+            discount_pct=item.discount_pct))
     db.add(new_quote)
+    db.flush()
+    log_activity(db, current.username, "quotation", new_quote.id, new_quote.quote_number, "created",
+                 f"revision of {original.quote_number}")
+    if new_quote.project_id:
+        db.refresh(new_quote)
+        workflow.note_on_project(db, new_quote.project, f"{new_quote.quote_number} prepared (revision of {original.quote_number})")
     db.commit()
     db.refresh(new_quote)
     return _out(new_quote, current)

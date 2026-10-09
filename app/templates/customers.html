@@ -81,13 +81,14 @@ async function loadCustomers() {
     storageKey: 'customers',
     emptyMessage: 'No customers yet — add your first client above.',
     columns: [
-      { key: 'name', label: 'Name', value: c => c.name, render: c => c.name },
+      { key: 'name', label: 'Name', value: c => c.name, render: c => `<a class="panel-link" href="/customers/view/${c.id}">${c.name}</a>` },
       { key: 'company', label: 'Company', value: c => c.company || '', render: c => c.company || '—' },
       { key: 'email', label: 'Email', value: c => c.email || '', render: c => c.email || '—' },
       { key: 'phone', label: 'Phone', value: c => c.phone || '', render: c => c.phone || '—' },
     ],
     rows: customersCache,
     actions: c => `
+      <a class="btn btn-ghost btn-sm" href="/customers/view/${c.id}">Open</a>
       <button class="btn btn-ghost btn-sm" onclick="editCustomer(${c.id})">Edit</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}')">Delete</button>
     `,

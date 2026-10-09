@@ -147,9 +147,9 @@ function renderProjects() {
     columns: [
       { key: 'project_number', label: 'Project #', value: p => p.project_number || '', render: p => `<a href="/projects/view/${p.id}" class="mono">${p.project_number}</a>` },
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/projects/view/${p.id}">${p.name}</a>` },
-      { key: 'customer', label: 'Customer', value: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : ''; }, render: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : '—'; } },
+      { key: 'customer', label: 'Customer', value: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : ''; }, render: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? `<a class="panel-link" href="/customers/view/${c.id}">${c.name}</a>` : '—'; } },
       { key: 'category', label: 'Category', value: p => CATEGORY_LABELS[p.category] || '', render: p => p.category ? `<span class="badge cat-${p.category}">${CATEGORY_LABELS[p.category]}</span>` : '<span class="muted">Not set</span>' },
-      { key: 'status', label: 'Status', value: p => p.status, render: p => `<span class="badge stage-${p.status}">${p.status}</span>` },
+      { key: 'status', label: 'Status', value: p => p.status, render: p => `<span class="badge stage-${p.status}">${p.status.charAt(0).toUpperCase() + p.status.slice(1)}</span>` },
       { key: 'start_date', label: 'Started', value: p => p.start_date || '', render: p => fmtDate(p.start_date) },
     ],
     rows: rows,
@@ -183,6 +183,12 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
 (async () => {
   await loadCustomerOptions();
   await loadProjects();
+  // Link from a customer page: /projects?new=1&customer=3
+  const params = new URLSearchParams(location.search);
+  if (params.get('new')) {
+    showAddPanel('New project');
+    if (params.get('customer')) document.getElementById('p-customer').value = params.get('customer');
+  }
 })();
 </script>
 {% endblock %}

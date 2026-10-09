@@ -112,11 +112,11 @@ async function deleteMovement(id) {
 }
 
 async function populateSelectors() {
-  const [products, warehouses, projects] = await Promise.all([api('/products/'), api('/stock/warehouses'), api('/projects/')]);
+  const [products, warehouses, projects] = await Promise.all([api('/products/?active_only=false'), api('/stock/warehouses'), api('/projects/')]);
   productsCache = products; warehousesCache = warehouses; projectsCache = projects;
-  document.getElementById('mv-product').innerHTML = products.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
+  document.getElementById('mv-product').innerHTML = products.filter(p => p.is_active !== false).map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
   document.getElementById('mv-warehouse').innerHTML = warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-  document.getElementById('mv-project').innerHTML = '<option value="">— None —</option>' + projects.map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
+  document.getElementById('mv-project').innerHTML = '<option value="">— None —</option>' + projects.filter(p => p.status !== 'closed').map(p => `<option value="${p.id}">${p.project_number} — ${p.name}</option>`).join('');
 
   DataTable.render({
     containerId: 'warehouses-table',
@@ -141,7 +141,7 @@ async function loadLevels() {
     storageKey: 'stock-levels',
     emptyMessage: 'No stock recorded yet — record your first stock-in movement above.',
     columns: [
-      { key: 'sku', label: 'SKU', value: s => s.sku, render: s => `<span class="mono">${s.sku}</span>` },
+      { key: 'sku', label: 'SKU', value: s => s.sku, render: s => `<a class="mono panel-link" href="/products/view/${s.product_id}">${s.sku}</a>` },
       { key: 'name', label: 'Product', value: s => s.name, render: s => s.name },
       { key: 'warehouse', label: 'Warehouse', value: s => s.warehouse_name, render: s => s.warehouse_name },
       { key: 'on_hand', label: 'On hand', numeric: true, value: s => s.quantity_on_hand, render: s => s.quantity_on_hand },
@@ -160,11 +160,14 @@ async function loadMovements() {
     emptyMessage: 'No movements recorded yet.',
     columns: [
       { key: 'date', label: 'Date', value: m => m.created_at, render: m => fmtDate(m.created_at) },
-      { key: 'type', label: 'Type', value: m => m.movement_type, render: m => `<span class="badge">${m.movement_type}</span>` },
-      { key: 'reference', label: 'Reference', value: m => m.reference || '', render: m => {
+      { key: 'type', label: 'Type', value: m => m.movement_type, render: m => `<span class="badge">${({ in: 'In', out: 'Out', adjustment: 'Adjustment' })[m.movement_type]}</span>` },
+      { key: 'product', label: 'Product', value: m => { const p = productsCache.find(pr => pr.id === m.product_id); return p ? p.sku : ''; }, render: m => {
           const p = productsCache.find(pr => pr.id === m.product_id);
-          return (m.reference || '—') + (p ? ' · ' + p.sku : '');
+          return p ? `<a class="mono panel-link" href="/products/view/${p.id}">${p.sku}</a> ${p.name}` : '—';
         } },
+      { key: 'warehouse', label: 'Warehouse', value: m => { const w = warehousesCache.find(x => x.id === m.warehouse_id); return w ? w.name : ''; }, render: m => { const w = warehousesCache.find(x => x.id === m.warehouse_id); return w ? w.name : '—'; } },
+      { key: 'project', label: 'Project', value: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? p.project_number : ''; }, render: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}">${p.project_number}</a>` : '—'; } },
+      { key: 'reference', label: 'Reference', value: m => m.reference || '', render: m => m.reference || '—' },
       { key: 'qty', label: 'Qty', numeric: true, value: m => m.quantity, render: m => m.quantity },
     ],
     rows: movements.slice(0, 40),
@@ -198,7 +201,7 @@ document.getElementById('movement-form').addEventListener('submit', async (e) =>
   payload.quantity = parseInt(payload.quantity);
   try {
     await api('/stock/movements', { method: 'POST', body: JSON.stringify(payload) });
-    toast('Movement recorded');
+    toast(payload.project_id && payload.movement_type === 'out' ? 'Issued to project — its materials list is updated' : 'Movement recorded');
     e.target.reset();
     document.getElementById('move-panel').style.display = 'none';
     loadLevels();

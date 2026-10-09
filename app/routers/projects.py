@@ -7,14 +7,14 @@ from app.database import get_db
 from app import models, schemas
 from app.utils import log_activity
 from app import auth
+from app import workflow
 
 router = APIRouter(prefix="/projects", tags=["Projects"],
                    dependencies=[Depends(auth.get_current_user)])
 
 
 def _next_project_number(db: Session) -> str:
-    count = db.query(models.Project).count() + 1
-    return f"PRJ-{count:05d}"
+    return workflow.next_project_number(db)
 
 
 @router.get("/", response_model=List[schemas.ProjectOut])
@@ -81,6 +81,17 @@ def delete_project(project_id: int, db: Session = Depends(get_db), current: mode
     project = db.query(models.Project).get(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    n_quotes = len(project.quotations)
+    n_moves = len(project.stock_movements)
+    if n_quotes or n_moves:
+        parts = []
+        if n_quotes:
+            parts.append(f"{n_quotes} quotation{'s' if n_quotes != 1 else ''}")
+        if n_moves:
+            parts.append(f"{n_moves} stock movement{'s' if n_moves != 1 else ''}")
+        raise HTTPException(status_code=400,
+                            detail=f"This project has {' and '.join(parts)} linked to it. "
+                                   "Delete or move those first, or set the project to Closed instead.")
     log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}", "deleted")
     db.delete(project)
     db.commit()
@@ -97,6 +108,8 @@ def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate,
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    if project.status == payload.status and not payload.notes:
+        return project
     project.status = payload.status
     project.status_history.append(
         models.ProjectStatusHistory(status=payload.status, notes=payload.notes)
@@ -128,11 +141,12 @@ def status_board(db: Session = Depends(get_db)):
 
     customers = {c.id: c for c in db.query(models.Customer).all()}
 
-    # Quoted value per project: the most recent quotation on it.
+    # Value per project: its accepted quotation, otherwise the latest one.
     values = {}
-    for q in db.query(models.Quotation).order_by(models.Quotation.created_at).all():
-        if q.project_id:
-            values[q.project_id] = q.total_with_vat
+    for proj in db.query(models.Project).all():
+        gq = workflow.governing_quotation(proj)
+        if gq:
+            values[proj.id] = gq.total_with_vat
 
     now = datetime.utcnow()
     board = {s: [] for s in STAGES}
@@ -170,3 +184,52 @@ def status_board(db: Session = Depends(get_db)):
         "active_value": round(sum(totals[s]["value"] for s in active), 2),
         "won_value": round(totals["closed"]["value"], 2),
     }
+
+
+@router.get("/board/attention")
+def needs_attention(db: Session = Depends(get_db)):
+    """Short list of things someone should act on today."""
+    now = datetime.utcnow()
+    items = []
+
+    for q in db.query(models.Quotation).filter(models.Quotation.status == models.DocStatus.sent).all():
+        cust = q.customer.name if q.customer else ""
+        if q.valid_until and q.valid_until < now:
+            items.append({"kind": "expired", "priority": 1, "title": f"{q.quote_number} has expired",
+                          "detail": f"{cust} · valid until {q.valid_until:%d %b}",
+                          "href": f"/quotations?edit={q.id}"})
+        elif q.valid_until and (q.valid_until - now).days <= 7:
+            items.append({"kind": "expiring", "priority": 2, "title": f"{q.quote_number} expires soon",
+                          "detail": f"{cust} · valid until {q.valid_until:%d %b}",
+                          "href": f"/quotations?edit={q.id}"})
+        elif (now - q.created_at).days >= 7:
+            items.append({"kind": "followup", "priority": 3, "title": f"Follow up {q.quote_number}",
+                          "detail": f"{cust} · sent {(now - q.created_at).days} days ago, no answer yet",
+                          "href": f"/quotations?edit={q.id}"})
+
+    for p in db.query(models.Project).filter(models.Project.status != models.ProjectStatus.closed).all():
+        last = max([h.changed_at for h in p.status_history] or [p.created_at])
+        days = (now - last).days
+        if p.status in (models.ProjectStatus.approved, models.ProjectStatus.ordered):
+            mats = workflow.project_materials(db, p)
+            short = [r for r in mats["rows"] if r["shortfall"] > 0]
+            if short:
+                items.append({"kind": "shortage", "priority": 1,
+                              "title": f"{p.project_number}: {len(short)} item{'s' if len(short) != 1 else ''} short in stock",
+                              "detail": p.name, "href": f"/projects/view/{p.id}"})
+                continue
+        if days >= 14:
+            items.append({"kind": "stalled", "priority": 3, "title": f"{p.project_number} idle for {days} days",
+                          "detail": f"{p.name} · at {p.status.value}", "href": f"/projects/view/{p.id}"})
+
+    items.sort(key=lambda x: x["priority"])
+    return {"items": items[:8], "total": len(items)}
+
+
+@router.get("/{project_id}/materials")
+def project_materials(project_id: int, db: Session = Depends(get_db)):
+    """Required (from the accepted / latest quotation) vs issued to site vs in stock."""
+    project = db.query(models.Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return workflow.project_materials(db, project)
