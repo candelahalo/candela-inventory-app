@@ -61,7 +61,7 @@ def _type_suffix(ptype):
 
 
 def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None, ptype: Optional[str] = None,
-            division: Optional[str] = None):
+            division: Optional[str] = None, status: Optional[str] = None):
     """Returns (title, columns, rows) for a report kind."""
 
     if kind == "products":
@@ -195,25 +195,40 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         return title, columns, rows
 
     if kind == "quotations":
-        quotes = db.query(models.Quotation).order_by(models.Quotation.created_at.desc()).all()
+        q = db.query(models.Quotation)
+        if status:
+            q = q.filter(models.Quotation.status == models.DocStatus(status))
+        if division == "unset":
+            q = q.filter(models.Quotation.division.is_(None))
+        elif division:
+            q = q.filter(models.Quotation.division == division)
+        if category == "unset":
+            q = q.filter(models.Quotation.category.is_(None))
+        elif category:
+            q = q.filter(models.Quotation.category == category)
+        quotes = q.order_by(models.Quotation.created_at.desc()).all()
         customers = {c.id: c for c in db.query(models.Customer).all()}
         projects = {p.id: p for p in db.query(models.Project).all()}
         columns = [
             {"key": "quote_number", "label": "Quote #"},
             {"key": "customer", "label": "Customer"},
             {"key": "project", "label": "Project"},
+            {"key": "division", "label": "Division"},
+            {"key": "category", "label": "Category"},
             {"key": "status", "label": "Status"},
             {"key": "total", "label": "Total (incl. VAT)", "kind": "money"},
             {"key": "created_at", "label": "Date", "kind": "date"},
         ]
         if admin:
-            columns.insert(5, {"key": "margin", "label": "Profit", "kind": "money"})
+            columns.insert(7, {"key": "margin", "label": "Profit", "kind": "money"})
         rows = []
         for q in quotes:
             r = {
                 "quote_number": q.quote_number,
                 "customer": customers[q.customer_id].name if q.customer_id in customers else "",
                 "project": projects[q.project_id].project_number if q.project_id in projects else "",
+                "division": DIVISION_LABELS.get(q.division, ""),
+                "category": CATEGORY_LABELS.get(q.category, ""),
                 "status": q.status.value,
                 "total": q.total_with_vat,
                 "created_at": q.created_at,
@@ -221,7 +236,10 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             if admin:
                 r["margin"] = q.total_margin
             rows.append(r)
-        return "Quotations", columns, rows
+        bits = [status.capitalize() if status else None,
+                ("Division not set" if division == "unset" else DIVISION_LABELS[division]) if division else None,
+                ("Category not set" if category == "unset" else CATEGORY_LABELS[category]) if category else None]
+        return " - ".join(["Quotations"] + [b for b in bits if b]), columns, rows
 
     if kind == "datasheets":
         sheets = db.query(models.Datasheet).order_by(models.Datasheet.uploaded_at.desc()).all()
@@ -486,12 +504,14 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
 @router.get("/{kind}.{fmt}")
 def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool = False,
                     category: Optional[str] = None, ptype: Optional[str] = Query(None, alias="type"),
-                    division: Optional[str] = None,
+                    division: Optional[str] = None, status: Optional[str] = None,
                     db: Session = Depends(get_db)):
     _check_fmt(fmt)
-    if kind in ("projects", "customers") and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
+    if kind in ("projects", "customers", "quotations") and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
-    if kind == "projects" and division is not None and division not in list(DIVISION_LABELS) + ["unset"]:
+    if kind == "quotations" and status is not None and status not in [s.value for s in models.DocStatus]:
+        raise HTTPException(status_code=400, detail="Unknown quotation status")
+    if kind in ("projects", "quotations") and division is not None and division not in list(DIVISION_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Division must be lighting or automation")
     if kind in ("products", "stock", "movements") and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
         raise HTTPException(status_code=400, detail="Unknown product category")
@@ -501,11 +521,11 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     user = auth.get_download_user_from_token(token, db)
     admin = user.role == "admin"
 
-    title, columns, rows = _gather(kind, db, admin, category, ptype, division)
+    title, columns, rows = _gather(kind, db, admin, category, ptype, division, status)
     subtitle = f"{len(rows)} record{'' if len(rows) == 1 else 's'} · generated {datetime.utcnow().strftime('%d %b %Y')}"
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
-    named = ["no-division" if division == "unset" else division,
-             "no-category" if (kind in ("projects", "customers") and category == "unset") else category, ptype]
+    named = [status, "no-division" if division == "unset" else division,
+             "no-category" if (kind in ("projects", "customers", "quotations") and category == "unset") else category, ptype]
     parts = [kind] + [x.lower().replace(" ", "-") for x in named if x]
     base = "candela-" + "-".join(parts) + f"-{stamp}"
 

@@ -155,6 +155,19 @@ def _resolve_project(payload, customer: models.Customer, db: Session, user: str)
     return project
 
 
+def _fill_division_category(quotation, project, customer):
+    """A quotation left without a division / category takes them from its
+    project, then (category only) from its customer. A project that has
+    none yet takes them from the quotation, so the two stay in step."""
+    if project is not None:
+        quotation.division = quotation.division or project.division
+        quotation.category = quotation.category or project.category
+        project.division = project.division or quotation.division
+        project.category = project.category or quotation.category
+    if customer is not None:
+        quotation.category = quotation.category or customer.category
+
+
 def _add_items(quotation, payload, db: Session):
     for item in payload.items:
         prod = db.query(models.Product).get(item.product_id)
@@ -183,6 +196,7 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
                                  customer_id=customer.id,
                                  **data)
     quotation.project = project
+    _fill_division_category(quotation, project, customer)
     _add_items(quotation, payload, db)
 
     db.add(quotation)
@@ -223,6 +237,7 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
         setattr(quotation, key, value)
     quotation.customer_id = customer.id
     quotation.project = project
+    _fill_division_category(quotation, project, customer)
 
     quotation.items.clear()
     db.flush()
@@ -326,7 +341,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
     while f"{base}-R{rev}" in existing:
         rev += 1
 
-    copy_fields = ["customer_id", "project_id", "notes", "attention_to", "subject", "currency", "scope",
+    copy_fields = ["customer_id", "project_id", "division", "category", "notes", "attention_to", "subject", "currency", "scope",
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
                    "vat_percent", "prepared_by_name", "prepared_by_title"]
     new_quote = models.Quotation(

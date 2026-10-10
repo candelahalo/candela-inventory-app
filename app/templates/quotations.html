@@ -46,6 +46,20 @@
         </div>
         <div class="combo-hint" id="project-hint"></div>
       </div>
+      <div class="field"><label>Division</label>
+        <select name="division" id="q-division">
+          <option value="">Not set</option>
+          <option value="lighting">Lighting</option>
+          <option value="automation">Automation</option>
+        </select>
+      </div>
+      <div class="field"><label>Category</label>
+        <select name="category" id="q-category">
+          <option value="">Not set</option>
+          <option value="retail">Retail</option>
+          <option value="residential">Residential</option>
+        </select>
+      </div>
       <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
       <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
       <div class="field"><label>Currency</label><input name="currency" value="AED"></div>
@@ -88,6 +102,7 @@
   <button type="button" class="tab" data-st="rejected">Rejected <span class="tab-count" id="qc-rejected">0</span></button>
 </div>
 
+<div class="chips" id="class-chips"></div>
 <div class="panel">
   <div id="quotations-table"></div>
 </div>
@@ -104,7 +119,62 @@ let quotesCache = [];
 let isAdmin = false;
 let openQuote = null;   // the saved quotation currently in the editor
 const STATUS_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
-let activeStatus = STATUS_LABEL[location.hash.slice(1)] ? location.hash.slice(1) : 'all';
+const DIVISION_LABELS = { lighting: 'Lighting', automation: 'Automation' };
+const CATEGORY_LABELS = { retail: 'Retail', residential: 'Residential' };
+// What the list shows - status tab, division and category chips - kept in
+// the URL (#status=sent&division=lighting&category=retail). An old #sent
+// link still works.
+let activeStatus = 'all', activeDivision = 'all', activeCategory = 'all';
+function readQuoteHash() {
+  activeStatus = activeDivision = activeCategory = 'all';
+  const h = location.hash.slice(1);
+  if (!h) return;
+  if (!h.includes('=')) { if (STATUS_LABEL[h]) activeStatus = h; return; }
+  const p = new URLSearchParams(h);
+  const st = p.get('status'), d = p.get('division'), c = p.get('category');
+  if (STATUS_LABEL[st]) activeStatus = st;
+  if (DIVISION_LABELS[d] || d === 'unset') activeDivision = d;
+  if (CATEGORY_LABELS[c] || c === 'unset') activeCategory = c;
+}
+readQuoteHash();
+function writeQuoteHash() {
+  const p = new URLSearchParams();
+  if (activeStatus !== 'all') p.set('status', activeStatus);
+  if (activeDivision !== 'all') p.set('division', activeDivision);
+  if (activeCategory !== 'all') p.set('category', activeCategory);
+  const h = p.toString();
+  history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : ''));
+}
+window.addEventListener('hashchange', () => { readQuoteHash(); loadQuotations(); });
+function quotesReportParams() {
+  return (activeStatus === 'all' ? '' : '&status=' + activeStatus)
+       + (activeDivision === 'all' ? '' : '&division=' + activeDivision)
+       + (activeCategory === 'all' ? '' : '&category=' + activeCategory);
+}
+const matchClass = (val, want) => want === 'all' || (want === 'unset' ? !val : val === want);
+function setQuoteFilter(kind, value) {
+  if (kind === 'division') activeDivision = value; else activeCategory = value;
+  writeQuoteHash();
+  loadQuotations();
+}
+
+// Division / category in the form follow the project (or, with no project,
+// the customer's category) - unless someone has picked them by hand.
+function fillClassFromLinks() {
+  const proj = projectsCache.find(x => x.id === parseInt(document.getElementById('q-project-id').value));
+  const cust = customersCache.find(x => x.id === parseInt(document.getElementById('q-customer-id').value));
+  const want = { division: proj ? proj.division : null,
+                 category: (proj && proj.category) || (cust ? cust.category : null) };
+  for (const k of ['division', 'category']) {
+    const sel = document.getElementById('q-' + k);
+    if (sel.value && sel.dataset.auto !== '1') continue;
+    sel.value = want[k] || '';
+    sel.dataset.auto = sel.value ? '1' : '';
+  }
+}
+['q-division', 'q-category'].forEach(id =>
+  document.getElementById(id).addEventListener('change', e => { e.target.dataset.auto = ''; }));
+function clearClassAuto() { ['q-division', 'q-category'].forEach(id => { document.getElementById(id).dataset.auto = ''; }); }
 
 function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[st] || st}</span>`; }
 
@@ -230,7 +300,7 @@ document.getElementById('draft-menu').innerHTML = exportMenu([{ label: 'This quo
 function setHeaderButtons(q) {
   const el = document.getElementById('report-btns');
   if (!q) {
-    el.innerHTML = reportButtons('quotations', { label: 'All quotations' });
+    el.innerHTML = reportButtons('quotations', { label: 'Quotations in the list', extra: 'quotesReportParams()' });
     return;
   }
   const num = String(q.quote_number).replace(/[<>&"]/g, '');
@@ -250,6 +320,7 @@ function hideAddPanel() {
   document.getElementById('line-items').innerHTML = '';
   setCustomer(null);
   setProject(null);
+  clearClassAuto();
   openQuote = null;
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
@@ -264,6 +335,9 @@ async function editQuotation(id) {
   setProject(q.project_id);
   form.attention_to.value = q.attention_to || '';
   form.subject.value = q.subject || '';
+  form.division.value = q.division || '';
+  form.category.value = q.category || '';
+  clearClassAuto();
   form.currency.value = q.currency;
   form.valid_until.value = q.valid_until ? q.valid_until.substring(0, 10) : '';
   form.scope.value = q.scope || '';
@@ -335,6 +409,7 @@ function renderCustomerOptions(filter) {
 
 function pickCustomer(id) {
   setCustomer(id);
+  fillClassFromLinks();
   document.getElementById('customer-list').classList.remove('open');
 }
 
@@ -408,6 +483,7 @@ function pickProject(id) {
   setProject(id);
   const p = projectsCache.find(x => x.id === id);
   if (p && !document.getElementById('q-customer-id').value) setCustomer(p.customer_id);
+  fillClassFromLinks();
   document.getElementById('project-list').classList.remove('open');
 }
 
@@ -435,9 +511,11 @@ async function loadQuotations() {
   const quotes = await api('/quotations/');
   quotesCache = quotes;
   renderStatusTabs();
-  const shown = activeStatus === 'all' ? quotes : quotes.filter(q => q.status === activeStatus);
+  const inStatus = activeStatus === 'all' ? quotes : quotes.filter(q => q.status === activeStatus);
+  renderClassChips(inStatus);
+  const shown = inStatus.filter(q => matchClass(q.division, activeDivision) && matchClass(q.category, activeCategory));
   const columns = [
-      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono nowrap" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>` },
+      { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono nowrap" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>${classBadges(q)}` },
       { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
       { key: 'project', label: 'Project', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.project_number}</a>` : '—'; } },
       { key: 'status', label: 'Status', value: q => q.status, render: q => `
@@ -461,7 +539,11 @@ async function loadQuotations() {
   DataTable.render({
     containerId: 'quotations-table',
     storageKey: 'quotations',
-    emptyMessage: activeStatus === 'all' ? 'No quotations yet — create your first one above.' : `No ${STATUS_LABEL[activeStatus].toLowerCase()} quotations.`,
+    emptyMessage: !quotes.length ? 'No quotations yet — create your first one above.'
+      : 'No ' + [activeStatus === 'all' ? '' : STATUS_LABEL[activeStatus].toLowerCase(),
+                 DIVISION_LABELS[activeDivision] ? DIVISION_LABELS[activeDivision].toLowerCase() : '',
+                 CATEGORY_LABELS[activeCategory] ? CATEGORY_LABELS[activeCategory].toLowerCase() : ''].filter(Boolean).join(' ')
+        + ' quotations' + (activeDivision === 'unset' || activeCategory === 'unset' ? ' with that left unset.' : '.'),
     columns: columns,
     rows: shown,
     actions: q => `
@@ -472,6 +554,33 @@ async function loadQuotations() {
   });
 }
 
+// Division / category shown as small badges under the quote number
+function classBadges(q) {
+  if (!q.division && !q.category) return '';
+  return '<div class="class-badges">'
+    + (q.division ? `<span class="badge div-${q.division}">${DIVISION_LABELS[q.division]}</span>` : '')
+    + (q.category ? `<span class="badge cat-${q.category}">${CATEGORY_LABELS[q.category]}</span>` : '')
+    + '</div>';
+}
+
+// Division and category chips, counted within the status tab showing
+function renderClassChips(inStatus) {
+  const chip = (kind, value, label, n, active) =>
+    `<button type="button" class="chip${active ? ' active' : ''}${n || active ? '' : ' zero'}" data-${kind}="${value}"
+      onclick="setQuoteFilter('${kind}', '${value}')">${label}<span class="n">${n}</span></button>`;
+  const group = (kind, labels, active, allLabel) => {
+    const unset = inStatus.filter(q => !q[kind]).length;
+    const values = ['all', ...Object.keys(labels), ...(unset || active === 'unset' ? ['unset'] : [])];
+    return values.map(v => chip(kind, v,
+      v === 'all' ? allLabel : v === 'unset' ? 'Not set' : labels[v],
+      inStatus.filter(q => matchClass(q[kind], v)).length, v === active)).join('');
+  };
+  document.getElementById('class-chips').innerHTML =
+    group('division', DIVISION_LABELS, activeDivision, 'All divisions')
+    + '<span class="chip-sep" aria-hidden="true"></span>'
+    + group('category', CATEGORY_LABELS, activeCategory, 'All categories');
+}
+
 function renderStatusTabs() {
   const counts = { all: quotesCache.length, draft: 0, sent: 0, accepted: 0, rejected: 0 };
   quotesCache.forEach(q => { counts[q.status] = (counts[q.status] || 0) + 1; });
@@ -480,7 +589,7 @@ function renderStatusTabs() {
 }
 document.querySelectorAll('#status-tabs .tab').forEach(b => b.addEventListener('click', () => {
   activeStatus = b.dataset.st;
-  history.replaceState(null, '', location.pathname + location.search + (activeStatus === 'all' ? '' : '#' + activeStatus));
+  writeQuoteHash();
   loadQuotations();
 }));
 
@@ -545,6 +654,7 @@ async function openFromLink() {
     const p = projectsCache.find(x => x.id === projectId);
     setCustomer(p ? p.customer_id : customerId);
     if (p) setProject(p.id);
+    fillClassFromLinks();
   }
 }
 

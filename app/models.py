@@ -109,6 +109,8 @@ class Quotation(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     status = Column(Enum(DocStatus), default=DocStatus.draft)
     version = Column(Integer, default=1)
+    division = Column(String(20), index=True)  # "lighting" or "automation"
+    category = Column(String(20), index=True)  # "retail" or "residential"
     notes = Column(Text)
     valid_until = Column(DateTime)
 

@@ -126,6 +126,9 @@ class QuotationCreate(BaseModel):
     # If no project_id is given, a project with this name is found or created
     # against the same customer, so a quotation can start a new job directly.
     project_name: Optional[str] = None
+    # Left empty, these are taken from the project, then the customer
+    division: Optional[Literal["lighting", "automation"]] = None
+    category: Optional[Literal["retail", "residential"]] = None
     notes: Optional[str] = None
     valid_until: Optional[datetime] = None
     attention_to: Optional[str] = None
@@ -150,6 +153,8 @@ class QuotationOut(BaseModel):
     project_id: Optional[int]
     status: DocStatus
     version: int
+    division: Optional[str] = None
+    category: Optional[str] = None
     notes: Optional[str]
     valid_until: Optional[datetime]
     attention_to: Optional[str]
