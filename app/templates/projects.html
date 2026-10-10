@@ -44,6 +44,19 @@
 
 <div class="stage-filter" id="stage-filter" style="display:none;"></div>
 <div class="panel"><div id="projects-table"></div></div>
+<!-- Shown when deleting a project that has quotations linked to it -->
+<div id="del-overlay" class="modal-overlay" onclick="if (event.target === this) closeDeleteDialog()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="del-title">
+    <h2 id="del-title">Delete project</h2>
+    <p class="modal-sub" id="del-sub"></p>
+    <div id="del-body" style="font-size:14px; line-height:1.55;"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeDeleteDialog()">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="del-keep">Delete project, keep quotations</button>
+      <button type="button" class="btn btn-ghost btn-danger" id="del-all">Delete project and quotations</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -107,11 +120,41 @@ function editProject(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Deleting a project. With no quotations attached it's a simple confirm;
+// otherwise a dialog asks whether to keep the quotations (unlinked) or
+// delete them too. Stock movements are always kept, just unlinked.
 async function deleteProject(id, name) {
-  if (!confirm(`Delete project "${name}"? This removes its full status history too.`)) return;
+  let links;
+  try { links = await api(`/projects/${id}/links`); } catch (err) { toast(err.message, true); return; }
+  const moves = links.stock_movements;
+  const moveNote = moves ? ` Its ${moves} stock movement${moves === 1 ? '' : 's'} will be kept (stock levels don't change).` : '';
+  if (!links.quotations.length) {
+    if (!confirm(`Delete project "${name}"? This removes its status history too.${moveNote}`)) return;
+    return doDeleteProject(id, '');
+  }
+  const qs = links.quotations;
+  document.getElementById('del-sub').textContent = name;
+  document.getElementById('del-body').innerHTML =
+    `<p style="margin:0 0 8px;">This project has ${qs.length} quotation${qs.length === 1 ? '' : 's'} linked to it: ` +
+    `<strong>${qs.map(q => escHtml(q.quote_number)).join(', ')}</strong>.</p>` +
+    `<p style="margin:0; color:var(--muted);">Keep them (they stay in Quotations, no longer linked to a project), or delete them with the project.${escHtml(moveNote)}</p>`;
+  document.getElementById('del-keep').onclick = () => doDeleteProject(id, 'keep');
+  document.getElementById('del-all').onclick = () => {
+    if (confirm(`Permanently delete ${qs.length} quotation${qs.length === 1 ? '' : 's'} with this project?`)) doDeleteProject(id, 'delete');
+  };
+  document.getElementById('del-overlay').classList.add('open');
+}
+
+function closeDeleteDialog() {
+  document.getElementById('del-overlay').classList.remove('open');
+}
+
+async function doDeleteProject(id, quotations) {
+  closeDeleteDialog();
   try {
-    await api('/projects/' + id, { method: 'DELETE' });
-    toast('Project deleted');
+    await api('/projects/' + id + (quotations ? '?quotations=' + quotations : ''), { method: 'DELETE' });
+    toast(quotations === 'delete' ? 'Project and its quotations deleted'
+      : quotations === 'keep' ? 'Project deleted, quotations kept' : 'Project deleted');
     loadProjects();
   } catch (err) { toast(err.message, true); }
 }

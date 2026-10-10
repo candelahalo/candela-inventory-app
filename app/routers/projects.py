@@ -76,23 +76,53 @@ def update_project(project_id: int, payload: schemas.ProjectCreate, db: Session 
     return project
 
 
-@router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+@router.get("/{project_id}/links")
+def project_links(project_id: int, db: Session = Depends(get_db)):
+    """What's attached to a project - asked before deleting it."""
     project = db.query(models.Project).get(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    n_quotes = len(project.quotations)
-    n_moves = len(project.stock_movements)
-    if n_quotes or n_moves:
-        parts = []
-        if n_quotes:
-            parts.append(f"{n_quotes} quotation{'s' if n_quotes != 1 else ''}")
-        if n_moves:
-            parts.append(f"{n_moves} stock movement{'s' if n_moves != 1 else ''}")
+    return {
+        "quotations": [{"id": q.id, "quote_number": q.quote_number} for q in project.quotations],
+        "stock_movements": len(project.stock_movements),
+    }
+
+
+@router.delete("/{project_id}", status_code=204)
+def delete_project(project_id: int, quotations: Optional[str] = None,
+                   db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """
+    Deletes a project. If quotations are linked, the caller must say what to
+    do with them: quotations=keep (they stay, no longer linked to a project)
+    or quotations=delete (they're deleted with the project).
+
+    Stock movements are always kept and just unlinked: deleting them would
+    change stock levels.
+    """
+    project = db.query(models.Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    linked = list(project.quotations)
+    if linked and quotations not in ("keep", "delete"):
         raise HTTPException(status_code=400,
-                            detail=f"This project has {' and '.join(parts)} linked to it. "
-                                   "Delete or move those first, or set the project to Closed instead.")
-    log_activity(db, current.username, "project", project.id, f"{project.project_number} — {project.name}", "deleted")
+                            detail="This project has quotations linked to it. Choose whether to keep or delete them.")
+    label = f"{project.project_number} — {project.name}"
+
+    for q in linked:
+        if quotations == "delete":
+            log_activity(db, current.username, "quotation", q.id, q.quote_number, "deleted",
+                         f"deleted with project {project.project_number}")
+            db.delete(q)
+        else:
+            q.project_id = None
+    for m in list(project.stock_movements):
+        m.project_id = None
+
+    detail = None
+    if linked:
+        detail = f"{len(linked)} quotation{'s' if len(linked) != 1 else ''} {'deleted' if quotations == 'delete' else 'kept, unlinked'}"
+    log_activity(db, current.username, "project", project.id, label, "deleted", detail)
+    db.flush()
     db.delete(project)
     db.commit()
     return None
