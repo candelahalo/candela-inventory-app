@@ -97,7 +97,8 @@ function renderFlow(board) {
   document.getElementById('flow').innerHTML = STAGES.map((s, i) => {
     const n = t[s].count;
     const h = n ? Math.max(14, Math.round(n / max * 100)) : 4;
-    return `<a class="flow-col ${n ? '' : 'empty'}" href="/projects?stage=${s}" title="${plural(n, 'project')} · ${short(t[s].value)}">
+    const only = ['installed', 'commissioned'].includes(s) ? ' · Automation projects only' : '';
+    return `<a class="flow-col ${n ? '' : 'empty'}" href="/projects?stage=${s}" title="${plural(n, 'project')} · ${short(t[s].value)}${only}">
       <div class="flow-n">${n}</div>
       <div class="flow-bar-box"><div class="flow-bar ${ORDERS.includes(s) ? 'run' : (s === 'closed' ? 'done' : 'pipe')}" style="height:${h}%"></div></div>
       <div class="flow-l">${LABEL[s]}</div>

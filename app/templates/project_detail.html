@@ -98,6 +98,7 @@ const projectId = {{ project_id }};
 document.getElementById('report-btns').innerHTML = reportButtons('project/' + projectId);
 document.getElementById('new-quote-btn').href = '/quotations?new=1&project=' + projectId;
 const STAGES = ['enquiry','quoted','approved','ordered','delivered','installed','commissioned','closed'];
+const AUTOMATION_ONLY = ['installed', 'commissioned'];
 const ST_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected' };
 let project = null, customers = [], products = {}, warehouses = [], materials = null;
 
@@ -112,8 +113,12 @@ async function loadProject() {
     `${esc(project.project_number)} · ${cust ? `<a class="panel-link" href="/customers/view/${cust.id}">${esc(cust.name)}</a>` : ''}`;
   document.title = project.project_number + ' · Candela';
 
-  const currentIdx = STAGES.indexOf(project.status);
-  document.getElementById('stepper').innerHTML = STAGES.map((s, i) => {
+  // Installation and commissioning are automation work only: a Lighting
+  // project goes Delivered -> Closed (unless it's already at one of them).
+  const stages = STAGES.filter(s => project.division !== 'lighting'
+    || !AUTOMATION_ONLY.includes(s) || s === project.status);
+  const currentIdx = stages.indexOf(project.status);
+  document.getElementById('stepper').innerHTML = stages.map((s, i) => {
     const cls = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : '');
     return `<button class="step ${cls}" onclick="advance('${s}')">${cap(s)}</button>`;
   }).join('');

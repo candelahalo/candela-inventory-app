@@ -13,6 +13,11 @@ router = APIRouter(prefix="/projects", tags=["Projects"],
                    dependencies=[Depends(auth.get_current_user)])
 
 
+# Candela installs and commissions automation jobs only; lighting jobs end
+# at Delivered and then close.
+AUTOMATION_ONLY_STAGES = (models.ProjectStatus.installed, models.ProjectStatus.commissioned)
+
+
 def _next_project_number(db: Session) -> str:
     return workflow.next_project_number(db)
 
@@ -141,6 +146,10 @@ def update_project_status(project_id: int, payload: schemas.ProjectStatusUpdate,
 
     if project.status == payload.status and not payload.notes:
         return project
+    if (project.division == "lighting" and payload.status in AUTOMATION_ONLY_STAGES
+            and project.status != payload.status):
+        raise HTTPException(status_code=400,
+                            detail="Installation and commissioning are only for Automation projects.")
     project.status = payload.status
     project.status_history.append(
         models.ProjectStatusHistory(status=payload.status, notes=payload.notes)
