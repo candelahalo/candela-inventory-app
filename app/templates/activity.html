@@ -32,7 +32,7 @@
 
 {% block script %}
 <script>
-document.getElementById('report-btns').innerHTML = reportButtons('activity');
+document.getElementById('report-btns').innerHTML = reportButtons('activity', { noPreview: true });
 const ACTION_LABELS = { created: 'Created', updated: 'Updated', deleted: 'Deleted', status_changed: 'Status changed' };
 const ENTITY_LABELS = { product: 'Product', customer: 'Customer', warehouse: 'Warehouse', stock_movement: 'Stock movement', quotation: 'Quotation', project: 'Project', datasheet: 'Datasheet' };
 

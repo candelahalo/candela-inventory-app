@@ -216,6 +216,7 @@ function downloadReport(kind, fmt, extra = '') {
 
 // Preview / PDF / Excel buttons for a page header.
 // opts.label puts a small caption in front (for pages with two reports).
+// opts.noPreview leaves out the Preview button.
 // opts.extra is a JS expression evaluated on click, returning extra query
 // parameters (e.g. the Projects tab currently showing).
 function reportButtons(kind, opts = {}) {
@@ -223,7 +224,7 @@ function reportButtons(kind, opts = {}) {
   const label = opts.label ? `<span class="report-label">${opts.label}</span>` : '';
   return `
     <div class="report-actions">${label}
-      <button type="button" class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadReport('${kind}','preview'${extra})">Preview</button>
+      ${opts.noPreview ? '' : `<button type="button" class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadReport('${kind}','preview'${extra})">Preview</button>`}
       <button type="button" class="btn btn-ghost btn-sm" title="Download as PDF" onclick="downloadReport('${kind}','pdf'${extra})">PDF</button>
       <button type="button" class="btn btn-ghost btn-sm" title="Download as Excel" onclick="downloadReport('${kind}','xlsx'${extra})">Excel</button>
     </div>`;
