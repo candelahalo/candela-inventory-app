@@ -66,6 +66,7 @@ class StockLevel(BaseModel):
     product_id: int
     sku: str
     name: str
+    category: Optional[str] = None
     warehouse_id: int
     warehouse_name: str
     quantity_on_hand: int

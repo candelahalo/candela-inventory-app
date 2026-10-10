@@ -58,6 +58,8 @@
   <div id="warehouses-table"></div>
 </div>
 
+<div class="tabs" id="category-tabs" role="tablist"></div>
+
 <div class="panel">
   <h2>Stock on hand</h2>
   <div id="levels-table"></div>
@@ -71,8 +73,41 @@
 
 {% block script %}
 <script>
+// Both exports follow the category tab that's showing.
 document.getElementById('report-btns').innerHTML =
-  reportButtons('stock', { label: 'Stock' }) + reportButtons('movements', { label: 'Movements' });
+  reportButtons('stock', { label: 'Stock', extra: 'stockReportParams()' }) +
+  reportButtons('movements', { label: 'Movements', extra: 'stockReportParams()' });
+
+// Category tabs: filter stock on hand and recent movements by product
+// category. Kept in the URL so a refresh lands on the same tab.
+let activeCategory = decodeURIComponent(location.hash.slice(1)) || 'all';
+let levelsCache = [];
+let movementsCache = [];
+const isOtherCategory = c => !PRODUCT_CATEGORIES.includes(c || '');
+const inCategory = c => activeCategory === 'all' ? true
+  : activeCategory === 'other' ? isOtherCategory(c) : c === activeCategory;
+const productCategory = id => { const p = productsCache.find(x => x.id === id); return p ? p.category : null; };
+
+function stockReportParams() {
+  return activeCategory === 'all' ? '' : '&category=' + encodeURIComponent(activeCategory);
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  history.replaceState(null, '', cat === 'all' ? location.pathname : '#' + encodeURIComponent(cat));
+  renderTabs(); renderLevels(); renderMovements();
+}
+
+function renderTabs() {
+  // Counts are products in stock (distinct product lines), per category
+  const count = cat => new Set(levelsCache.filter(l => cat === 'all' ? true
+    : cat === 'other' ? isOtherCategory(l.category) : l.category === cat).map(l => l.product_id)).size;
+  const cats = ['all', ...PRODUCT_CATEGORIES, ...(count('other') ? ['other'] : [])];
+  if (!cats.includes(activeCategory)) activeCategory = 'all';
+  document.getElementById('category-tabs').innerHTML = cats.map(c => `
+    <button type="button" class="tab${c === activeCategory ? ' active' : ''}" role="tab" aria-selected="${c === activeCategory}"
+      onclick="setCategory('${c}')">${c === 'all' ? 'All' : c === 'other' ? 'Other' : c} <span class="tab-count">${count(c)}</span></button>`).join('');
+}
 let productsCache = [], warehousesCache = [], projectsCache = [];
 
 function showWhPanel(title) { document.getElementById('wh-form-title').textContent = title; document.getElementById('wh-panel').style.display = 'block'; }
@@ -135,14 +170,21 @@ async function populateSelectors() {
 }
 
 async function loadLevels() {
-  const levels = await api('/stock/levels');
+  levelsCache = await api('/stock/levels');
+  renderTabs();
+  renderLevels();
+}
+
+function renderLevels() {
+  const levels = levelsCache.filter(l => inCategory(l.category));
   DataTable.render({
     containerId: 'levels-table',
     storageKey: 'stock-levels',
-    emptyMessage: 'No stock recorded yet — record your first stock-in movement above.',
+    emptyMessage: activeCategory === 'all' ? 'No stock recorded yet — record your first stock-in movement above.' : 'No stock in this category yet.',
     columns: [
       { key: 'sku', label: 'SKU', value: s => s.sku, render: s => `<a class="mono panel-link" href="/products/view/${s.product_id}">${s.sku}</a>` },
       { key: 'name', label: 'Product', value: s => s.name, render: s => s.name },
+      { key: 'category', label: 'Category', value: s => s.category || '', render: s => s.category || '—' },
       { key: 'warehouse', label: 'Warehouse', value: s => s.warehouse_name, render: s => s.warehouse_name },
       { key: 'on_hand', label: 'On hand', numeric: true, value: s => s.quantity_on_hand, render: s => s.quantity_on_hand },
       { key: 'reorder', label: 'Reorder level', numeric: true, value: s => s.reorder_level, render: s => s.reorder_level },
@@ -153,7 +195,12 @@ async function loadLevels() {
 }
 
 async function loadMovements() {
-  const movements = await api('/stock/movements');
+  movementsCache = await api('/stock/movements');
+  renderMovements();
+}
+
+function renderMovements() {
+  const movements = movementsCache.filter(m => inCategory(productCategory(m.product_id)));
   DataTable.render({
     containerId: 'movements-table',
     storageKey: 'stock-movements',

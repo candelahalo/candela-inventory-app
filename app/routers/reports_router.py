@@ -26,15 +26,26 @@ PRODUCT_CATEGORIES = [
 ]
 
 
+def _cat_suffix(category):
+    return (" - " + ("Other categories" if category == "other" else category)) if category else ""
+
+
+def _in_category(value, category):
+    """Product category filter used by the products, stock and movements reports.
+    "other" means anything not in the HALO list (older or empty categories)."""
+    if not category:
+        return True
+    if category == "other":
+        return value not in PRODUCT_CATEGORIES
+    return value == category
+
+
 def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None):
     """Returns (title, columns, rows) for a report kind."""
 
     if kind == "products":
         products = db.query(models.Product).filter(models.Product.is_active == True).order_by(models.Product.sku).all()  # noqa: E712
-        if category == "other":
-            products = [p for p in products if p.category not in PRODUCT_CATEGORIES]
-        elif category:
-            products = [p for p in products if p.category == category]
+        products = [p for p in products if _in_category(p.category, category)]
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
@@ -48,26 +59,25 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
         columns.insert(5, {"key": "cost_price", "label": "Cost", "kind": "money"})
         rows = [{c["key"]: getattr(p, c["key"]) for c in columns} for p in products]
         title = "Product Catalog"
-        if category:
-            title += " - " + ("Other categories" if category == "other" else category)
-        return title, columns, rows
+        return title + _cat_suffix(category), columns, rows
 
     if kind == "stock":
-        levels = stock_levels(db)
+        levels = [l for l in stock_levels(db) if _in_category(l.category, category)]
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
+            {"key": "category", "label": "Category"},
             {"key": "warehouse_name", "label": "Warehouse"},
             {"key": "quantity_on_hand", "label": "On hand", "kind": "number"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
             {"key": "status", "label": "Status"},
         ]
         rows = [{
-            "sku": l.sku, "name": l.name, "warehouse_name": l.warehouse_name,
+            "sku": l.sku, "name": l.name, "category": l.category, "warehouse_name": l.warehouse_name,
             "quantity_on_hand": l.quantity_on_hand, "reorder_level": l.reorder_level,
             "status": "LOW STOCK" if l.below_reorder else "OK",
         } for l in levels]
-        return "Stock On Hand", columns, rows
+        return "Stock On Hand" + _cat_suffix(category), columns, rows
 
     if kind == "movements":
         movements = (db.query(models.StockMovement)
@@ -88,6 +98,8 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
         rows = []
         for m in movements:
             p = products.get(m.product_id)
+            if not _in_category(p.category if p else None, category):
+                continue
             rows.append({
                 "created_at": m.created_at,
                 "sku": p.sku if p else "",
@@ -98,7 +110,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
                 "project": projects[m.project_id].project_number if m.project_id in projects else "",
                 "reference": m.reference or "",
             })
-        return "Stock Movements", columns, rows
+        return "Stock Movements" + _cat_suffix(category), columns, rows
 
     if kind == "customers":
         customers = db.query(models.Customer).order_by(models.Customer.name).all()
@@ -431,7 +443,7 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     _check_fmt(fmt)
     if kind == "projects" and category is not None and category not in CATEGORY_LABELS:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
-    if kind == "products" and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
+    if kind in ("products", "stock", "movements") and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
         raise HTTPException(status_code=400, detail="Unknown product category")
 
     user = auth.get_download_user_from_token(token, db)
