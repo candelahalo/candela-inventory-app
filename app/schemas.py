@@ -1,6 +1,7 @@
+import re
 from datetime import datetime
 from typing import Optional, List, Literal
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.models import DocStatus, MovementType, ProjectStatus
 
@@ -99,13 +100,29 @@ class CustomerOut(CustomerBase):
 
 # ---------- Quotation ----------
 class QuotationItemCreate(BaseModel):
-    product_id: int
+    product_id: Optional[int] = None  # None = custom line, not from the product list
+    unit: Optional[str] = None
+    image_path: Optional[str] = None
     type_code: Optional[str] = None
     description: Optional[str] = None
     quantity: int
     unit_price: float
     unit_cost: Optional[float] = None  # omitted on create -> snapshotted from the product
     discount_pct: float = 0.0
+
+
+    @field_validator("image_path")
+    @classmethod
+    def _only_uploaded_photos(cls, v):
+        # Only a photo the app itself stored may be referenced
+        if v and not re.fullmatch(r"/static/uploads/products/[0-9a-f]{32}\.jpg", v):
+            raise ValueError("invalid image path")
+        return v or None
+
+    @field_validator("unit")
+    @classmethod
+    def _short_unit(cls, v):
+        return (v or "").strip()[:16] or None
 
 
 class QuotationItemOut(QuotationItemCreate):

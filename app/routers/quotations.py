@@ -1,6 +1,6 @@
 import io
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -14,7 +14,8 @@ import os
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import url_to_disk_path, log_activity
+from app.utils import url_to_disk_path, log_activity, save_product_image
+from app.pdf_import import parse_quotation_pdf
 from app import auth
 from app import workflow
 from app.settings import BASE_URL
@@ -170,7 +171,9 @@ def _fill_division_category(quotation, project, customer):
 
 def _add_items(quotation, payload, db: Session):
     for item in payload.items:
-        prod = db.query(models.Product).get(item.product_id)
+        prod = db.query(models.Product).get(item.product_id) if item.product_id else None
+        if item.product_id and not prod:
+            raise HTTPException(status_code=400, detail="A line's product no longer exists - pick another or make it a custom line.")
         item_data = item.model_dump()
         if not item_data.get("description") and prod and prod.spec_summary:
             item_data["description"] = prod.spec_summary
@@ -179,6 +182,45 @@ def _add_items(quotation, payload, db: Session):
         if item_data.get("unit_cost") is None:
             item_data["unit_cost"] = prod.cost_price if prod else 0.0
         quotation.items.append(models.QuotationItem(**item_data))
+
+
+MAX_IMPORT_BYTES = 25 * 1024 * 1024
+
+
+@router.post("/import-pdf")
+async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db),
+                     current: models.User = Depends(auth.get_current_user)):
+    """
+    Reads an existing Candela quotation PDF and returns the fields for a new
+    quotation form - customer, project, terms, every line with its photo.
+    Nothing is saved: the form opens filled in for someone to check and save.
+    Lines are linked to a catalogue product only when the match is clear;
+    the rest come in as custom lines with the PDF's description and price.
+    """
+    data = await file.read(MAX_IMPORT_BYTES + 1)
+    if len(data) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=400, detail="That PDF is over 25 MB.")
+    if not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="That file isn't a PDF.")
+    products = db.query(models.Product).filter(models.Product.is_active == True).all()  # noqa: E712
+    try:
+        result = parse_quotation_pdf(data, products, save_product_image)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Couldn't read that PDF. Is it a Candela quotation (not a scan)?")
+
+    # Point at an existing customer / project when the names match
+    if result.get("customer_name"):
+        c = db.query(models.Customer).filter(func.lower(models.Customer.name) == result["customer_name"].lower()).first()
+        result["customer_id"] = c.id if c else None
+    if result.get("project_name"):
+        p = db.query(models.Project).filter(func.lower(models.Project.name) == result["project_name"].lower()).first()
+        result["project_id"] = p.id if p else None
+    log_activity(db, current.username, "quotation", None, file.filename or "PDF", "imported",
+                 f"read {len(result['items'])} lines from {result.get('original_number') or 'a PDF'} (not saved yet)")
+    db.commit()
+    return result
 
 
 @router.post("/", status_code=201)
@@ -353,7 +395,8 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
     )
     for item in original.items:
         new_quote.items.append(models.QuotationItem(
-            product_id=item.product_id, type_code=item.type_code, description=item.description,
+            product_id=item.product_id, unit=item.unit, image_path=item.image_path,
+            type_code=item.type_code, description=item.description,
             quantity=item.quantity, unit_price=item.unit_price, unit_cost=item.unit_cost,
             discount_pct=item.discount_pct))
     db.add(new_quote)
@@ -683,7 +726,7 @@ def _quotation_excel_response(quotation, db: Session):
             desc_cell.hyperlink = ds_url
         if fill: desc_cell.fill = fill
 
-        for col, val in [(4, product.unit if product else "pcs"), (5, item.quantity),
+        for col, val in [(4, item.unit or (product.unit if product else "pcs")), (5, item.quantity),
                           (6, round(item.unit_price, 2))]:
             c = ws.cell(row=row, column=col, value=val)
             c.alignment = center
@@ -711,8 +754,9 @@ def _quotation_excel_response(quotation, db: Session):
         spec_lines = (item.description or "").count("\n") + 1 if item.description else 0
         ws.row_dimensions[row].height = max(62, 26 + spec_lines * 11)
 
-        if product and product.image_path:
-            disk_path = url_to_disk_path(product.image_path)
+        line_img = item.image_path or (product.image_path if product else None)
+        if line_img:
+            disk_path = url_to_disk_path(line_img)
             if os.path.exists(disk_path):
                 try:
                     xl_img = XLImage(disk_path)

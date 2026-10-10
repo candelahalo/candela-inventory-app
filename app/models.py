@@ -206,7 +206,11 @@ class QuotationItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     quotation_id = Column(Integer, ForeignKey("quotations.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    # Empty for a custom line (something not in the product list, e.g. a
+    # stretch ceiling or a line brought in from an old PDF quotation)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    unit = Column(String(16))  # overrides the product's unit when set ("pcs", "m")
+    image_path = Column(String(255))  # this line's own photo; otherwise the product's
     type_code = Column(String(64))  # e.g. "WL1", "BL1" - line reference code shown on the quotation
     description = Column(Text)  # multi-line spec block; defaults from product.spec_summary if left blank
     quantity = Column(Integer, nullable=False)
