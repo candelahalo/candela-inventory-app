@@ -29,10 +29,9 @@
 <div class="pulse" id="pulse"></div>
 <div class="pulse-list" id="pulse-list"></div>
 
-<!-- Where the jobs are -->
-<div class="flow-wrap">
-  <div class="flow" id="flow"></div>
-</div>
+<!-- Where the jobs are: one flow per division. Lighting jobs end at
+     Delivered; installation and commissioning are automation work only. -->
+<div class="flows" id="flows"></div>
 {% endblock %}
 
 {% block script %}
@@ -91,19 +90,43 @@ function toggleList() {
   }
 }
 
-function renderFlow(board) {
-  const t = board.totals;
-  const max = Math.max(1, ...STAGES.map(s => t[s].count));
-  document.getElementById('flow').innerHTML = STAGES.map((s, i) => {
-    const n = t[s].count;
-    const h = n ? Math.max(14, Math.round(n / max * 100)) : 4;
-    const only = ['installed', 'commissioned'].includes(s) ? ' · Automation projects only' : '';
-    return `<a class="flow-col ${n ? '' : 'empty'}" href="/projects?stage=${s}" title="${plural(n, 'project')} · ${short(t[s].value)}${only}">
-      <div class="flow-n">${n}</div>
-      <div class="flow-bar-box"><div class="flow-bar ${ORDERS.includes(s) ? 'run' : (s === 'closed' ? 'done' : 'pipe')}" style="height:${h}%"></div></div>
-      <div class="flow-l">${LABEL[s]}</div>
-    </a>`;
+// Stages each division goes through
+const DIVISION_FLOWS = [
+  { key: 'lighting', label: 'Lighting', stages: STAGES.filter(s => s !== 'installed' && s !== 'commissioned') },
+  { key: 'automation', label: 'Automation', stages: STAGES },
+];
+
+function renderFlows(board) {
+  const all = STAGES.flatMap(s => (board.board[s] || []).map(p => ({ ...p, stage: s })));
+  const html = DIVISION_FLOWS.map(d => {
+    const mine = all.filter(p => p.division === d.key);
+    // An older Lighting job already at Installed / Commissioned still shows
+    const stages = STAGES.filter(s => d.stages.includes(s) || mine.some(p => p.stage === s));
+    const count = s => mine.filter(p => p.stage === s).length;
+    const value = s => mine.filter(p => p.stage === s).reduce((a, p) => a + (p.value || 0), 0);
+    const max = Math.max(1, ...stages.map(count));
+    const running = mine.filter(p => ORDERS.includes(p.stage));
+    const cols = stages.map(s => {
+      const n = count(s);
+      const h = n ? Math.max(14, Math.round(n / max * 100)) : 4;
+      return `<a class="flow-col ${n ? '' : 'empty'}" href="/projects?stage=${s}#division=${d.key}" title="${plural(n, 'project')} · ${short(value(s))}">
+        <div class="flow-n">${n}</div>
+        <div class="flow-bar-box"><div class="flow-bar ${ORDERS.includes(s) ? 'run' : (s === 'closed' ? 'done' : 'pipe')}" style="height:${h}%"></div></div>
+        <div class="flow-l">${LABEL[s]}</div>
+      </a>`;
+    }).join('');
+    return `<div class="flow-wrap">
+      <div class="flow-head">
+        <a class="flow-title" href="/projects#division=${d.key}">${d.label}</a>
+        <span class="flow-meta">${plural(mine.length, 'project')} · ${short(running.reduce((a, p) => a + (p.value || 0), 0))} order book</span>
+      </div>
+      <div class="flow${stages.length <= 6 ? ' flow-short' : ''}" style="--cols:${stages.length}">${cols}</div>
+    </div>`;
   }).join('');
+  const unset = all.filter(p => !p.division).length;
+  document.getElementById('flows').innerHTML = html + (unset
+    ? `<a class="flow-unset" href="/projects#division=unset">${plural(unset, 'project')} with no division yet — set Lighting or Automation so ${unset === 1 ? 'it shows' : 'they show'} here →</a>`
+    : '');
 }
 
 (async () => {
@@ -113,7 +136,7 @@ function renderFlow(board) {
     ]);
     renderHero(board);
     renderPulse(quotations.filter(q => q.status === 'sent').length, lowStock.length, att);
-    renderFlow(board);
+    renderFlows(board);
   } catch (e) {
     toast('Could not load dashboard: ' + e.message, true);
   }

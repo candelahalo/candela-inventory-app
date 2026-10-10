@@ -425,6 +425,8 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
 
     details = [
         ("Projects", len(projects)),
+        ("Lighting projects", sum(1 for p in projects if p.division == "lighting")),
+        ("Automation projects", sum(1 for p in projects if p.division == "automation")),
         ("Retail projects", sum(1 for p in projects if p.category == "retail")),
         ("Residential projects", sum(1 for p in projects if p.category == "residential")),
         ("Quotations", db.query(models.Quotation).count()),
@@ -436,9 +438,9 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
     stages = [s for s in models.ProjectStatus]
     p_cols = [
         {"key": "stage", "label": "Stage"},
-        {"key": "retail", "label": "Retail", "kind": "number"},
-        {"key": "residential", "label": "Residential", "kind": "number"},
-        {"key": "unset", "label": "Not set", "kind": "number"},
+        {"key": "lighting", "label": "Lighting", "kind": "number"},
+        {"key": "automation", "label": "Automation", "kind": "number"},
+        {"key": "unset", "label": "Division not set", "kind": "number"},
         {"key": "total", "label": "Total", "kind": "number"},
     ]
     p_rows = []
@@ -446,9 +448,9 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
         here = [p for p in projects if p.status == st]
         p_rows.append({
             "stage": st.value.capitalize(),
-            "retail": sum(1 for p in here if p.category == "retail"),
-            "residential": sum(1 for p in here if p.category == "residential"),
-            "unset": sum(1 for p in here if not p.category),
+            "lighting": sum(1 for p in here if p.division == "lighting"),
+            "automation": sum(1 for p in here if p.division == "automation"),
+            "unset": sum(1 for p in here if not p.division),
             "total": len(here),
         })
 

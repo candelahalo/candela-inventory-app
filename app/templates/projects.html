@@ -253,6 +253,10 @@ function renderProjects() {
       ? `No ${words} projects yet. Set a project's division and category from Edit, or create a new one here.`
       : 'No projects here.';
   }
+  if (projectsCache.length && stageParam) {
+    const words = [DIVISION_LABELS[activeDivision], CATEGORY_LABELS[activeCategory]].filter(Boolean).join(' ').toLowerCase();
+    emptyMessage = `No ${words ? words + ' ' : ''}projects at this stage right now.`;
+  }
 
   DataTable.render({
     containerId: 'projects-table',

@@ -208,6 +208,7 @@ def status_board(db: Session = Depends(get_db)):
             "project_number": p.project_number,
             "name": p.name,
             "customer": customer.name if customer else None,
+            "division": p.division,
             "value": value,
             "days_in_stage": days_in_stage,
             "stage_index": STAGES.index(stage),
