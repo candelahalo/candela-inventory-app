@@ -137,16 +137,26 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         return "Stock Movements" + _cat_suffix(category) + _type_suffix(ptype), columns, rows
 
     if kind == "customers":
-        customers = db.query(models.Customer).order_by(models.Customer.name).all()
+        q = db.query(models.Customer)
+        if category == "unset":
+            q = q.filter(models.Customer.category.is_(None))
+        elif category:
+            q = q.filter(models.Customer.category == category)
+        customers = q.order_by(models.Customer.name).all()
         columns = [
             {"key": "name", "label": "Name"},
             {"key": "company", "label": "Company"},
+            {"key": "category", "label": "Category"},
             {"key": "email", "label": "Email"},
             {"key": "phone", "label": "Phone"},
             {"key": "trn", "label": "TRN"},
         ]
-        rows = [{c["key"]: getattr(c_, c["key"]) for c in columns} for c_ in customers]
-        return "Customers", columns, rows
+        rows = [{"name": c_.name, "company": c_.company, "category": CATEGORY_LABELS.get(c_.category, ""),
+                 "email": c_.email, "phone": c_.phone, "trn": c_.trn} for c_ in customers]
+        title = "Customers"
+        if category:
+            title += " - " + ("Category not set" if category == "unset" else CATEGORY_LABELS[category])
+        return title, columns, rows
 
     if kind == "projects":
         q = db.query(models.Project)
@@ -479,7 +489,7 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
                     division: Optional[str] = None,
                     db: Session = Depends(get_db)):
     _check_fmt(fmt)
-    if kind == "projects" and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
+    if kind in ("projects", "customers") and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
     if kind == "projects" and division is not None and division not in list(DIVISION_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Division must be lighting or automation")
@@ -495,7 +505,7 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     subtitle = f"{len(rows)} record{'' if len(rows) == 1 else 's'} · generated {datetime.utcnow().strftime('%d %b %Y')}"
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
     named = ["no-division" if division == "unset" else division,
-             "no-category" if (kind == "projects" and category == "unset") else category, ptype]
+             "no-category" if (kind in ("projects", "customers") and category == "unset") else category, ptype]
     parts = [kind] + [x.lower().replace(" ", "-") for x in named if x]
     base = "candela-" + "-".join(parts) + f"-{stamp}"
 

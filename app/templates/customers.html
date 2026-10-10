@@ -17,6 +17,13 @@
     <div class="form-grid">
       <div class="field"><label>Name</label><input name="name" required placeholder="Ahmed Al Mansoori"></div>
       <div class="field"><label>Company</label><input name="company" placeholder="Optional"></div>
+      <div class="field"><label>Category</label>
+        <select name="category" id="c-category">
+          <option value="">Not set</option>
+          <option value="retail">Retail</option>
+          <option value="residential">Residential</option>
+        </select>
+      </div>
       <div class="field"><label>Email</label><input name="email" type="email"></div>
       <div class="field"><label>Phone</label><input name="phone"></div>
       <div class="field"><label>TRN</label><input name="trn" placeholder="Optional"></div>
@@ -29,19 +36,44 @@
   </form>
 </div>
 
+<div class="tabs" id="category-tabs" role="tablist"></div>
 <div class="panel"><div id="customers-table"></div></div>
 {% endblock %}
 
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('report-btns').innerHTML = reportButtons('customers');
+  // Exports follow the tab that's showing
+  document.getElementById('report-btns').innerHTML = reportButtons('customers', { extra: 'customersReportParams()' });
 });
 
 let customersCache = [];
 
+// Retail / Residential tabs, kept in the URL (#category=retail)
+const CATEGORY_LABELS = { retail: 'Retail', residential: 'Residential' };
+let activeCategory = 'all';
+function readCustomerHash() {
+  const c = new URLSearchParams(location.hash.slice(1)).get('category');
+  activeCategory = (CATEGORY_LABELS[c] || c === 'unset') ? c : 'all';
+}
+readCustomerHash();
+window.addEventListener('hashchange', () => { readCustomerHash(); renderCustomers(); });
+function setCategory(c) {
+  activeCategory = c;
+  history.replaceState(null, '', location.pathname + location.search + (c === 'all' ? '' : '#category=' + c));
+  renderCustomers();
+}
+function customersReportParams() {
+  return activeCategory === 'all' ? '' : '&category=' + activeCategory;
+}
+const inCat = (c, cat) => cat === 'all' || (cat === 'unset' ? !c.category : c.category === cat);
+
 function showAddPanel(title) {
   document.getElementById('form-title').textContent = title;
+  // A new customer added from the Retail or Residential tab belongs there
+  if (!document.getElementById('editing-id').value) {
+    document.getElementById('c-category').value = CATEGORY_LABELS[activeCategory] ? activeCategory : '';
+  }
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
 }
@@ -60,6 +92,7 @@ function editCustomer(id) {
   const form = document.getElementById('customer-form');
   form.name.value = c.name; form.company.value = c.company || ''; form.email.value = c.email || '';
   form.phone.value = c.phone || ''; form.trn.value = c.trn || ''; form.address.value = c.address || '';
+  form.category.value = c.category || '';
   document.getElementById('editing-id').value = id;
   showAddPanel('Edit customer');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -76,17 +109,36 @@ async function deleteCustomer(id, name) {
 
 async function loadCustomers() {
   customersCache = await api('/customers/');
+  renderCustomers();
+}
+
+function renderCustomers() {
+  const unset = customersCache.filter(c => !c.category).length;
+  if (activeCategory === 'unset' && !unset) activeCategory = 'all';
+  const tabs = ['all', 'retail', 'residential', ...(unset ? ['unset'] : [])];
+  document.getElementById('category-tabs').innerHTML = tabs.map(t => {
+    const n = customersCache.filter(c => inCat(c, t)).length;
+    const label = t === 'all' ? 'All' : t === 'unset' ? 'Category not set' : CATEGORY_LABELS[t];
+    const on = t === activeCategory;
+    return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" aria-selected="${on}" data-cat="${t}"
+      onclick="setCategory('${t}')">${label} <span class="tab-count">${n}</span></button>`;
+  }).join('');
+  let emptyMessage = 'No customers yet — add your first client above.';
+  if (customersCache.length && CATEGORY_LABELS[activeCategory]) {
+    emptyMessage = `No ${CATEGORY_LABELS[activeCategory].toLowerCase()} customers yet. Set a customer's category from Edit, or add a new one here.`;
+  }
   DataTable.render({
     containerId: 'customers-table',
     storageKey: 'customers',
-    emptyMessage: 'No customers yet — add your first client above.',
+    emptyMessage: emptyMessage,
     columns: [
       { key: 'name', label: 'Name', value: c => c.name, render: c => `<a class="panel-link" href="/customers/view/${c.id}">${c.name}</a>` },
       { key: 'company', label: 'Company', value: c => c.company || '', render: c => c.company || '—' },
+      { key: 'category', label: 'Category', value: c => CATEGORY_LABELS[c.category] || '', render: c => c.category ? `<span class="badge cat-${c.category}">${CATEGORY_LABELS[c.category]}</span>` : '<span class="muted">Not set</span>' },
       { key: 'email', label: 'Email', value: c => c.email || '', render: c => c.email || '—' },
       { key: 'phone', label: 'Phone', value: c => c.phone || '', render: c => c.phone || '—' },
     ],
-    rows: customersCache,
+    rows: customersCache.filter(c => inCat(c, activeCategory)),
     actions: c => `
       <a class="btn btn-ghost btn-sm" href="/customers/view/${c.id}">Open</a>
       <button class="btn btn-ghost btn-sm" onclick="editCustomer(${c.id})">Edit</button>

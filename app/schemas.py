@@ -84,6 +84,7 @@ class CustomerBase(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     trn: Optional[str] = None
+    category: Optional[Literal["retail", "residential"]] = None
 
 
 class CustomerCreate(CustomerBase):

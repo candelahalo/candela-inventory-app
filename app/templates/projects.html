@@ -139,7 +139,25 @@ function hideAddPanel() {
   document.getElementById('project-form').reset();
   document.getElementById('editing-id').value = '';
 }
-document.getElementById('show-add-btn').addEventListener('click', () => showAddPanel('New project'));
+document.getElementById('show-add-btn').addEventListener('click', () => {
+  document.getElementById('p-category').dataset.auto = '';
+  showAddPanel('New project');
+  categoryFromCustomer();
+});
+// Picking a Retail / Residential customer fills in the project's category,
+// unless one has already been chosen.
+// A category filled in this way follows later customer changes; one picked
+// by hand is left alone.
+function categoryFromCustomer() {
+  if (document.getElementById('editing-id').value) return;
+  const c = customersCache.find(x => String(x.id) === document.getElementById('p-customer').value);
+  const sel = document.getElementById('p-category');
+  if (sel.value && sel.dataset.auto !== '1') return;
+  sel.value = c && c.category ? c.category : '';
+  sel.dataset.auto = sel.value ? '1' : '';
+}
+document.getElementById('p-customer').addEventListener('change', categoryFromCustomer);
+document.getElementById('p-category').addEventListener('change', e => { e.target.dataset.auto = ''; });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
 
 function isoToDateInput(iso) { return iso ? iso.substring(0, 10) : ''; }
@@ -307,6 +325,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   if (params.get('new')) {
     showAddPanel('New project');
     if (params.get('customer')) document.getElementById('p-customer').value = params.get('customer');
+    categoryFromCustomer();
   }
 })();
 </script>

@@ -93,6 +93,7 @@ class Customer(Base):
     phone = Column(String(64))
     address = Column(Text)
     trn = Column(String(64))  # UAE Tax Registration Number
+    category = Column(String(20), index=True)  # "retail" or "residential"
     created_at = Column(DateTime, default=datetime.utcnow)
 
     quotations = relationship("Quotation", back_populates="customer")

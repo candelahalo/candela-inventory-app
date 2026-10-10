@@ -21,6 +21,13 @@
     <div class="form-grid">
       <div class="field"><label>Name</label><input name="name" required></div>
       <div class="field"><label>Company</label><input name="company"></div>
+      <div class="field"><label>Category</label>
+        <select name="category">
+          <option value="">Not set</option>
+          <option value="retail">Retail</option>
+          <option value="residential">Residential</option>
+        </select>
+      </div>
       <div class="field"><label>Email</label><input name="email" type="email"></div>
       <div class="field"><label>Phone</label><input name="phone"></div>
       <div class="field"><label>TRN</label><input name="trn"></div>
@@ -70,6 +77,7 @@ async function load() {
   const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById('contact-body').innerHTML =
     row('Company', esc(c.company) || '—') +
+    row('Category', c.category ? `<span class="badge cat-${c.category}">${cap(c.category)}</span>` : '—') +
     row('Email', c.email ? `<a class="panel-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—') +
     row('Phone', c.phone ? `<a class="panel-link" href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—') +
     row('TRN', esc(c.trn) || '—') +
@@ -109,7 +117,7 @@ async function load() {
 
 document.getElementById('edit-btn').addEventListener('click', () => {
   const f = document.getElementById('customer-form');
-  ['name', 'company', 'email', 'phone', 'trn', 'address'].forEach(k => { f[k].value = data.customer[k] || ''; });
+  ['name', 'company', 'email', 'phone', 'trn', 'address', 'category'].forEach(k => { f[k].value = data.customer[k] || ''; });
   document.getElementById('edit-panel').style.display = 'block';
 });
 document.getElementById('edit-cancel').addEventListener('click', () => { document.getElementById('edit-panel').style.display = 'none'; });
