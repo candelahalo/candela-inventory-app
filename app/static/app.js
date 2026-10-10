@@ -214,18 +214,39 @@ function downloadReport(kind, fmt, extra = '') {
     `/reports/${kind}.${file}?token=${token}${fmt === 'preview' ? '&preview=1' : ''}${extra || ''}`);
 }
 
-// Preview / PDF / Excel buttons for a page header.
-// opts.label puts a small caption in front (for pages with two reports).
-// opts.noPreview leaves out the Preview button.
-// opts.extra is a JS expression evaluated on click, returning extra query
-// parameters (e.g. the Projects tab currently showing).
-function reportButtons(kind, opts = {}) {
-  const extra = opts.extra ? `, ${opts.extra}` : '';
-  const label = opts.label ? `<span class="report-label">${opts.label}</span>` : '';
-  return `
-    <div class="report-actions">${label}
-      ${opts.noPreview ? '' : `<button type="button" class="btn btn-ghost btn-sm" title="Open the PDF in a new tab" onclick="downloadReport('${kind}','preview'${extra})">Preview</button>`}
-      <button type="button" class="btn btn-ghost btn-sm" title="Download as PDF" onclick="downloadReport('${kind}','pdf'${extra})">PDF</button>
-      <button type="button" class="btn btn-ghost btn-sm" title="Download as Excel" onclick="downloadReport('${kind}','xlsx'${extra})">Excel</button>
-    </div>`;
+// ---------- Export menu ----------
+// One "Export" button that opens a small menu, instead of a row of
+// Preview / PDF / Excel buttons repeated for every report on a page.
+// groups: [{ label?, items: [{ text, onclick }] }] - onclick is JS code.
+function exportMenu(groups, buttonText = 'Export') {
+  const body = groups.map(g =>
+    (g.label ? `<div class="menu-label">${escHtml(g.label)}</div>` : '') +
+    g.items.map(i => `<button type="button" class="menu-item" onclick="closeMenus(); ${i.onclick}">${i.text}</button>`).join('')
+  ).join('<div class="menu-sep"></div>');
+  return `<details class="export-menu"><summary class="btn btn-ghost btn-sm">${buttonText}<span class="caret" aria-hidden="true">▾</span></summary><div class="menu">${body}</div></details>`;
 }
+
+function closeMenus(except) {
+  document.querySelectorAll('details.export-menu[open]').forEach(d => { if (d !== except) d.open = false; });
+}
+// Clicking anywhere else closes an open menu.
+document.addEventListener('click', e => closeMenus(e.target.closest && e.target.closest('details.export-menu')));
+
+// The menu entries for one report.
+// opts.label: section heading (for pages with two reports)
+// opts.noPreview: leave out "Preview PDF"
+// opts.extra: JS expression evaluated on click, returning extra query
+// parameters (e.g. the category tab currently showing)
+function reportItems(kind, opts = {}) {
+  const extra = opts.extra ? `, ${opts.extra}` : '';
+  const items = [];
+  if (!opts.noPreview) items.push({ text: 'Preview PDF', onclick: `downloadReport('${kind}','preview'${extra})` });
+  items.push({ text: 'Download PDF', onclick: `downloadReport('${kind}','pdf'${extra})` });
+  items.push({ text: 'Download Excel', onclick: `downloadReport('${kind}','xlsx'${extra})` });
+  return { label: opts.label, items };
+}
+
+function reportButtons(kind, opts = {}) {
+  return exportMenu([reportItems(kind, opts)]);
+}
+

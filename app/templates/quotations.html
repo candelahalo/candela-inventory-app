@@ -74,12 +74,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn">Save quotation</button>
-      <span class="report-actions draft-actions" title="Shows exactly what's in this form, including unsaved changes">
-        <span class="report-label">This quotation</span>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('preview')">Preview</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('pdf')">PDF</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="draftDocument('excel')">Excel</button>
-      </span>
+      <span class="draft-actions" id="draft-menu" title="Shows exactly what's in this form, including unsaved changes"></span>
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
   </form>
@@ -225,6 +220,13 @@ function showAddPanel(title) {
 // The Preview / PDF / Excel buttons at the top follow what's open: while a
 // saved quotation is open they act on that quotation alone; otherwise they
 // export the whole list.
+// Export menu inside the edit form: what's on screen, unsaved edits included.
+document.getElementById('draft-menu').innerHTML = exportMenu([{ label: 'This quotation, as on screen', items: [
+  { text: 'Preview PDF', onclick: "draftDocument('preview')" },
+  { text: 'Download PDF', onclick: "draftDocument('pdf')" },
+  { text: 'Download Excel', onclick: "draftDocument('excel')" },
+] }]);
+
 function setHeaderButtons(q) {
   const el = document.getElementById('report-btns');
   if (!q) {
@@ -232,12 +234,11 @@ function setHeaderButtons(q) {
     return;
   }
   const num = String(q.quote_number).replace(/[<>&"]/g, '');
-  el.innerHTML = `
-    <div class="report-actions"><span class="report-label">${num}</span>
-      <button type="button" class="btn btn-ghost btn-sm" title="Open ${num} in a new tab" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
-      <button type="button" class="btn btn-ghost btn-sm" title="Download ${num} as PDF" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
-      <button type="button" class="btn btn-ghost btn-sm" title="Download ${num} as Excel" onclick="downloadDoc(${q.id}, 'excel')">Excel</button>
-    </div>`;
+  el.innerHTML = exportMenu([{ label: num + ' (saved)', items: [
+    { text: 'Preview PDF', onclick: `downloadDoc(${q.id}, 'preview')` },
+    { text: 'Download PDF', onclick: `downloadDoc(${q.id}, 'pdf')` },
+    { text: 'Download Excel', onclick: `downloadDoc(${q.id}, 'excel')` },
+  ] }]);
 }
 
 function hideAddPanel() {

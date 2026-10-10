@@ -74,9 +74,10 @@
 {% block script %}
 <script>
 // Both exports follow the category tab that's showing.
-document.getElementById('report-btns').innerHTML =
-  reportButtons('stock', { label: 'Stock', extra: 'stockReportParams()' }) +
-  reportButtons('movements', { label: 'Movements', extra: 'stockReportParams()' });
+document.getElementById('report-btns').innerHTML = exportMenu([
+  reportItems('stock', { label: 'Stock on hand', extra: 'stockReportParams()' }),
+  reportItems('movements', { label: 'Movements', extra: 'stockReportParams()' }),
+]);
 
 // Category tabs: filter stock on hand and recent movements by product
 // category. Kept in the URL so a refresh lands on the same tab.
