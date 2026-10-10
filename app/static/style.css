@@ -235,7 +235,7 @@ th.num { text-align: right; }
 .line-item-block:last-child { border-bottom: none; }
 .line-item-row {
   display: grid;
-  grid-template-columns: 52px minmax(160px, 2.4fr) 82px 66px 88px 88px 66px 26px;
+  grid-template-columns: 52px minmax(160px, 2.4fr) 82px 66px 54px 88px 88px 66px 26px;
   gap: 10px;
   padding: 12px 12px 6px;
   align-items: end;

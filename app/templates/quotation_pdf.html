@@ -244,8 +244,9 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
     <tr>
       <td class="center">{{ loop.index }}</td>
       <td class="center">
-        {% if item.product and item.product.image_path %}
-        <img class="item-img" src="app{{ item.product.image_path }}">
+        {% set img = item.image_path or (item.product.image_path if item.product else None) %}
+        {% if img %}
+        <img class="item-img" src="app{{ img }}">
         {% else %}
         <div class="item-img-empty" style="margin: 0 auto;"></div>
         {% endif %}
@@ -258,7 +259,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
         </div>
         {% if item.description %}<div class="item-spec">{{ item.description }}</div>{% endif %}
       </td>
-      <td class="num">{{ item.product.unit if item.product else 'pcs' }}</td>
+      <td class="num">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
       <td class="num">{{ item.quantity }}</td>
       <td class="num">{{ "{:,.2f}".format(item.unit_price) }}</td>
       <td class="num">{{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>

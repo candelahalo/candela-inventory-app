@@ -79,6 +79,8 @@ def project_materials(db: Session, project: models.Project) -> dict:
     required = OrderedDict()
     if quote:
         for item in quote.items:
+            if item.product_id is None:  # custom line: nothing to issue from stock
+                continue
             required[item.product_id] = required.get(item.product_id, 0) + item.quantity
 
     issued = {}

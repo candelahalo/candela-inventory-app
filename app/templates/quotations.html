@@ -179,14 +179,18 @@ function clearClassAuto() { ['q-division', 'q-category'].forEach(id => { documen
 function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[st] || st}</span>`; }
 
 function lineRow(item) {
-  const opts = productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}">${p.sku} — ${p.name}</option>`).join('');
-  return `<div class="line-item-block">
+  // The blank option is a custom line: something not in the product list
+  // (its description, unit and photo live on the line itself).
+  const opts = `<option value="" data-unit="">— Custom line (not in product list) —</option>` +
+    productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}">${escHtml(p.sku)} — ${escHtml(p.name)}</option>`).join('');
+  return `<div class="line-item-block" data-line-image="${item && item.image_path ? escHtml(item.image_path) : ''}">
     <div class="line-item-row">
       <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
       </div>
       <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
-      <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? item.type_code : ''}"></div>
+      <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? escHtml(item.type_code) : ''}"></div>
       <div class="field"><label>Qty</label><input class="li-qty" type="number" value="${item ? item.quantity : 1}" min="1"></div>
+      <div class="field"><label>Unit</label><input class="li-unit" maxlength="16" value="${item && item.unit ? escHtml(item.unit) : ''}" title="Leave empty to use the product's unit"></div>
       <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
       <div class="field li-cost-field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
@@ -196,7 +200,7 @@ function lineRow(item) {
       <label>Description (defaults from product spec)</label>
       <span class="line-margin" data-margin>—</span>
     </div>
-    <textarea class="li-desc" rows="2">${item && item.description ? item.description : ''}</textarea>
+    <textarea class="li-desc" rows="2">${item && item.description ? escHtml(item.description) : ''}</textarea>
   </div>`;
 }
 
@@ -209,30 +213,39 @@ function addLine(item) {
   const priceInput = block.querySelector('.li-price');
   const photo = block.querySelector('.li-photo');
   const descArea = block.querySelector('.li-desc');
-  if (item) sel.value = item.product_id;
+  if (item) sel.value = item.product_id == null ? '' : item.product_id;
   // If a saved line has no cost recorded (e.g. created before cost tracking
   // existed), fall back to the product's current cost so margin isn't wrong.
   if (item && !item.unit_cost) {
     const opt = sel.selectedOptions[0];
     if (opt) block.querySelector('.li-cost').value = opt.dataset.cost || 0;
   }
+  const unitInput = block.querySelector('.li-unit');
   const sync = () => {
     const opt = sel.selectedOptions[0];
     if (!opt) return;
-    photo.src = opt.dataset.image || '';
-    photo.style.display = opt.dataset.image ? 'block' : 'none';
+    // The line's own photo (e.g. from an imported PDF) wins over the product's
+    const src = block.dataset.lineImage || opt.dataset.image || '';
+    photo.src = src;
+    photo.style.display = src ? 'block' : 'none';
+    unitInput.placeholder = opt.dataset.unit || 'pcs';
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
-    priceInput.value = opt.dataset.price;
-    block.querySelector('.li-cost').value = opt.dataset.cost || 0;
-    descArea.value = opt.dataset.spec || '';
+    if (opt.value) {
+      priceInput.value = opt.dataset.price;
+      block.querySelector('.li-cost').value = opt.dataset.cost || 0;
+      descArea.value = opt.dataset.spec || '';
+      block.dataset.lineImage = '';  // show the chosen product's photo
+      unitInput.value = '';
+    }
     sync();
     recalcMargins();
   });
   // For a brand-new line, prefill price and spec from the preselected product.
   // When editing an existing line, keep the values that were saved on the quotation.
   if (!item) {
+    if (productsCache.length) sel.selectedIndex = 1;  // new lines start on the first product, as before
     const opt = sel.selectedOptions[0];
     if (opt) {
       priceInput.value = opt.dataset.price;
@@ -679,7 +692,9 @@ async function deleteQuotation(id, quoteNumber) {
 function collectQuotationPayload() {
   const form = document.getElementById('quote-form');
   const items = [...document.querySelectorAll('.line-item-block')].map(block => ({
-    product_id: parseInt(block.querySelector('.li-product').value),
+    product_id: parseInt(block.querySelector('.li-product').value) || null,
+    unit: block.querySelector('.li-unit').value.trim() || null,
+    image_path: block.dataset.lineImage || null,
     type_code: block.querySelector('.li-type').value || null,
     description: block.querySelector('.li-desc').value || null,
     quantity: parseInt(block.querySelector('.li-qty').value),
