@@ -252,6 +252,7 @@ class Project(Base):
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
     site_address = Column(Text)
     status = Column(Enum(ProjectStatus), default=ProjectStatus.enquiry, index=True)
+    division = Column(String(20), index=True)  # "lighting" or "automation"; NULL until assigned
     category = Column(String(20), index=True)  # "retail" or "residential"; NULL until assigned
     start_date = Column(DateTime)
     target_completion_date = Column(DateTime)

@@ -189,6 +189,8 @@ th.num { text-align: right; }
 .badge.low { background: #F7E2DC; color: var(--red); }
 .badge.cat-retail { background: #F1E7F4; color: #6E3F7C; }
 .badge.cat-residential { background: #E3EEF0; color: #2F6470; }
+.badge.div-lighting { background: #FBEFDB; color: var(--amber-deep); }
+.badge.div-automation { background: #E4E8F3; color: #3B4F86; }
 .muted { color: var(--muted); }
 
 /* ---------- Tabs (Projects: All / Retail / Residential) ---------- */

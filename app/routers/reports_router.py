@@ -18,6 +18,7 @@ def _dt(value):
 
 
 CATEGORY_LABELS = {"retail": "Retail", "residential": "Residential"}  # project categories
+DIVISION_LABELS = {"lighting": "Lighting", "automation": "Automation"}  # project divisions
 
 # Product types - a second level next to the category (keep in step with app.js)
 PRODUCT_TYPES = [
@@ -59,7 +60,8 @@ def _type_suffix(ptype):
     return (" - " + ("No type" if ptype == "unset" else ptype)) if ptype else ""
 
 
-def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None, ptype: Optional[str] = None):
+def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None, ptype: Optional[str] = None,
+            division: Optional[str] = None):
     """Returns (title, columns, rows) for a report kind."""
 
     if kind == "products":
@@ -148,7 +150,13 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
 
     if kind == "projects":
         q = db.query(models.Project)
-        if category:
+        if division == "unset":
+            q = q.filter(models.Project.division.is_(None))
+        elif division:
+            q = q.filter(models.Project.division == division)
+        if category == "unset":
+            q = q.filter(models.Project.category.is_(None))
+        elif category:
             q = q.filter(models.Project.category == category)
         projects = q.order_by(models.Project.created_at.desc()).all()
         customers = {c.id: c for c in db.query(models.Customer).all()}
@@ -156,6 +164,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             {"key": "project_number", "label": "Project #"},
             {"key": "name", "label": "Project"},
             {"key": "customer", "label": "Customer"},
+            {"key": "division", "label": "Division"},
             {"key": "category", "label": "Category"},
             {"key": "status", "label": "Stage"},
             {"key": "site_address", "label": "Site"},
@@ -165,11 +174,14 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         rows = [{
             "project_number": p.project_number, "name": p.name,
             "customer": customers[p.customer_id].name if p.customer_id in customers else "",
+            "division": DIVISION_LABELS.get(p.division, ""),
             "category": CATEGORY_LABELS.get(p.category, ""),
             "status": p.status.value, "site_address": p.site_address,
             "start_date": p.start_date, "target_completion_date": p.target_completion_date,
         } for p in projects]
-        title = f"Projects - {CATEGORY_LABELS[category]}" if category else "Projects"
+        bits = [("Division not set" if division == "unset" else DIVISION_LABELS[division]) if division else None,
+                ("Category not set" if category == "unset" else CATEGORY_LABELS[category]) if category else None]
+        title = " - ".join(["Projects"] + [b for b in bits if b])
         return title, columns, rows
 
     if kind == "quotations":
@@ -462,10 +474,13 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
 @router.get("/{kind}.{fmt}")
 def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool = False,
                     category: Optional[str] = None, ptype: Optional[str] = Query(None, alias="type"),
+                    division: Optional[str] = None,
                     db: Session = Depends(get_db)):
     _check_fmt(fmt)
-    if kind == "projects" and category is not None and category not in CATEGORY_LABELS:
+    if kind == "projects" and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
+    if kind == "projects" and division is not None and division not in list(DIVISION_LABELS) + ["unset"]:
+        raise HTTPException(status_code=400, detail="Division must be lighting or automation")
     if kind in ("products", "stock", "movements") and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
         raise HTTPException(status_code=400, detail="Unknown product category")
     if kind in ("products", "stock", "movements") and ptype is not None and ptype not in PRODUCT_TYPES + ["unset"]:
@@ -474,10 +489,12 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     user = auth.get_download_user_from_token(token, db)
     admin = user.role == "admin"
 
-    title, columns, rows = _gather(kind, db, admin, category, ptype)
+    title, columns, rows = _gather(kind, db, admin, category, ptype, division)
     subtitle = f"{len(rows)} record{'' if len(rows) == 1 else 's'} · generated {datetime.utcnow().strftime('%d %b %Y')}"
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
-    parts = [kind] + [x.lower().replace(" ", "-") for x in (category, ptype) if x]
+    named = ["no-division" if division == "unset" else division,
+             "no-category" if (kind == "projects" and category == "unset") else category, ptype]
+    parts = [kind] + [x.lower().replace(" ", "-") for x in named if x]
     base = "candela-" + "-".join(parts) + f"-{stamp}"
 
     if fmt == "pdf":

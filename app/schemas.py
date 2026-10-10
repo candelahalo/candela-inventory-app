@@ -181,6 +181,7 @@ class QuotationOut(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     customer_id: int
+    division: Optional[Literal["lighting", "automation"]] = None
     category: Optional[Literal["retail", "residential"]] = None
     site_address: Optional[str] = None
     start_date: Optional[datetime] = None
@@ -202,6 +203,7 @@ class ProjectOut(BaseModel):
     project_number: Optional[str]
     name: str
     customer_id: int
+    division: Optional[str] = None
     category: Optional[str] = None
     site_address: Optional[str]
     status: ProjectStatus

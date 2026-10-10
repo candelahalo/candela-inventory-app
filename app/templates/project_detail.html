@@ -19,6 +19,13 @@
     <div class="form-grid">
       <div class="field span2"><label>Project name</label><input name="name" required></div>
       <div class="field"><label>Customer</label><select name="customer_id" id="p-customer" required></select></div>
+      <div class="field"><label>Division</label>
+        <select name="division">
+          <option value="">Not set</option>
+          <option value="lighting">Lighting</option>
+          <option value="automation">Automation</option>
+        </select>
+      </div>
       <div class="field"><label>Category</label>
         <select name="category">
           <option value="">Not set</option>
@@ -114,6 +121,7 @@ async function loadProject() {
   const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById('details-body').innerHTML =
     row('Customer', cust ? `<a class="panel-link" href="/customers/view/${cust.id}">${esc(cust.name)}</a>${cust.phone ? ' · ' + esc(cust.phone) : ''}` : '—') +
+    row('Division', project.division ? `<span class="badge div-${project.division}">${cap(project.division)}</span>` : '—') +
     row('Category', project.category ? `<span class="badge cat-${project.category}">${cap(project.category)}</span>` : '—') +
     row('Site address', esc(project.site_address) || '—') +
     row('Start date', fmtDate(project.start_date)) +
@@ -246,6 +254,7 @@ document.getElementById('edit-btn').addEventListener('click', () => {
   document.getElementById('p-customer').innerHTML = customers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   f.name.value = project.name;
   f.customer_id.value = project.customer_id;
+  f.division.value = project.division || '';
   f.category.value = project.category || '';
   f.start_date.value = project.start_date ? project.start_date.substring(0, 10) : '';
   f.target_completion_date.value = project.target_completion_date ? project.target_completion_date.substring(0, 10) : '';
@@ -258,6 +267,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   e.preventDefault();
   const payload = formToJSON(e.target);
   payload.customer_id = parseInt(payload.customer_id);
+  payload.division = payload.division || null;
   payload.category = payload.category || null;
   ['start_date', 'target_completion_date', 'site_address', 'notes'].forEach(k => { if (!payload[k]) payload[k] = null; });
   try {

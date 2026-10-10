@@ -17,6 +17,13 @@
     <div class="form-grid">
       <div class="field span2"><label>Project name</label><input name="name" required placeholder="Villa 44 — Full Home Automation"></div>
       <div class="field"><label>Customer</label><select name="customer_id" id="p-customer" required></select></div>
+      <div class="field"><label>Division</label>
+        <select name="division" id="p-division">
+          <option value="">Not set</option>
+          <option value="lighting">Lighting</option>
+          <option value="automation">Automation</option>
+        </select>
+      </div>
       <div class="field"><label>Category</label>
         <select name="category" id="p-category">
           <option value="">Not set</option>
@@ -36,11 +43,9 @@
   </form>
 </div>
 
-<div class="tabs" id="category-tabs" role="tablist">
-  <button type="button" class="tab" data-cat="all" role="tab">All <span class="tab-count" id="count-all">0</span></button>
-  <button type="button" class="tab" data-cat="retail" role="tab">Retail <span class="tab-count" id="count-retail">0</span></button>
-  <button type="button" class="tab" data-cat="residential" role="tab">Residential <span class="tab-count" id="count-residential">0</span></button>
-</div>
+<!-- Division (Lighting / Automation) on top, Retail / Residential under it -->
+<div class="tabs" id="division-tabs" role="tablist"></div>
+<div class="chips" id="category-chips"></div>
 
 <div class="stage-filter" id="stage-filter" style="display:none;"></div>
 <div class="panel"><div id="projects-table"></div></div>
@@ -62,35 +67,68 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Exports follow the tab that's showing: Retail, Residential, or All.
+  // Exports follow the division tab and category chip that are showing.
   document.getElementById('report-btns').innerHTML = reportButtons('projects', { extra: 'projectsReportParams()' });
 });
 
 let customersCache = [];
 let projectsCache = [];
 
-// Which tab is showing. Kept in the URL (#retail / #residential) so a
-// refresh or a shared link lands on the same tab.
+// What's showing: a division tab (Lighting / Automation) and, under it, a
+// category chip (Retail / Residential). Kept in the URL
+// (#division=lighting&category=retail) so a refresh or shared link lands on
+// the same view. An old #retail / #residential link still works.
+const DIVISION_LABELS = { lighting: 'Lighting', automation: 'Automation' };
 const CATEGORY_LABELS = { retail: 'Retail', residential: 'Residential' };
-let activeCategory = CATEGORY_LABELS[location.hash.slice(1)] ? location.hash.slice(1) : 'all';
+let activeDivision = 'all';
+let activeCategory = 'all';
+function readProjectHash() {
+  activeDivision = 'all'; activeCategory = 'all';
+  const h = location.hash.slice(1);
+  if (!h) return;
+  if (!h.includes('=')) { if (CATEGORY_LABELS[h]) activeCategory = h; return; }
+  const p = new URLSearchParams(h);
+  const d = p.get('division'), c = p.get('category');
+  if (DIVISION_LABELS[d] || d === 'unset') activeDivision = d;
+  if (CATEGORY_LABELS[c] || c === 'unset') activeCategory = c;
+}
+readProjectHash();
+// A link that only changes the #... part doesn't reload the page
+window.addEventListener('hashchange', () => { readProjectHash(); renderProjects(); });
+
+function writeProjectHash() {
+  const p = new URLSearchParams();
+  if (activeDivision !== 'all') p.set('division', activeDivision);
+  if (activeCategory !== 'all') p.set('category', activeCategory);
+  const h = p.toString();
+  history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : ''));
+}
 
 function projectsReportParams() {
-  return activeCategory === 'all' ? '' : '&category=' + activeCategory;
+  return (activeDivision === 'all' ? '' : '&division=' + activeDivision)
+       + (activeCategory === 'all' ? '' : '&category=' + activeCategory);
 }
 
-function setCategory(cat) {
-  activeCategory = cat;
-  history.replaceState(null, '', cat === 'all' ? location.pathname : '#' + cat);
+const inDivision = (p, d) => d === 'all' || (d === 'unset' ? !p.division : p.division === d);
+const inCategory = (p, c) => c === 'all' || (c === 'unset' ? !p.category : p.category === c);
+
+function setDivision(d) {
+  activeDivision = d;
+  writeProjectHash();
   renderProjects();
 }
-document.querySelectorAll('#category-tabs .tab').forEach(btn =>
-  btn.addEventListener('click', () => setCategory(btn.dataset.cat)));
+function setCategory(c) {
+  activeCategory = c;
+  writeProjectHash();
+  renderProjects();
+}
 
 function showAddPanel(title) {
   document.getElementById('form-title').textContent = title;
-  // A new project started from the Retail or Residential tab belongs there.
+  // A new project started from a division tab / category chip belongs there.
   if (!document.getElementById('editing-id').value) {
-    document.getElementById('p-category').value = activeCategory === 'all' ? '' : activeCategory;
+    document.getElementById('p-division').value = DIVISION_LABELS[activeDivision] ? activeDivision : '';
+    document.getElementById('p-category').value = CATEGORY_LABELS[activeCategory] ? activeCategory : '';
   }
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
@@ -111,6 +149,7 @@ function editProject(id) {
   if (!p) return;
   const form = document.getElementById('project-form');
   form.name.value = p.name; form.customer_id.value = p.customer_id;
+  form.division.value = p.division || '';
   form.category.value = p.category || '';
   form.start_date.value = isoToDateInput(p.start_date);
   form.target_completion_date.value = isoToDateInput(p.target_completion_date);
@@ -170,16 +209,31 @@ async function loadProjects() {
 }
 
 function renderProjects() {
-  for (const cat of ['all', 'retail', 'residential']) {
-    const n = cat === 'all' ? projectsCache.length : projectsCache.filter(p => p.category === cat).length;
-    document.getElementById('count-' + cat).textContent = n;
-  }
-  document.querySelectorAll('#category-tabs .tab').forEach(btn => {
-    const on = btn.dataset.cat === activeCategory;
-    btn.classList.toggle('active', on);
-    btn.setAttribute('aria-selected', on);
-  });
-  let rows = activeCategory === 'all' ? projectsCache : projectsCache.filter(p => p.category === activeCategory);
+  // Division tabs. "Not set" only shows while some project has no division.
+  const unsetDiv = projectsCache.filter(p => !p.division).length;
+  if (activeDivision === 'unset' && !unsetDiv) activeDivision = 'all';
+  const divs = ['all', 'lighting', 'automation', ...(unsetDiv ? ['unset'] : [])];
+  document.getElementById('division-tabs').innerHTML = divs.map(d => {
+    const n = projectsCache.filter(p => inDivision(p, d)).length;
+    const label = d === 'all' ? 'All' : d === 'unset' ? 'Division not set' : DIVISION_LABELS[d];
+    const on = d === activeDivision;
+    return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" aria-selected="${on}" data-div="${d}"
+      onclick="setDivision('${d}')">${label} <span class="tab-count">${n}</span></button>`;
+  }).join('');
+
+  // Retail / Residential chips, counted within the division showing
+  const inDiv = projectsCache.filter(p => inDivision(p, activeDivision));
+  const unsetCat = inDiv.filter(p => !p.category).length;
+  if (activeCategory === 'unset' && !unsetCat) activeCategory = 'all';
+  const cats = ['all', 'retail', 'residential', ...(unsetCat ? ['unset'] : [])];
+  document.getElementById('category-chips').innerHTML = cats.map(c => {
+    const n = inDiv.filter(p => inCategory(p, c)).length;
+    const label = c === 'all' ? 'All categories' : c === 'unset' ? 'Category not set' : CATEGORY_LABELS[c];
+    return `<button type="button" class="chip${c === activeCategory ? ' active' : ''}${n || c === activeCategory ? '' : ' zero'}"
+      data-cat="${c}" onclick="setCategory('${c}')">${label}<span class="n">${n}</span></button>`;
+  }).join('');
+
+  let rows = inDiv.filter(p => inCategory(p, activeCategory));
   // Filter from the dashboard: ?stage=quoted, or a group (open / orders)
   const stageParam = new URLSearchParams(location.search).get('stage');
   const GROUPS = { open: ['enquiry', 'quoted'], orders: ['approved', 'ordered', 'delivered', 'installed', 'commissioned'] };
@@ -192,9 +246,13 @@ function renderProjects() {
     sf.innerHTML = `Showing <strong>${label}</strong> <a href="/projects" class="sf-clear" title="Show all">✕</a>`;
     sf.style.display = 'inline-flex';
   } else { sf.style.display = 'none'; }
-  const emptyMessage = activeCategory === 'all'
-    ? 'No projects yet — create your first one above to start tracking its live status.'
-    : `No ${CATEGORY_LABELS[activeCategory].toLowerCase()} projects yet. Set a project's category from Edit, or create a new one here.`;
+  let emptyMessage = 'No projects yet — create your first one above to start tracking its live status.';
+  if (projectsCache.length && (activeDivision !== 'all' || activeCategory !== 'all')) {
+    const words = [DIVISION_LABELS[activeDivision], CATEGORY_LABELS[activeCategory]].filter(Boolean).join(' ').toLowerCase();
+    emptyMessage = words
+      ? `No ${words} projects yet. Set a project's division and category from Edit, or create a new one here.`
+      : 'No projects here.';
+  }
 
   DataTable.render({
     containerId: 'projects-table',
@@ -204,6 +262,7 @@ function renderProjects() {
       { key: 'project_number', label: 'Project #', value: p => p.project_number || '', render: p => `<a href="/projects/view/${p.id}" class="mono">${p.project_number}</a>` },
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/projects/view/${p.id}">${p.name}</a>` },
       { key: 'customer', label: 'Customer', value: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? c.name : ''; }, render: p => { const c = customersCache.find(x => x.id === p.customer_id); return c ? `<a class="panel-link" href="/customers/view/${c.id}">${c.name}</a>` : '—'; } },
+      { key: 'division', label: 'Division', value: p => DIVISION_LABELS[p.division] || '', render: p => p.division ? `<span class="badge div-${p.division}">${DIVISION_LABELS[p.division]}</span>` : '<span class="muted">Not set</span>' },
       { key: 'category', label: 'Category', value: p => CATEGORY_LABELS[p.category] || '', render: p => p.category ? `<span class="badge cat-${p.category}">${CATEGORY_LABELS[p.category]}</span>` : '<span class="muted">Not set</span>' },
       { key: 'status', label: 'Status', value: p => p.status, render: p => `<span class="badge stage-${p.status}">${p.status.charAt(0).toUpperCase() + p.status.slice(1)}</span>` },
       { key: 'start_date', label: 'Started', value: p => p.start_date || '', render: p => fmtDate(p.start_date) },
