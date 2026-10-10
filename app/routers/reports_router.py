@@ -19,6 +19,12 @@ def _dt(value):
 
 CATEGORY_LABELS = {"retail": "Retail", "residential": "Residential"}  # project categories
 
+# Product types - a second level next to the category (keep in step with app.js)
+PRODUCT_TYPES = [
+    "Spotlight", "Downlight", "Track Light", "Low Voltage Track",
+    "Strip Light", "Neon", "Pendant", "Accessories",
+]
+
 # Product categories, as used on halolights.uk (keep in step with app.js)
 PRODUCT_CATEGORIES = [
     "Recessed Invisible", "Recessed Visible", "Semi Recessed", "Low Voltage Track",
@@ -40,44 +46,60 @@ def _in_category(value, category):
     return value == category
 
 
-def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None):
+def _in_type(value, ptype):
+    """Product type filter; "unset" means products with no type yet."""
+    if not ptype:
+        return True
+    if ptype == "unset":
+        return not value
+    return value == ptype
+
+
+def _type_suffix(ptype):
+    return (" - " + ("No type" if ptype == "unset" else ptype)) if ptype else ""
+
+
+def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None, ptype: Optional[str] = None):
     """Returns (title, columns, rows) for a report kind."""
 
     if kind == "products":
         products = db.query(models.Product).filter(models.Product.is_active == True).order_by(models.Product.sku).all()  # noqa: E712
-        products = [p for p in products if _in_category(p.category, category)]
+        products = [p for p in products if _in_category(p.category, category) and _in_type(p.product_type, ptype)]
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
             {"key": "category", "label": "Category"},
+            {"key": "product_type", "label": "Type"},
             {"key": "brand", "label": "Brand"},
             {"key": "unit", "label": "Unit"},
             {"key": "selling_price", "label": "Selling price", "kind": "money"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
         ]
         # Cost is visible to everyone; only profit/margin is admin-only.
-        columns.insert(5, {"key": "cost_price", "label": "Cost", "kind": "money"})
+        columns.insert(6, {"key": "cost_price", "label": "Cost", "kind": "money"})
         rows = [{c["key"]: getattr(p, c["key"]) for c in columns} for p in products]
         title = "Product Catalog"
-        return title + _cat_suffix(category), columns, rows
+        return title + _cat_suffix(category) + _type_suffix(ptype), columns, rows
 
     if kind == "stock":
-        levels = [l for l in stock_levels(db) if _in_category(l.category, category)]
+        levels = [l for l in stock_levels(db) if _in_category(l.category, category) and _in_type(l.product_type, ptype)]
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
             {"key": "category", "label": "Category"},
+            {"key": "product_type", "label": "Type"},
             {"key": "warehouse_name", "label": "Warehouse"},
             {"key": "quantity_on_hand", "label": "On hand", "kind": "number"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
             {"key": "status", "label": "Status"},
         ]
         rows = [{
-            "sku": l.sku, "name": l.name, "category": l.category, "warehouse_name": l.warehouse_name,
+            "sku": l.sku, "name": l.name, "category": l.category, "product_type": l.product_type,
+            "warehouse_name": l.warehouse_name,
             "quantity_on_hand": l.quantity_on_hand, "reorder_level": l.reorder_level,
             "status": "LOW STOCK" if l.below_reorder else "OK",
         } for l in levels]
-        return "Stock On Hand" + _cat_suffix(category), columns, rows
+        return "Stock On Hand" + _cat_suffix(category) + _type_suffix(ptype), columns, rows
 
     if kind == "movements":
         movements = (db.query(models.StockMovement)
@@ -98,7 +120,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
         rows = []
         for m in movements:
             p = products.get(m.product_id)
-            if not _in_category(p.category if p else None, category):
+            if not (_in_category(p.category if p else None, category) and _in_type(p.product_type if p else None, ptype)):
                 continue
             rows.append({
                 "created_at": m.created_at,
@@ -110,7 +132,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None)
                 "project": projects[m.project_id].project_number if m.project_id in projects else "",
                 "reference": m.reference or "",
             })
-        return "Stock Movements" + _cat_suffix(category), columns, rows
+        return "Stock Movements" + _cat_suffix(category) + _type_suffix(ptype), columns, rows
 
     if kind == "customers":
         customers = db.query(models.Customer).order_by(models.Customer.name).all()
@@ -439,21 +461,24 @@ def dashboard_report(fmt: str, token: str = Query(...), preview: bool = False, d
 # ---------- Every list page ----------
 @router.get("/{kind}.{fmt}")
 def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool = False,
-                    category: Optional[str] = None, db: Session = Depends(get_db)):
+                    category: Optional[str] = None, ptype: Optional[str] = Query(None, alias="type"),
+                    db: Session = Depends(get_db)):
     _check_fmt(fmt)
     if kind == "projects" and category is not None and category not in CATEGORY_LABELS:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
     if kind in ("products", "stock", "movements") and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
         raise HTTPException(status_code=400, detail="Unknown product category")
+    if kind in ("products", "stock", "movements") and ptype is not None and ptype not in PRODUCT_TYPES + ["unset"]:
+        raise HTTPException(status_code=400, detail="Unknown product type")
 
     user = auth.get_download_user_from_token(token, db)
     admin = user.role == "admin"
 
-    title, columns, rows = _gather(kind, db, admin, category)
+    title, columns, rows = _gather(kind, db, admin, category, ptype)
     subtitle = f"{len(rows)} record{'' if len(rows) == 1 else 's'} · generated {datetime.utcnow().strftime('%d %b %Y')}"
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
-    slug = (category or "").lower().replace(" ", "-")
-    base = f"candela-{kind}-{slug}-{stamp}" if category else f"candela-{kind}-{stamp}"
+    parts = [kind] + [x.lower().replace(" ", "-") for x in (category, ptype) if x]
+    base = "candela-" + "-".join(parts) + f"-{stamp}"
 
     if fmt == "pdf":
         return reports.build_pdf(title, rows, columns, subtitle=subtitle,

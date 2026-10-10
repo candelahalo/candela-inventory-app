@@ -646,6 +646,19 @@ th.num { text-align: right; }
 .combo-hint.is-new { color: var(--amber-deep); font-weight: 500; }
 
 /* ---------- Report buttons in page headers ---------- */
+/* ---------- Type chips (second level under the category tabs) ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--white); border-radius: 999px;
+  padding: 4px 11px; font-family: var(--font-body); font-size: 13px; color: var(--ink); cursor: pointer;
+}
+.chip .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.chip:hover { border-color: var(--amber); }
+.chip.active { background: var(--charcoal); border-color: var(--charcoal); color: var(--white); }
+.chip.active .n { color: #C9C4B8; }
+.chip.zero { opacity: 0.45; }
+
 /* ---------- Export menu ---------- */
 .export-menu { position: relative; display: inline-block; }
 .export-menu > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }

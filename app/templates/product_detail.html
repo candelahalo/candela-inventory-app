@@ -30,6 +30,7 @@
         <div class="field"><label>SKU</label><input name="sku" required></div>
         <div class="field"><label>Name</label><input name="name" required></div>
         <div class="field"><label>Category</label><select name="category"></select></div>
+        <div class="field"><label>Type</label><select name="product_type"></select></div>
         <div class="field"><label>Brand</label><input name="brand"></div>
         <div class="field"><label>Unit</label><input name="unit"></div>
         <div class="field"><label>Reorder level</label><input name="reorder_level" type="number"></div>
@@ -151,6 +152,7 @@ async function loadProduct() {
   form.sku.value = product.sku;
   form.name.value = product.name;
   fillCategorySelect(form.category, product.category);
+  fillTypeSelect(form.product_type, product.product_type);
   form.brand.value = product.brand || '';
   form.unit.value = product.unit || 'pcs';
   form.reorder_level.value = product.reorder_level;

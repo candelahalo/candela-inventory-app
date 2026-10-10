@@ -39,7 +39,8 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     sku = Column(String(64), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
-    category = Column(String(120), index=True)  # e.g. "Downlights", "Smart Switches", "Home Automation Hub"
+    category = Column(String(120), index=True)  # HALO category, e.g. "Recessed Invisible"
+    product_type = Column(String(40), index=True)  # e.g. "Spotlight", "Downlight", "Strip Light"
     brand = Column(String(120))
     unit = Column(String(32), default="pcs")
     cost_price = Column(Float, default=0.0)

@@ -10,6 +10,7 @@ class ProductBase(BaseModel):
     sku: str
     name: str
     category: Optional[str] = None
+    product_type: Optional[str] = None
     brand: Optional[str] = None
     unit: str = "pcs"
     cost_price: float = 0.0
@@ -67,6 +68,7 @@ class StockLevel(BaseModel):
     sku: str
     name: str
     category: Optional[str] = None
+    product_type: Optional[str] = None
     warehouse_id: int
     warehouse_name: str
     quantity_on_hand: int

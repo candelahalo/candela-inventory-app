@@ -51,6 +51,19 @@ def sku_for(item):
     return f"HALO-{code}-{variant}"
 
 
+def type_for(item):
+    """Product type (second level under the HALO category)."""
+    cat = item["category"]
+    fixed = {"Accessories": "Accessories", "Suspended": "Pendant", "Led Flex": "Strip Light",
+             "Low Voltage Track": "Low Voltage Track", "Surface Mounted": "Track Light",
+             "Semi Recessed": "Spotlight"}
+    if cat in fixed:
+        return fixed[cat]
+    # Recessed: adjustable fittings are spotlights, fixed ones downlights
+    adjustable = str(item["specs"].get("Adjustability", "")).strip().lower() == "yes"
+    return "Spotlight" if adjustable else "Downlight"
+
+
 def name_for(item, specs):
     name = f"{item['series']} {item['variant']}"
     watt = specs.get("Wattage")
@@ -192,11 +205,12 @@ def main():
             product = db.query(models.Product).filter(models.Product.sku == sku).first()
             if product:
                 product.name, product.category, product.brand, product.spec_summary = name, item["category"], BRAND, spec
+                product.product_type = type_for(item)
                 action = "updated"
                 updated += 1
             else:
                 product = models.Product(
-                    sku=sku, name=name, category=item["category"], brand=BRAND,
+                    sku=sku, name=name, category=item["category"], product_type=type_for(item), brand=BRAND,
                     unit=item.get("unit", "pcs"), cost_price=0.0, selling_price=0.0,
                     reorder_level=0, is_active=True, spec_summary=spec,
                 )
