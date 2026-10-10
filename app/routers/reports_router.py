@@ -311,6 +311,7 @@ def project_report(project_id: int, fmt: str, token: str = Query(...), preview: 
         ("Project #", p.project_number),
         ("Customer", p.customer.name if p.customer else ""),
         ("Company", p.customer.company if p.customer else ""),
+        ("Division", DIVISION_LABELS.get(p.division, "Not set")),
         ("Category", CATEGORY_LABELS.get(p.category, "Not set")),
         ("Stage", p.status.value.capitalize()),
         ("Site address", p.site_address),

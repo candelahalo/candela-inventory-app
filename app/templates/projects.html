@@ -292,6 +292,7 @@ function renderProjects() {
     rows: rows,
     actions: p => `
       <a class="btn btn-ghost btn-sm" href="/projects/view/${p.id}">Open</a>
+      <button class="btn btn-ghost btn-sm" title="Open the project sheet as a PDF in a new tab" onclick="downloadReport('project/${p.id}', 'preview')">Preview</button>
       <button class="btn btn-ghost btn-sm" onclick="editProject(${p.id})">Edit</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>
     `,

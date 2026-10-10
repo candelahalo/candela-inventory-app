@@ -548,7 +548,7 @@ async function loadQuotations() {
     rows: shown,
     actions: q => `
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">${q.status === 'accepted' ? 'Open' : 'Edit'}</button>
-      <button class="btn btn-ghost btn-sm" title="Download PDF" onclick="downloadDoc(${q.id}, 'pdf')">PDF</button>
+      <button class="btn btn-ghost btn-sm" title="Open the quotation PDF in a new tab (download or print it from there)" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
     `,
   });
