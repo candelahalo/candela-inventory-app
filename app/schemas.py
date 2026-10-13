@@ -12,6 +12,7 @@ class ProductBase(BaseModel):
     category: Optional[str] = None
     product_type: Optional[str] = None
     brand: Optional[str] = None
+    supplier: Optional[str] = None  # usual supplier (HALO is own brand: varies)
     unit: str = "pcs"
     cost_price: float = 0.0
     selling_price: float = 0.0

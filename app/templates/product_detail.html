@@ -32,6 +32,7 @@
         <div class="field"><label>Category</label><select name="category"></select></div>
         <div class="field"><label>Type</label><select name="product_type"></select></div>
         <div class="field"><label>Brand</label><input name="brand"></div>
+        <div class="field"><label>Usual supplier</label><input name="supplier" list="supplier-list" placeholder="Who we buy it from"><datalist id="supplier-list"></datalist></div>
         <div class="field"><label>Unit</label><input name="unit"></div>
         <div class="field"><label>Reorder level</label><input name="reorder_level" type="number"></div>
         <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01"></div>
@@ -154,6 +155,7 @@ async function loadProduct() {
   fillCategorySelect(form.category, product.category);
   fillTypeSelect(form.product_type, product.product_type);
   form.brand.value = product.brand || '';
+  form.supplier.value = product.supplier || '';
   form.unit.value = product.unit || 'pcs';
   form.reorder_level.value = product.reorder_level;
   form.cost_price.value = product.cost_price;
@@ -265,5 +267,11 @@ document.getElementById('datasheet-form').addEventListener('submit', async (e) =
   await loadProduct();
   await loadDatasheets();
 })();
+
+// Suppliers used before, for the "Usual supplier" type-ahead
+api('/orders/suppliers').then(names => {
+  const dl = document.getElementById('supplier-list');
+  if (dl) dl.innerHTML = names.map(n => `<option value="${escHtml(n)}">`).join('');
+}).catch(() => {});
 </script>
 {% endblock %}

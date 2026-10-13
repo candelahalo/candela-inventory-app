@@ -151,14 +151,28 @@ def _line_text(it):
     return " · ".join(parts)[:500]
 
 
+# Candela's own brands: made by different suppliers (local or China), so the
+# brand says nothing about who to order from.
+OWN_BRANDS = ("HALO", "RUHA")
+OWN_BRAND_SUPPLIER = "HALO - supplier to confirm (local / China)"
+
+
 def _supplier_of(it):
-    if getattr(it, "product", None) and it.product.brand:
-        return it.product.brand.strip()
-    for l in (it.description or "").split("\n"):
-        m = re.match(r"\s*Brand\s*:\s*(.+)", l, re.I)
-        if m:
-            return m.group(1).strip()
-    return "Supplier to confirm"
+    prod = getattr(it, "product", None)
+    if prod is not None and prod.supplier:
+        return prod.supplier.strip()
+    brand = prod.brand if prod is not None and prod.brand else None
+    if not brand:
+        for l in (it.description or "").split("\n"):
+            m = re.match(r"\s*Brand\s*:\s*(.+)", l, re.I)
+            if m:
+                brand = m.group(1).strip()
+                break
+    if not brand:
+        return "Supplier to confirm"
+    if re.sub(r"[^A-Z]", " ", brand.upper()).split()[0] in OWN_BRANDS:
+        return OWN_BRAND_SUPPLIER
+    return brand.strip()
 
 
 @router.post("/from-quotation/{quotation_id}", response_model=List[schemas.PurchaseOrderOut], status_code=201)

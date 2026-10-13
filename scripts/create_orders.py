@@ -67,13 +67,14 @@ def main(path):
 
         for o in data["orders"]:
             note = f"{tag}. {o.get('notes', '')}".strip()
-            po = existing.get(o["supplier"])
+            po = existing.get(o["supplier"]) or existing.get(o.get("was"))
             if po is not None:
                 if po.status != "draft" or po.qty_received or po.qty_delivered:
                     print(f"{po.po_number}  {po.supplier:<20} already {po.status} - left as it is")
                     continue
                 po.items.clear()
                 db.flush()
+                po.supplier = o["supplier"]
                 po.ship_mode, po.notes, po.delivery_planned = o.get("ship_mode"), note, planned
                 for desc, qty in o["lines"]:
                     po.items.append(models.PurchaseOrderItem(description=desc, quantity=qty, unit_cost=0.0,

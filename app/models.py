@@ -42,6 +42,7 @@ class Product(Base):
     category = Column(String(120), index=True)  # HALO category, e.g. "Recessed Invisible"
     product_type = Column(String(40), index=True)  # e.g. "Spotlight", "Downlight", "Strip Light"
     brand = Column(String(120))
+    supplier = Column(String(255))  # usual supplier; HALO is our own brand, made by several suppliers
     unit = Column(String(32), default="pcs")
     cost_price = Column(Float, default=0.0)
     selling_price = Column(Float, default=0.0)

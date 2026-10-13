@@ -88,9 +88,9 @@
       ]
     },
     {
-      "supplier": "HALO-UK",
-      "ship_mode": "air",
-      "notes": "Qty include 2 spares per type.",
+      "supplier": "HALO - supplier to confirm (local / China)",
+      "ship_mode": null,
+      "notes": "HALO is our own brand: choose the supplier (local or China) and set shipping when placing. Qty include 2 spares per type.",
       "lines": [
         [
           "S1 · SLIDE SUSPENDED L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · Grey · ON/OFF · diffused (Sales Area, incl. 2 spare)",
@@ -104,7 +104,8 @@
           "S2 · SLIDE SURFACE L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · White · ON/OFF · diffused (Sales Area open ceiling, incl. 2 spare)",
           36
         ]
-      ]
+      ],
+      "was": "HALO-UK"
     },
     {
       "supplier": "LEDVANCE",

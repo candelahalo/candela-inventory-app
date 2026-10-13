@@ -19,6 +19,7 @@
       <div class="field"><label>Category</label><select name="category" id="p-category" required></select></div>
       <div class="field"><label>Type</label><select name="product_type" id="p-type"></select></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Optional"></div>
+      <div class="field"><label>Usual supplier</label><input name="supplier" list="supplier-list" placeholder="Who we buy it from"><datalist id="supplier-list"></datalist></div>
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
       <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
       <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01" value="0"></div>
@@ -181,5 +182,11 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 });
 
 loadProducts();
+
+// Suppliers used before, for the "Usual supplier" type-ahead
+api('/orders/suppliers').then(names => {
+  const dl = document.getElementById('supplier-list');
+  if (dl) dl.innerHTML = names.map(n => `<option value="${escHtml(n)}">`).join('');
+}).catch(() => {});
 </script>
 {% endblock %}
