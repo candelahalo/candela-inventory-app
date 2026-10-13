@@ -263,6 +263,20 @@ def needs_attention(db: Session = Depends(get_db)):
             items.append({"kind": "stalled", "priority": 3, "title": f"{p.project_number} idle for {days} days",
                           "detail": f"{p.name} · at {p.status.value}", "href": f"/projects/view/{p.id}"})
 
+    # Supplier orders that are late, or due in the next few days
+    open_pos = (db.query(models.PurchaseOrder)
+                .filter(models.PurchaseOrder.status.in_(["ordered", "shipped"]),
+                        models.PurchaseOrder.expected_date.isnot(None)).all())
+    for po in open_pos:
+        days = (po.expected_date.date() - now.date()).days
+        if days < 0:
+            items.append({"kind": "po_overdue", "priority": 1, "title": f"{po.po_number} from {po.supplier} is overdue",
+                          "detail": f"due {po.expected_date:%d %b} · {-days} day{'s' if days != -1 else ''} late",
+                          "href": f"/orders?open={po.id}"})
+        elif days <= 3:
+            items.append({"kind": "po_due", "priority": 2, "title": f"{po.po_number} from {po.supplier} due {'today' if days == 0 else po.expected_date.strftime('%a %d %b')}",
+                          "detail": "be ready to receive it", "href": f"/orders?open={po.id}"})
+
     items.sort(key=lambda x: x["priority"])
     return {"items": items[:8], "total": len(items)}
 

@@ -299,3 +299,66 @@ class BackupOut(BaseModel):
     kind: str
     created_by: Optional[str]
     created_at: datetime
+
+
+# ---------- Supplier orders (purchase orders) ----------
+class PurchaseOrderItemIn(BaseModel):
+    id: Optional[int] = None  # existing line (keeps what's been received)
+    product_id: Optional[int] = None  # empty = not a stock item
+    description: Optional[str] = None
+    quantity: int
+    unit_cost: float = 0.0
+
+
+class PurchaseOrderIn(BaseModel):
+    supplier: str
+    supplier_ref: Optional[str] = None
+    project_id: Optional[int] = None
+    status: Literal["draft", "ordered", "shipped", "cancelled"] = "draft"
+    order_date: Optional[datetime] = None
+    expected_date: Optional[datetime] = None
+    currency: str = "AED"
+    notes: Optional[str] = None
+    items: List[PurchaseOrderItemIn]
+
+
+class PurchaseOrderItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    product_id: Optional[int]
+    description: Optional[str]
+    quantity: int
+    unit_cost: float
+    received_qty: int
+
+
+class PurchaseOrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    po_number: str
+    supplier: str
+    supplier_ref: Optional[str]
+    project_id: Optional[int]
+    status: str
+    order_date: Optional[datetime]
+    expected_date: Optional[datetime]
+    received_date: Optional[datetime]
+    currency: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    items: List[PurchaseOrderItemOut]
+    total: float
+    qty_ordered: int
+    qty_received: int
+    is_overdue: bool
+
+
+class ReceiveLine(BaseModel):
+    item_id: int
+    quantity: int
+
+
+class ReceiveIn(BaseModel):
+    warehouse_id: int
+    lines: List[ReceiveLine]
+    notes: Optional[str] = None

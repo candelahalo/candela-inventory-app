@@ -28,7 +28,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 12  # a typical working day
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 # Every screen in the app. A user's permissions are a subset of these.
-ALL_SCREENS = ["dashboard", "projects", "quotations", "stock", "products",
+ALL_SCREENS = ["dashboard", "projects", "quotations", "orders", "stock", "products",
                "customers", "activity", "settings"]
 
 # What each role can open when no explicit permissions are set.
@@ -36,8 +36,8 @@ ALL_SCREENS = ["dashboard", "projects", "quotations", "stock", "products",
 # What sits inside it (staff logins, restore) is guarded separately.
 ROLE_DEFAULTS = {
     "admin": ALL_SCREENS,
-    "office": ["dashboard", "projects", "quotations", "products", "customers", "settings"],
-    "store": ["dashboard", "stock", "products", "settings"],
+    "office": ["dashboard", "projects", "quotations", "orders", "products", "customers", "settings"],
+    "store": ["dashboard", "orders", "stock", "products", "settings"],
 }
 ROLES = list(ROLE_DEFAULTS)
 

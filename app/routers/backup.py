@@ -27,6 +27,8 @@ BACKUP_TABLES = [
     ("project_status_history", models.ProjectStatusHistory),
     ("quotations", models.Quotation),
     ("quotation_items", models.QuotationItem),
+    ("purchase_orders", models.PurchaseOrder),
+    ("purchase_order_items", models.PurchaseOrderItem),
     ("datasheets", models.Datasheet),
     ("activity_log", models.ActivityLog),
 ]

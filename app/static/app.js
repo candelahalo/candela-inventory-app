@@ -52,10 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (out) out.addEventListener('click', (e) => { e.preventDefault(); signOut(); });
 
   // Hide nav items this user may not open
-  if (session && session.screens) {
-    document.querySelectorAll('.nav a[data-screen]').forEach(a => {
-      if (!session.screens.includes(a.dataset.screen)) a.style.display = 'none';
-    });
+  const applyScreens = screens => document.querySelectorAll('.nav a[data-screen]').forEach(a => {
+    a.style.display = screens.includes(a.dataset.screen) ? '' : 'none';
+  });
+  if (session && session.screens) applyScreens(session.screens);
+  // Refresh from the server, so a newly added screen (or changed access)
+  // shows without having to sign out and in again.
+  if (session && getToken()) {
+    api('/auth/me').then(me => {
+      if (!me || !me.screens) return;
+      applyScreens(me.screens);
+      try { localStorage.setItem('candela_user', JSON.stringify({ ...session, screens: me.screens })); } catch (e) {}
+    }).catch(() => {});
   }
 });
 

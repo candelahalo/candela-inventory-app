@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Candela{% endblock %} — Operations</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="/static/style.css?v=57">
+<link rel="stylesheet" href="/static/style.css?v=58">
 </head>
 <body class="page-{{ active or 'default' }}">
 <script>
@@ -22,6 +22,7 @@
       <a href="/" data-screen="dashboard" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
       <a href="/projects" data-screen="projects" class="{{ 'active' if active == 'projects' else '' }}">Projects</a>
       <a href="/quotations" data-screen="quotations" class="{{ 'active' if active == 'quotations' else '' }}">Quotations</a>
+      <a href="/orders" data-screen="orders" class="{{ 'active' if active == 'orders' else '' }}">Orders</a>
       <a href="/stock" data-screen="stock" class="{{ 'active' if active == 'stock' else '' }}">Stock</a>
       <a href="/products" data-screen="products" class="{{ 'active' if active == 'products' else '' }}">Products</a>
       <a href="/customers" data-screen="customers" class="{{ 'active' if active == 'customers' else '' }}">Customers</a>
@@ -37,8 +38,8 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="/static/app.js?v=57"></script>
-<script src="/static/datatable.js?v=57"></script>
+<script src="/static/app.js?v=58"></script>
+<script src="/static/datatable.js?v=58"></script>
 {% block script %}{% endblock %}
 </body>
 </html>

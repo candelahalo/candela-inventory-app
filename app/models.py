@@ -311,6 +311,66 @@ class Backup(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+# ---------- Supplier orders (purchase orders) ----------
+# Status is a plain string ("draft", "ordered", "shipped", "received",
+# "cancelled"). Part-received is shown from the received quantities, not
+# stored as its own status.
+PO_STATUSES = ["draft", "ordered", "shipped", "received", "cancelled"]
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    po_number = Column(String(32), unique=True, index=True, nullable=False)
+    supplier = Column(String(255), nullable=False, index=True)
+    supplier_ref = Column(String(120))  # supplier's proforma / order confirmation no.
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    status = Column(String(20), nullable=False, default="draft", index=True)
+    order_date = Column(DateTime)
+    expected_date = Column(DateTime)  # ETA
+    received_date = Column(DateTime)
+    currency = Column(String(8), default="AED")
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project")
+    items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan",
+                         order_by="PurchaseOrderItem.id")
+
+    @property
+    def total(self):
+        return round(sum(i.quantity * (i.unit_cost or 0) for i in self.items), 2)
+
+    @property
+    def qty_ordered(self):
+        return sum(i.quantity for i in self.items)
+
+    @property
+    def qty_received(self):
+        return sum(min(i.received_qty or 0, i.quantity) for i in self.items)
+
+    @property
+    def is_overdue(self):
+        return (self.status in ("ordered", "shipped") and self.expected_date is not None
+                and self.expected_date.date() < datetime.utcnow().date())
+
+
+class PurchaseOrderItem(Base):
+    __tablename__ = "purchase_order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)  # empty = not a stock item
+    description = Column(Text)
+    quantity = Column(Integer, nullable=False)
+    unit_cost = Column(Float, default=0.0)
+    received_qty = Column(Integer, default=0)
+
+    order = relationship("PurchaseOrder", back_populates="items")
+    product = relationship("Product")
+
+
 class ActivityLog(Base):
     __tablename__ = "activity_log"
 

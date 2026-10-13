@@ -67,6 +67,12 @@
 </div>
 
 <div class="panel">
+  <div class="panel-head"><h2>Supplier orders</h2>
+    <a class="btn btn-ghost btn-sm" id="new-po-btn" href="#">+ Order for this project</a></div>
+  <div id="pos-table"></div>
+</div>
+
+<div class="panel">
   <div class="panel-head">
     <h2>Materials</h2>
     <span class="muted-note" id="mat-source"></span>
@@ -152,6 +158,27 @@ async function advance(status) {
 }
 
 let quotes = [];
+const PO_LABEL = { draft: 'Draft', ordered: 'Ordered', shipped: 'Shipped', received: 'Received', cancelled: 'Cancelled' };
+async function loadOrders() {
+  document.getElementById('new-po-btn').href = '/orders?new=1&project=' + projectId;
+  const pos = await api('/orders/?project_id=' + projectId);
+  DataTable.render({
+    containerId: 'pos-table',
+    storageKey: 'project-pos',
+    emptyMessage: 'Nothing ordered from suppliers for this project yet.',
+    columns: [
+      { key: 'po', label: 'PO #', value: o => o.po_number, render: o => `<a class="panel-link mono" href="/orders?open=${o.id}">${esc(o.po_number)}</a>` },
+      { key: 'supplier', label: 'Supplier', value: o => o.supplier, render: o => esc(o.supplier) },
+      { key: 'status', label: 'Status', value: o => o.status, render: o => `<span class="badge po-${o.status}">${PO_LABEL[o.status] || o.status}</span>`
+          + (o.is_overdue ? ' <span class="badge low">Overdue</span>' : '') },
+      { key: 'eta', label: 'Expected', value: o => o.expected_date || '', render: o => fmtDate(o.expected_date) },
+      { key: 'rcv', label: 'Received', numeric: true, value: o => o.qty_received, render: o => `${o.qty_received} / ${o.qty_ordered}` },
+    ],
+    rows: pos,
+    actions: o => `<a class="btn btn-ghost btn-sm" href="/orders?open=${o.id}">Open</a>`,
+  });
+}
+
 async function loadQuotes() {
   quotes = await api('/quotations/?project_id=' + projectId);
   DataTable.render({
@@ -288,7 +315,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   customers = c; warehouses = w;
   p.forEach(x => { products[x.id] = x; });
   document.getElementById('is-warehouse').innerHTML = warehouses.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
-  await Promise.all([loadProject(), loadQuotes(), loadMaterials(), loadMoves()]);
+  await Promise.all([loadProject(), loadQuotes(), loadMaterials(), loadMoves(), loadOrders()]);
   renderKpis();
 })();
 </script>

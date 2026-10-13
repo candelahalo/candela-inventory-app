@@ -886,6 +886,8 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
 .pl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
 .pl-dot.expired, .pl-dot.shortage { background: var(--red); }
 .pl-dot.expiring { background: var(--amber); }
+.pl-dot.po_overdue { background: var(--red); }
+.pl-dot.po_due { background: #3D5F80; }
 .pl-dot.followup { background: #3D5F80; }
 
 .flows { display: grid; gap: 14px; margin-top: 8px; }
@@ -923,4 +925,33 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
   .flow.flow-short { grid-template-columns: repeat(3, 1fr); }
   .flow-bar-box { height: 70px; }
   .flow-l { font-size: 10.5px; }
+}
+
+/* ---------- Supplier orders ---------- */
+.badge.po-draft { background: #EFE9DC; color: #6B6045; }
+.badge.po-ordered { background: #E8EEF5; color: #3D5F80; }
+.badge.po-shipped { background: #FBEFDB; color: var(--amber-deep); }
+.badge.po-received { background: #E5EFE6; color: #3E7248; }
+.badge.po-cancelled { background: #E9E7E3; color: var(--muted); }
+.badge.po-part { background: #EAF2EA; color: #3E7248; }
+.overdue-text { color: var(--red); font-weight: 600; }
+.tab-count.warn { background: #F7E2DC; color: var(--red); }
+.po-lines { display: grid; gap: 10px; margin-bottom: 10px; }
+.po-line {
+  display: grid; grid-template-columns: minmax(170px, 1.6fr) minmax(180px, 2fr) 72px 96px 66px 26px;
+  gap: 10px; align-items: end; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+}
+.po-line .field label { font-size: 11px; white-space: nowrap; }
+.po-line .field input, .po-line .field select { min-width: 0; }
+.pl-rcv { padding: 8px 0; font-variant-numeric: tabular-nums; color: var(--muted); }
+.po-total { margin: 14px 0 4px; font-size: 14px; color: var(--muted); text-align: right; }
+.po-total strong { color: var(--ink); font-size: 18px; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.rcv-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rcv-table th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.rcv-table td { padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.rcv-table .num { text-align: right; }
+.rcv-table input { width: 80px; text-align: right; }
+@media (max-width: 760px) {
+  .po-line { grid-template-columns: 1fr 1fr; }
+  .po-line .field:nth-child(1), .po-line .field:nth-child(2) { grid-column: span 2; }
 }

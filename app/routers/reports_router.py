@@ -241,6 +241,34 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
                 ("Category not set" if category == "unset" else CATEGORY_LABELS[category]) if category else None]
         return " - ".join(["Quotations"] + [b for b in bits if b]), columns, rows
 
+    if kind == "orders":
+        q = db.query(models.PurchaseOrder)
+        if status:
+            q = q.filter(models.PurchaseOrder.status == status)
+        orders = q.order_by(models.PurchaseOrder.created_at.desc()).all()
+        projects = {p.id: p for p in db.query(models.Project).all()}
+        columns = [
+            {"key": "po_number", "label": "PO #"},
+            {"key": "supplier", "label": "Supplier"},
+            {"key": "supplier_ref", "label": "Supplier ref"},
+            {"key": "project", "label": "Project"},
+            {"key": "status", "label": "Status"},
+            {"key": "order_date", "label": "Ordered", "kind": "date"},
+            {"key": "expected_date", "label": "Expected", "kind": "date"},
+            {"key": "received", "label": "Received"},
+            {"key": "total", "label": "Value", "kind": "money"},
+        ]
+        rows = [{
+            "po_number": o.po_number, "supplier": o.supplier, "supplier_ref": o.supplier_ref,
+            "project": projects[o.project_id].project_number if o.project_id in projects else "",
+            "status": ("overdue" if o.is_overdue
+                       else "part received" if 0 < o.qty_received < o.qty_ordered and o.status != "cancelled"
+                       else o.status),
+            "order_date": o.order_date, "expected_date": o.expected_date,
+            "received": f"{o.qty_received} of {o.qty_ordered}", "total": o.total,
+        } for o in orders]
+        return "Supplier orders" + (f" - {status.capitalize()}" if status else ""), columns, rows
+
     if kind == "datasheets":
         sheets = db.query(models.Datasheet).order_by(models.Datasheet.uploaded_at.desc()).all()
         products = {p.id: p for p in db.query(models.Product).all()}
@@ -510,6 +538,8 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
     _check_fmt(fmt)
     if kind in ("projects", "customers", "quotations") and category is not None and category not in list(CATEGORY_LABELS) + ["unset"]:
         raise HTTPException(status_code=400, detail="Category must be retail or residential")
+    if kind == "orders" and status is not None and status not in models.PO_STATUSES:
+        raise HTTPException(status_code=400, detail="Unknown order status")
     if kind == "quotations" and status is not None and status not in [s.value for s in models.DocStatus]:
         raise HTTPException(status_code=400, detail="Unknown quotation status")
     if kind in ("projects", "quotations") and division is not None and division not in list(DIVISION_LABELS) + ["unset"]:

@@ -40,6 +40,11 @@ def ui_customer_detail(customer_id: int, request: Request, db: Session = Depends
     )
 
 
+@router.get("/orders")
+def ui_orders(request: Request):
+    return templates.TemplateResponse("orders.html", {"request": request, "active": "orders"})
+
+
 @router.get("/stock")
 def ui_stock(request: Request):
     return templates.TemplateResponse("stock.html", {"request": request, "active": "stock"})
