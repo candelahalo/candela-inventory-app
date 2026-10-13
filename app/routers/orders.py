@@ -404,6 +404,44 @@ def deliver(order_id: int, payload: schemas.DeliverIn, db: Session = Depends(get
     return po
 
 
+@router.post("/{order_id}/lines/{item_id}/product", response_model=schemas.PurchaseOrderOut)
+def line_to_product(order_id: int, item_id: int, payload: schemas.ProductCreate, db: Session = Depends(get_db),
+                    current: models.User = Depends(auth.get_current_user)):
+    """Turn an order line into a product (or link it to an existing SKU), so
+    receiving it books it into stock and it can be quoted from the list."""
+    po = _get(db, order_id)
+    line = next((i for i in po.items if i.id == item_id), None)
+    if not line:
+        raise HTTPException(status_code=404, detail="That line isn't on this order.")
+    if line.product_id:
+        raise HTTPException(status_code=400, detail="That line is already a product.")
+    if line.received_qty:
+        raise HTTPException(status_code=400, detail="Goods on that line were already received without a product - add them on the Stock page instead.")
+    sku = payload.sku.strip()
+    if not sku or not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Enter a SKU and a name.")
+    prod = db.query(models.Product).filter(models.Product.sku == sku).first()
+    if prod is None:
+        data = payload.model_dump()
+        data["sku"], data["name"] = sku, payload.name.strip()
+        if not data.get("cost_price"):
+            data["cost_price"] = line.unit_cost or 0.0
+        if not data.get("supplier") and "to confirm" not in (po.supplier or "").lower():
+            data["supplier"] = po.supplier
+        prod = models.Product(**data)
+        db.add(prod)
+        db.flush()
+        log_activity(db, current.username, "product", prod.id, f"{prod.sku} — {prod.name}", "created",
+                     f"from order {po.po_number}")
+    elif not prod.is_active:
+        prod.is_active = True
+    line.product_id = prod.id
+    log_activity(db, current.username, "order", po.id, _label(po), "updated", f"line linked to {prod.sku}")
+    db.commit()
+    db.refresh(po)
+    return po
+
+
 @router.delete("/{order_id}", status_code=204)
 def delete_order(order_id: int, db: Session = Depends(get_db),
                  current: models.User = Depends(auth.get_current_user)):

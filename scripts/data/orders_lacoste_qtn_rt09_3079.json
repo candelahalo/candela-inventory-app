@@ -20,47 +20,157 @@
       "lines": [
         [
           "D1 · KOR S · 17W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Fit Room 6 incl. 2 spare + Vestibule 3)",
-          9
+          9,
+          {
+            "sku": "QB-KORS-17W-30K-WH",
+            "name": "KOR S 17W 3000K White (15/34/51°)",
+            "brand": "QUATTROBI",
+            "category": "Recessed Visible",
+            "product_type": "Spotlight",
+            "selling_price": 450,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "D2 · KOR S · 21W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Sales Area, incl. 2 spare)",
-          28
+          28,
+          {
+            "sku": "QB-KORS-21W-30K-WH",
+            "name": "KOR S 21W 3000K White (15/34/51°)",
+            "brand": "QUATTROBI",
+            "category": "Recessed Visible",
+            "product_type": "Spotlight",
+            "selling_price": 450,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "D3 · KOR M · 32W · 3000K · CRI>90 · White · ON/OFF · beams 16/34/50° · D160 (Shop Front, incl. 2 spare)",
-          11
+          11,
+          {
+            "sku": "QB-KORM-32W-30K-WH",
+            "name": "KOR M 32W 3000K White (16/34/50°)",
+            "brand": "QUATTROBI",
+            "category": "Recessed Visible",
+            "product_type": "Spotlight",
+            "selling_price": 490,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "T1 · BAMBOO track spot 220-240V · 21W · 3000K · CRI>90 · White · beams 15/32/51° · D76xH145 (Open Ceiling, incl. 2 spare)",
-          15
+          15,
+          {
+            "sku": "QB-BAMBOO-21W-30K-WH",
+            "name": "BAMBOO track spot 230V 21W 3000K White",
+            "brand": "QUATTROBI",
+            "category": "Surface Mounted",
+            "product_type": "Track Light",
+            "selling_price": 580,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "230V suspended track channel 2 m (for T1)",
-          5
+          5,
+          {
+            "sku": "QB-TRK230-2M",
+            "name": "230V suspended track channel 2 m",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 310,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "230V suspended track channel 1 m (for T1)",
-          1
+          1,
+          {
+            "sku": "QB-TRK230-1M",
+            "name": "230V suspended track channel 1 m",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 160,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "Track I connector",
-          5
+          5,
+          {
+            "sku": "QB-TRK230-ICON",
+            "name": "230V track I connector",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 80,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "Track L connector",
-          4
+          4,
+          {
+            "sku": "QB-TRK230-LCON",
+            "name": "230V track L connector",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 55,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "Track live end connector / power feeder",
-          2
+          2,
+          {
+            "sku": "QB-TRK230-FEED",
+            "name": "230V track live end / power feeder",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 50,
+            "unit": "pcs",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "Track end cap (set)",
-          2
+          2,
+          {
+            "sku": "QB-TRK230-ENDCAP",
+            "name": "230V track end cap",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 10,
+            "unit": "set",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ],
         [
           "Track suspension kit (set)",
-          10
+          10,
+          {
+            "sku": "QB-TRK230-SUSP",
+            "name": "230V track suspension kit",
+            "brand": "QUATTROBI",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 50,
+            "unit": "set",
+            "supplier": "QUATTROBI - ITALY"
+          }
         ]
       ]
     },
@@ -71,19 +181,59 @@
       "lines": [
         [
           "ON/OFF driver for D1 KOR S 17W (7 + 2 spare)",
-          9
+          9,
+          {
+            "sku": "TRI-ONOFF-KORS17",
+            "name": "Tridonic ON/OFF driver - KOR S 17W",
+            "brand": "TRIDONIC",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 65,
+            "unit": "pcs",
+            "supplier": "TRIDONIC"
+          }
         ],
         [
           "ON/OFF driver for D2 KOR S 21W (26 + 2 spare)",
-          28
+          28,
+          {
+            "sku": "TRI-ONOFF-KORS21",
+            "name": "Tridonic ON/OFF driver - KOR S 21W",
+            "brand": "TRIDONIC",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 65,
+            "unit": "pcs",
+            "supplier": "TRIDONIC"
+          }
         ],
         [
           "ON/OFF driver for D3 KOR M 32W (9 + 2 spare)",
-          11
+          11,
+          {
+            "sku": "TRI-ONOFF-KORM32",
+            "name": "Tridonic ON/OFF driver - KOR M 32W",
+            "brand": "TRIDONIC",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 65,
+            "unit": "pcs",
+            "supplier": "TRIDONIC"
+          }
         ],
         [
           "ON/OFF driver for S1/S2 SLIDE linear 50W/m (S1 8 + S2 16 + 2 spare)",
-          26
+          26,
+          {
+            "sku": "TRI-ONOFF-SLIDE",
+            "name": "Tridonic ON/OFF driver - SLIDE linear 50W/m",
+            "brand": "TRIDONIC",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 160,
+            "unit": "pcs",
+            "supplier": "TRIDONIC"
+          }
         ]
       ]
     },
@@ -94,15 +244,45 @@
       "lines": [
         [
           "S1 · SLIDE SUSPENDED L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · Grey · ON/OFF · diffused (Sales Area, incl. 2 spare)",
-          19
+          19,
+          {
+            "sku": "HALO-SLIDE-SUSP-L1000-30K-GY",
+            "name": "SLIDE Suspended L1000 50W/m 3000K Grey",
+            "brand": "HALO",
+            "category": "Suspended",
+            "product_type": "Pendant",
+            "selling_price": 420,
+            "unit": "pcs",
+            "supplier": null
+          }
         ],
         [
           "Suspension kit for S1 SLIDE SUSPENDED",
-          34
+          34,
+          {
+            "sku": "HALO-SLIDE-SUSP-KIT",
+            "name": "SLIDE suspension kit",
+            "brand": "HALO",
+            "category": "Accessories",
+            "product_type": "Accessories",
+            "selling_price": 15,
+            "unit": "pcs",
+            "supplier": null
+          }
         ],
         [
           "S2 · SLIDE SURFACE L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · White · ON/OFF · diffused (Sales Area open ceiling, incl. 2 spare)",
-          36
+          36,
+          {
+            "sku": "HALO-SLIDE-SURF-L1000-30K-WH",
+            "name": "SLIDE Surface L1000 50W/m 3000K White",
+            "brand": "HALO",
+            "category": "Surface Mounted",
+            "product_type": null,
+            "selling_price": 420,
+            "unit": "pcs",
+            "supplier": null
+          }
         ]
       ],
       "was": "HALO-UK"
@@ -114,7 +294,17 @@
       "lines": [
         [
           "L5 · Panel 595x595 · 36W · 4800 lm · 4000K · CRI>90 · IP54 · White · ON/OFF (BOH, incl. 2 spare)",
-          6
+          6,
+          {
+            "sku": "LDV-PANEL600-36W-40K-IP54",
+            "name": "LEDVANCE Panel 595x595 36W 4000K IP54 White",
+            "brand": "LEDVANCE",
+            "category": "Recessed Visible",
+            "product_type": null,
+            "selling_price": 170,
+            "unit": "pcs",
+            "supplier": "LEDVANCE"
+          }
         ]
       ]
     }

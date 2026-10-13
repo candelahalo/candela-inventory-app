@@ -123,6 +123,27 @@
   </div>
 </div>
 
+<!-- Order line -> product -->
+<div id="mp-overlay" class="modal-overlay" onclick="if (event.target === this) closeMakeProduct()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mp-title" style="max-width:600px;">
+    <h2 id="mp-title">Add to products</h2>
+    <p class="modal-sub" id="mp-sub">So it's tracked in stock when the order arrives. An existing SKU links to that product instead.</p>
+    <div class="form-grid">
+      <div class="field"><label>SKU</label><input id="mp-sku" maxlength="64"></div>
+      <div class="field"><label>Unit</label><input id="mp-unit" value="pcs" maxlength="16"></div>
+      <div class="field span2"><label>Name</label><input id="mp-name" maxlength="255"></div>
+      <div class="field"><label>Brand</label><input id="mp-brand"></div>
+      <div class="field"><label>Selling price (AED)</label><input id="mp-price" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Category</label><select id="mp-category"></select></div>
+      <div class="field"><label>Type</label><select id="mp-type"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeMakeProduct()">Cancel</button>
+      <button type="button" class="btn" id="mp-save">Add product</button>
+    </div>
+  </div>
+</div>
+
 <!-- Orders from a quotation -->
 <div id="fq-overlay" class="modal-overlay" onclick="if (event.target === this) closeFromQuote()">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fq-title" style="max-width:560px;">
@@ -256,6 +277,8 @@ function addLine(item) {
       <div class="field"><label>Unit cost</label><input class="pl-cost" type="number" step="0.01" value="${item.unit_cost != null ? item.unit_cost : 0}"></div>
       <div class="field"><label>In / out</label><div class="pl-rcv" title="received / delivered">${rcv} / ${dlv}</div></div>
       ${locked ? '<span></span>' : `<button type="button" class="remove-line" title="Remove line" onclick="this.closest('.po-line').remove(); recalc();">×</button>`}
+      ${item.id && !item.product_id && !rcv ? `<div class="pl-foot"><span>Not in the product list, so receiving it won't add stock.</span>
+        <button type="button" class="link-btn" onclick="openMakeProduct(${item.id})">+ Add to products</button></div>` : ''}
     </div>`);
   const row = wrap.lastElementChild;
   const sel = row.querySelector('.pl-product');
@@ -517,6 +540,54 @@ document.getElementById('mv-save').addEventListener('click', async () => {
     toast(moveMode === 'receive'
       ? (o.status === 'received' ? `${o.po_number}: all received — stock updated` : 'Received — stock updated')
       : (o.status === 'delivered' ? `${o.po_number}: delivered to client` : 'Delivered — recorded'));
+    await loadOrders();
+    openOrderById(o.id);
+  } catch (err) { toast(err.message, true); }
+});
+
+// ---------- order line -> product ----------
+let mpItem = null;
+function suggestSku(supplier, desc) {
+  const pre = (supplier || 'ITEM').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')[0].slice(0, 5);
+  const body = (desc || '').toUpperCase().replace(/\(.*?\)/g, ' ').replace(/[^A-Z0-9]+/g, ' ').trim()
+    .split(' ').filter(w => w.length > 1 && !['THE', 'FOR', 'AND', 'WITH'].includes(w)).slice(0, 4).join('-');
+  return (pre + '-' + body).slice(0, 40);
+}
+function openMakeProduct(itemId) {
+  const o = openOrder;
+  const it = o && o.items.find(i => i.id === itemId);
+  if (!it) return;
+  mpItem = it;
+  const desc = (it.description || '').split('·').map(x => x.trim()).filter(Boolean);
+  const name = (desc.length > 1 && /^[A-Z0-9-]{1,6}$/.test(desc[0]) ? desc.slice(1) : desc).slice(0, 4).join(' ').replace(/\s*\(.*?\)\s*/g, ' ').trim();
+  const own = /to confirm/i.test(o.supplier);
+  document.getElementById('mp-sku').value = suggestSku(own ? 'HALO' : o.supplier, name);
+  document.getElementById('mp-name').value = name.slice(0, 255);
+  document.getElementById('mp-brand').value = own ? 'HALO' : o.supplier.replace(/\s*[-(].*$/, '');
+  document.getElementById('mp-unit').value = 'pcs';
+  document.getElementById('mp-price').value = 0;
+  fillCategorySelect(document.getElementById('mp-category'), '');
+  fillTypeSelect(document.getElementById('mp-type'), '');
+  document.getElementById('mp-overlay').classList.add('open');
+}
+function closeMakeProduct() { document.getElementById('mp-overlay').classList.remove('open'); }
+document.getElementById('mp-save').addEventListener('click', async () => {
+  const body = {
+    sku: document.getElementById('mp-sku').value.trim(),
+    name: document.getElementById('mp-name').value.trim(),
+    brand: document.getElementById('mp-brand').value.trim() || null,
+    unit: document.getElementById('mp-unit').value.trim() || 'pcs',
+    selling_price: parseFloat(document.getElementById('mp-price').value) || 0,
+    category: document.getElementById('mp-category').value || null,
+    product_type: document.getElementById('mp-type').value || null,
+    cost_price: 0, reorder_level: 0, is_active: true,
+  };
+  if (!body.sku || !body.name) { toast('Enter a SKU and a name', true); return; }
+  try {
+    const o = await api(`/orders/${openOrder.id}/lines/${mpItem.id}/product`, { method: 'POST', body: JSON.stringify(body) });
+    closeMakeProduct();
+    productsCache = await api('/products/');
+    toast(`${body.sku} added — it goes into stock when received`);
     await loadOrders();
     openOrderById(o.id);
   } catch (err) { toast(err.message, true); }
