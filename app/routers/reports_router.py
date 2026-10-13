@@ -250,23 +250,32 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         columns = [
             {"key": "po_number", "label": "PO #"},
             {"key": "supplier", "label": "Supplier"},
-            {"key": "supplier_ref", "label": "Supplier ref"},
             {"key": "project", "label": "Project"},
-            {"key": "status", "label": "Status"},
+            {"key": "status", "label": "Stage"},
+            {"key": "next", "label": "Next step"},
+            {"key": "due", "label": "Due", "kind": "date"},
             {"key": "order_date", "label": "Ordered", "kind": "date"},
-            {"key": "expected_date", "label": "Expected", "kind": "date"},
-            {"key": "received", "label": "Received"},
+            {"key": "ready", "label": "Ready", "kind": "date"},
+            {"key": "shipping", "label": "Shipment"},
+            {"key": "expected_date", "label": "ETA", "kind": "date"},
+            {"key": "progress", "label": "Received / delivered"},
             {"key": "total", "label": "Value", "kind": "money"},
         ]
-        rows = [{
-            "po_number": o.po_number, "supplier": o.supplier, "supplier_ref": o.supplier_ref,
-            "project": projects[o.project_id].project_number if o.project_id in projects else "",
-            "status": ("overdue" if o.is_overdue
-                       else "part received" if 0 < o.qty_received < o.qty_ordered and o.status != "cancelled"
-                       else o.status),
-            "order_date": o.order_date, "expected_date": o.expected_date,
-            "received": f"{o.qty_received} of {o.qty_ordered}", "total": o.total,
-        } for o in orders]
+        rows = []
+        for o in orders:
+            nxt = o.next_step
+            rows.append({
+                "po_number": o.po_number, "supplier": o.supplier,
+                "project": projects[o.project_id].project_number if o.project_id in projects else "",
+                "status": o.status + (" (late)" if o.is_overdue else ""),
+                "next": nxt["label"] if nxt else "",
+                "due": datetime.fromisoformat(nxt["due"]) if nxt and nxt["due"] else None,
+                "order_date": o.order_date, "ready": o.ready_date or o.ready_expected,
+                "shipping": " · ".join(filter(None, [(o.ship_mode or "").capitalize(), o.forwarder, o.tracking_no])),
+                "expected_date": o.expected_date,
+                "progress": f"{o.qty_received} / {o.qty_delivered} of {o.qty_ordered}",
+                "total": o.total,
+            })
         return "Supplier orders" + (f" - {status.capitalize()}" if status else ""), columns, rows
 
     if kind == "datasheets":

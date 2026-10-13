@@ -314,11 +314,29 @@ class PurchaseOrderIn(BaseModel):
     supplier: str
     supplier_ref: Optional[str] = None
     project_id: Optional[int] = None
-    status: Literal["draft", "ordered", "shipped", "cancelled"] = "draft"
+    cancelled: bool = False
     order_date: Optional[datetime] = None
-    expected_date: Optional[datetime] = None
+    expected_date: Optional[datetime] = None  # ETA arrival
     currency: str = "AED"
     notes: Optional[str] = None
+    payment_terms: Optional[str] = None
+    advance_paid_date: Optional[datetime] = None
+    balance_paid_date: Optional[datetime] = None
+    ready_expected: Optional[datetime] = None
+    ready_date: Optional[datetime] = None
+    ship_mode: Optional[Literal["air", "sea", "road", "courier", "local", "direct"]] = None
+    incoterm: Optional[str] = None
+    forwarder: Optional[str] = None
+    tracking_no: Optional[str] = None
+    dispatch_date: Optional[datetime] = None
+    arrived_date: Optional[datetime] = None
+    customs_agent: Optional[str] = None
+    customs_ref: Optional[str] = None
+    cleared_date: Optional[datetime] = None
+    delivery_planned: Optional[datetime] = None
+    delivered_date: Optional[datetime] = None
+    delivery_note: Optional[str] = None
+    delivered_to: Optional[str] = None
     items: List[PurchaseOrderItemIn]
 
 
@@ -328,8 +346,9 @@ class PurchaseOrderItemOut(BaseModel):
     product_id: Optional[int]
     description: Optional[str]
     quantity: int
-    unit_cost: float
-    received_qty: int
+    unit_cost: Optional[float] = 0.0
+    received_qty: Optional[int] = 0
+    delivered_qty: Optional[int] = 0
 
 
 class PurchaseOrderOut(BaseModel):
@@ -339,6 +358,7 @@ class PurchaseOrderOut(BaseModel):
     supplier: str
     supplier_ref: Optional[str]
     project_id: Optional[int]
+    quotation_id: Optional[int] = None
     status: str
     order_date: Optional[datetime]
     expected_date: Optional[datetime]
@@ -346,10 +366,30 @@ class PurchaseOrderOut(BaseModel):
     currency: Optional[str]
     notes: Optional[str]
     created_at: datetime
+    payment_terms: Optional[str] = None
+    advance_paid_date: Optional[datetime] = None
+    balance_paid_date: Optional[datetime] = None
+    ready_expected: Optional[datetime] = None
+    ready_date: Optional[datetime] = None
+    ship_mode: Optional[str] = None
+    incoterm: Optional[str] = None
+    forwarder: Optional[str] = None
+    tracking_no: Optional[str] = None
+    dispatch_date: Optional[datetime] = None
+    arrived_date: Optional[datetime] = None
+    customs_agent: Optional[str] = None
+    customs_ref: Optional[str] = None
+    cleared_date: Optional[datetime] = None
+    delivery_planned: Optional[datetime] = None
+    delivered_date: Optional[datetime] = None
+    delivery_note: Optional[str] = None
+    delivered_to: Optional[str] = None
     items: List[PurchaseOrderItemOut]
     total: float
     qty_ordered: int
     qty_received: int
+    qty_delivered: int
+    next_step: Optional[dict] = None
     is_overdue: bool
 
 
@@ -359,6 +399,14 @@ class ReceiveLine(BaseModel):
 
 
 class ReceiveIn(BaseModel):
-    warehouse_id: int
+    warehouse_id: Optional[int] = None  # needed when product lines are received
     lines: List[ReceiveLine]
     notes: Optional[str] = None
+
+
+class DeliverIn(BaseModel):
+    warehouse_id: Optional[int] = None  # stock is issued from here for product lines
+    lines: List[ReceiveLine]
+    delivery_note: Optional[str] = None
+    delivered_to: Optional[str] = None
+    date: Optional[datetime] = None

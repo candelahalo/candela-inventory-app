@@ -158,9 +158,14 @@ async function advance(status) {
 }
 
 let quotes = [];
-const PO_LABEL = { draft: 'Draft', ordered: 'Ordered', shipped: 'Shipped', received: 'Received', cancelled: 'Cancelled' };
+const PO_LABEL = { draft: 'Draft', ordered: 'Ordered', ready: 'Ready at supplier', shipped: 'Shipped', arrived: 'Arrived',
+  cleared: 'Customs cleared', received: 'In stock', delivered: 'Delivered', cancelled: 'Cancelled' };
 async function loadOrders() {
-  document.getElementById('new-po-btn').href = '/orders?new=1&project=' + projectId;
+  // With a quotation, order the whole job (one order per supplier); otherwise a blank order
+  const gq = quotes.find(q => q.status === 'accepted') || quotes[0];
+  const btn = document.getElementById('new-po-btn');
+  btn.href = gq ? '/orders?quotation=' + gq.id : '/orders?new=1&project=' + projectId;
+  btn.textContent = gq ? '+ Order from ' + gq.quote_number : '+ Order for this project';
   const pos = await api('/orders/?project_id=' + projectId);
   DataTable.render({
     containerId: 'pos-table',
@@ -169,10 +174,11 @@ async function loadOrders() {
     columns: [
       { key: 'po', label: 'PO #', value: o => o.po_number, render: o => `<a class="panel-link mono" href="/orders?open=${o.id}">${esc(o.po_number)}</a>` },
       { key: 'supplier', label: 'Supplier', value: o => o.supplier, render: o => esc(o.supplier) },
-      { key: 'status', label: 'Status', value: o => o.status, render: o => `<span class="badge po-${o.status}">${PO_LABEL[o.status] || o.status}</span>`
-          + (o.is_overdue ? ' <span class="badge low">Overdue</span>' : '') },
-      { key: 'eta', label: 'Expected', value: o => o.expected_date || '', render: o => fmtDate(o.expected_date) },
-      { key: 'rcv', label: 'Received', numeric: true, value: o => o.qty_received, render: o => `${o.qty_received} / ${o.qty_ordered}` },
+      { key: 'status', label: 'Stage', value: o => o.status, render: o => `<span class="badge po-${o.status}">${PO_LABEL[o.status] || o.status}</span>` },
+      { key: 'next', label: 'Next step', value: o => (o.next_step && o.next_step.due) || '', render: o => o.next_step
+          ? `<span class="${o.next_step.late ? 'overdue-text' : ''}">${esc(o.next_step.label)}${o.next_step.due ? ' · ' + fmtDate(o.next_step.due) : ''}</span>` : '—' },
+      { key: 'eta', label: 'ETA', value: o => o.expected_date || '', render: o => fmtDate(o.expected_date) },
+      { key: 'rcv', label: 'In / out', numeric: true, value: o => o.qty_delivered, render: o => `${o.qty_received} / ${o.qty_delivered} of ${o.qty_ordered}` },
     ],
     rows: pos,
     actions: o => `<a class="btn btn-ghost btn-sm" href="/orders?open=${o.id}">Open</a>`,
@@ -315,7 +321,8 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   customers = c; warehouses = w;
   p.forEach(x => { products[x.id] = x; });
   document.getElementById('is-warehouse').innerHTML = warehouses.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
-  await Promise.all([loadProject(), loadQuotes(), loadMaterials(), loadMoves(), loadOrders()]);
+  await Promise.all([loadProject(), loadQuotes(), loadMaterials(), loadMoves()]);
+  loadOrders();  // after the quotations, so the button can offer them
   renderKpis();
 })();
 </script>

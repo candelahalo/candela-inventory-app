@@ -930,8 +930,10 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
 /* ---------- Supplier orders ---------- */
 .badge.po-draft { background: #EFE9DC; color: #6B6045; }
 .badge.po-ordered { background: #E8EEF5; color: #3D5F80; }
-.badge.po-shipped { background: #FBEFDB; color: var(--amber-deep); }
+.badge.po-ready { background: #E4E8F3; color: #3B4F86; }
+.badge.po-shipped, .badge.po-arrived, .badge.po-cleared { background: #FBEFDB; color: var(--amber-deep); }
 .badge.po-received { background: #E5EFE6; color: #3E7248; }
+.badge.po-delivered { background: #DCEBDF; color: #2F5C3A; }
 .badge.po-cancelled { background: #E9E7E3; color: var(--muted); }
 .badge.po-part { background: #EAF2EA; color: #3E7248; }
 .overdue-text { color: var(--red); font-weight: 600; }
@@ -955,3 +957,19 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
   .po-line { grid-template-columns: 1fr 1fr; }
   .po-line .field:nth-child(1), .po-line .field:nth-child(2) { grid-column: span 2; }
 }
+
+.po-sec { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin: 22px 0 10px; }
+.po-sec:first-of-type { margin-top: 4px; }
+.po-track { display: flex; gap: 0; margin: 4px 0 16px; overflow-x: auto; padding-bottom: 2px; }
+.po-step { flex: 1 1 0; min-width: 92px; position: relative; padding: 0 6px; text-align: center; }
+.po-step::before { content: ""; position: absolute; top: 7px; left: -50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+.po-step:first-child::before { display: none; }
+.po-step.done::before { background: var(--amber); }
+.po-dot { display: block; width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 6px; background: var(--white); border: 2px solid var(--line); position: relative; z-index: 1; }
+.po-step.done .po-dot { background: var(--amber); border-color: var(--amber); }
+.po-step.current .po-dot { box-shadow: 0 0 0 4px #FBEFDB; }
+.po-step-l { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+.po-step.done .po-step-l { color: var(--ink); }
+.po-step-d { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; min-height: 14px; }
+.po-track-cancel { align-self: center; margin-right: 12px; font-weight: 700; color: var(--red); font-size: 13px; }
+.lock-note.late { background: #F7E2DC; color: var(--red); }

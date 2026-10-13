@@ -312,10 +312,12 @@ class Backup(Base):
 
 
 # ---------- Supplier orders (purchase orders) ----------
-# Status is a plain string ("draft", "ordered", "shipped", "received",
-# "cancelled"). Part-received is shown from the received quantities, not
-# stored as its own status.
-PO_STATUSES = ["draft", "ordered", "shipped", "received", "cancelled"]
+# The stage follows the dates filled in: ordered -> ready at the supplier ->
+# shipped -> arrived -> customs cleared -> received into stock -> delivered
+# to the client. "draft" until it has an order date; "cancelled" is set by
+# hand. Part-received / part-delivered are shown from the quantities.
+PO_STATUSES = ["draft", "ordered", "ready", "shipped", "arrived", "cleared", "received", "delivered", "cancelled"]
+SHIP_MODES = ["air", "sea", "road", "courier", "local", "direct"]
 
 
 class PurchaseOrder(Base):
@@ -326,13 +328,38 @@ class PurchaseOrder(Base):
     supplier = Column(String(255), nullable=False, index=True)
     supplier_ref = Column(String(120))  # supplier's proforma / order confirmation no.
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    quotation_id = Column(Integer, index=True)  # the client quotation it was raised from, if any
     status = Column(String(20), nullable=False, default="draft", index=True)
     order_date = Column(DateTime)
-    expected_date = Column(DateTime)  # ETA
+    expected_date = Column(DateTime)  # ETA - arrival in the UAE
     received_date = Column(DateTime)
     currency = Column(String(8), default="AED")
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Supplier payment
+    payment_terms = Column(String(255))
+    advance_paid_date = Column(DateTime)
+    balance_paid_date = Column(DateTime)
+    # Readiness at the supplier
+    ready_expected = Column(DateTime)
+    ready_date = Column(DateTime)
+    # Shipment
+    ship_mode = Column(String(20))  # air / sea / road / courier / local / direct (supplier to site)
+    incoterm = Column(String(10))  # EXW, FCA, FOB, CIF, DAP, DDP ...
+    forwarder = Column(String(255))
+    tracking_no = Column(String(120))  # AWB / B/L / courier tracking
+    dispatch_date = Column(DateTime)
+    arrived_date = Column(DateTime)
+    # Customs
+    customs_agent = Column(String(255))
+    customs_ref = Column(String(120))  # bill of entry / declaration no.
+    cleared_date = Column(DateTime)
+    # Delivery to the client / site
+    delivery_planned = Column(DateTime)
+    delivered_date = Column(DateTime)
+    delivery_note = Column(String(120))
+    delivered_to = Column(String(255))  # received by
 
     project = relationship("Project")
     items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan",
@@ -351,9 +378,52 @@ class PurchaseOrder(Base):
         return sum(min(i.received_qty or 0, i.quantity) for i in self.items)
 
     @property
+    def qty_delivered(self):
+        return sum(min(i.delivered_qty or 0, i.quantity) for i in self.items)
+
+    def derive_status(self):
+        """The stage, from the dates and quantities filled in."""
+        if self.status == "cancelled":
+            return "cancelled"
+        if self.delivered_date or (self.qty_ordered and self.qty_delivered >= self.qty_ordered):
+            return "delivered"
+        if self.qty_ordered and self.qty_received >= self.qty_ordered:
+            return "received"
+        for attr, st in (("cleared_date", "cleared"), ("arrived_date", "arrived"),
+                         ("dispatch_date", "shipped"), ("ready_date", "ready"), ("order_date", "ordered")):
+            if getattr(self, attr):
+                return st
+        return "draft"
+
+    @property
+    def next_step(self):
+        """What has to happen next, by when, and whether that's late."""
+        st = self.status
+        local = self.ship_mode in ("local", "direct")
+        # Each step is due by its own planned date, or failing that by the
+        # next date we've committed to (ETA, then delivery to the client).
+        step = {
+            "draft": ("Place the order", None),
+            "ordered": ("Ready at supplier", self.ready_expected or self.expected_date or self.delivery_planned),
+            "ready": ("Dispatch" if not local else "Collect / deliver", self.expected_date or self.delivery_planned),
+            "shipped": ("Arrival", self.expected_date or self.delivery_planned),
+            "arrived": ("Customs clearance", self.delivery_planned),
+            "cleared": ("Receive into stock", self.delivery_planned),
+            "received": ("Deliver to client", self.delivery_planned),
+        }.get(st)
+        if self.ship_mode == "direct" and st in ("shipped", "arrived", "cleared"):
+            step = ("Delivered to site", self.delivery_planned or self.expected_date)
+        if not step:
+            return None
+        label, due = step
+        today = datetime.utcnow().date()
+        return {"label": label, "due": due.isoformat() if due else None,
+                "late": bool(due and due.date() < today)}
+
+    @property
     def is_overdue(self):
-        return (self.status in ("ordered", "shipped") and self.expected_date is not None
-                and self.expected_date.date() < datetime.utcnow().date())
+        n = self.next_step
+        return bool(n and n["late"])
 
 
 class PurchaseOrderItem(Base):
@@ -366,6 +436,7 @@ class PurchaseOrderItem(Base):
     quantity = Column(Integer, nullable=False)
     unit_cost = Column(Float, default=0.0)
     received_qty = Column(Integer, default=0)
+    delivered_qty = Column(Integer, default=0)  # handed over to the client / site
 
     order = relationship("PurchaseOrder", back_populates="items")
     product = relationship("Product")

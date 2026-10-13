@@ -4,42 +4,94 @@
 <div class="page-head">
   <div>
     <h1>Supplier orders</h1>
-    <p>What we've ordered from suppliers, when it's due, and what has arrived.</p>
+    <p>From ordering to delivery at the client's site: readiness, shipment, customs and hand-over.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn btn-ghost" id="from-quote-btn" title="One order per supplier with every line of a quotation">+ From a quotation</button>
     <button class="btn" id="show-add-btn">+ New order</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
   <div class="editor-head">
     <h2 id="form-title">New order</h2>
-    <div class="status-bar" id="status-bar" style="display:none;">
-      <span class="status-bar-label">Status</span>
-      <div class="seg" id="status-seg">
-        <button type="button" data-st="draft">Draft</button>
-        <button type="button" data-st="ordered">Ordered</button>
-        <button type="button" data-st="shipped">Shipped</button>
-        <button type="button" data-st="cancelled">Cancelled</button>
-      </div>
+    <div class="status-bar" id="action-bar" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" id="place-btn">Mark as ordered today</button>
       <button type="button" class="btn btn-sm" id="receive-btn">Receive goods</button>
+      <button type="button" class="btn btn-sm" id="deliver-btn">Deliver to client</button>
+      <button type="button" class="btn btn-ghost btn-sm btn-danger" id="cancel-order-btn">Cancel order</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="reopen-btn">Reopen</button>
     </div>
   </div>
-  <div class="lock-note" id="received-note" style="display:none;"></div>
-  <form id="po-form">
+  <div class="po-track" id="po-track"></div>
+  <div class="lock-note" id="next-note" style="display:none;"></div>
+
+  <form id="po-form" autocomplete="off">
     <input type="hidden" id="editing-id">
+
+    <h3 class="po-sec">1 · Order</h3>
     <div class="form-grid">
-      <div class="field"><label>Supplier</label><input name="supplier" required list="supplier-list" placeholder="HALO-UK" autocomplete="off">
+      <div class="field"><label>Supplier</label><input name="supplier" required list="supplier-list" placeholder="HALO-UK">
         <datalist id="supplier-list"></datalist></div>
-      <div class="field"><label>Supplier ref (proforma / confirmation no.)</label><input name="supplier_ref" placeholder="Optional"></div>
-      <div class="field"><label>For project (optional)</label><select name="project_id" id="po-project"></select></div>
+      <div class="field"><label>Supplier ref (proforma / order confirmation)</label><input name="supplier_ref" placeholder="Optional"></div>
+      <div class="field"><label>For project</label><select name="project_id" id="po-project"></select></div>
       <div class="field"><label>Currency</label><input name="currency" value="AED" maxlength="8"></div>
       <div class="field"><label>Order date</label><input name="order_date" type="date"></div>
-      <div class="field"><label>Expected (ETA)</label><input name="expected_date" type="date"></div>
-      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2" placeholder="Shipping mode, tracking number, anything to remember"></textarea></div>
+      <div class="field"><label>Supplier payment terms</label><input name="payment_terms" placeholder="e.g. 50% advance, 50% before dispatch"></div>
+      <div class="field"><label>Advance paid on</label><input name="advance_paid_date" type="date"></div>
+      <div class="field"><label>Balance paid on</label><input name="balance_paid_date" type="date"></div>
+    </div>
+
+    <h3 class="po-sec">2 · Readiness at supplier</h3>
+    <div class="form-grid">
+      <div class="field"><label>Expected ready date</label><input name="ready_expected" type="date"></div>
+      <div class="field"><label>Actually ready on</label><input name="ready_date" type="date"></div>
+    </div>
+
+    <h3 class="po-sec">3 · Shipment</h3>
+    <div class="form-grid">
+      <div class="field"><label>Shipping mode</label>
+        <select name="ship_mode">
+          <option value="">Not decided</option>
+          <option value="air">Air freight</option>
+          <option value="sea">Sea freight</option>
+          <option value="road">Road / truck</option>
+          <option value="courier">Courier (DHL, FedEx…)</option>
+          <option value="local">Local supplier (UAE)</option>
+          <option value="direct">Supplier delivers straight to site</option>
+        </select></div>
+      <div class="field"><label>Incoterm</label>
+        <select name="incoterm">
+          <option value="">—</option>
+          <option>EXW</option><option>FCA</option><option>FOB</option><option>CFR</option>
+          <option>CIF</option><option>CPT</option><option>DAP</option><option>DDP</option>
+        </select></div>
+      <div class="field"><label>Forwarder / courier</label><input name="forwarder" placeholder="e.g. Aramex, DHL, Kuehne+Nagel"></div>
+      <div class="field"><label>AWB / B/L / tracking no.</label><input name="tracking_no"></div>
+      <div class="field"><label>Dispatched on</label><input name="dispatch_date" type="date"></div>
+      <div class="field"><label>ETA (arrival in UAE)</label><input name="expected_date" type="date"></div>
+      <div class="field"><label>Arrived on</label><input name="arrived_date" type="date"></div>
+    </div>
+
+    <div id="customs-sec">
+      <h3 class="po-sec">4 · Customs clearance</h3>
+      <div class="form-grid">
+        <div class="field"><label>Clearing agent</label><input name="customs_agent"></div>
+        <div class="field"><label>Bill of entry / declaration no.</label><input name="customs_ref"></div>
+        <div class="field"><label>Cleared on</label><input name="cleared_date" type="date"></div>
+      </div>
+    </div>
+
+    <h3 class="po-sec"><span id="deliv-num">5</span> · Delivery to client</h3>
+    <div class="form-grid">
+      <div class="field"><label>Planned delivery to site</label><input name="delivery_planned" type="date"></div>
+      <div class="field"><label>Delivered on</label><input name="delivered_date" type="date"></div>
+      <div class="field"><label>Delivery note no.</label><input name="delivery_note"></div>
+      <div class="field"><label>Received by (client side)</label><input name="delivered_to"></div>
+      <div class="field span2"><label>Notes</label><textarea name="notes" rows="2" placeholder="Anything else to remember"></textarea></div>
     </div>
 
     <div class="panel-head" style="margin-top:22px;">
-      <h2 style="margin:0;">Lines</h2>
+      <h3 class="po-sec" style="margin:0;">Lines</h3>
       <button type="button" class="btn btn-ghost btn-sm" id="fill-btn" title="Add what the project's quotation needs and stock can't cover">Fill from project's quotation</button>
     </div>
     <div class="po-lines" id="po-lines"></div>
@@ -48,7 +100,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn">Save order</button>
-      <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
+      <button type="button" class="btn btn-ghost" id="cancel-btn">Close</button>
     </div>
   </form>
 </div>
@@ -56,18 +108,31 @@
 <div class="tabs" id="status-tabs" role="tablist"></div>
 <div class="panel"><div id="orders-table"></div></div>
 
-<!-- Receive goods -->
-<div id="rcv-overlay" class="modal-overlay" onclick="if (event.target === this) closeReceive()">
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rcv-title" style="max-width:640px;">
-    <h2 id="rcv-title">Receive goods</h2>
-    <p class="modal-sub" id="rcv-sub"></p>
-    <div class="field" style="margin-bottom:12px;"><label>Into warehouse</label><select id="rcv-warehouse"></select></div>
-    <div id="rcv-lines"></div>
-    <div class="field" style="margin-top:12px;"><label>Note (optional)</label><input id="rcv-notes" placeholder="Delivery note no., condition, etc."></div>
-    <p class="muted-note" style="margin:10px 0 0;">Product lines go into stock. Other lines are just marked received.</p>
+<!-- Receive / deliver goods (one dialog, two modes) -->
+<div id="mv-overlay" class="modal-overlay" onclick="if (event.target === this) closeMove()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mv-title" style="max-width:660px;">
+    <h2 id="mv-title">Receive goods</h2>
+    <p class="modal-sub" id="mv-sub"></p>
+    <div class="form-grid" id="mv-fields"></div>
+    <div id="mv-lines" style="margin-top:12px;"></div>
+    <p class="muted-note" id="mv-hint" style="margin:10px 0 0;"></p>
     <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" onclick="closeReceive()">Cancel</button>
-      <button type="button" class="btn" id="rcv-save">Receive</button>
+      <button type="button" class="btn btn-ghost" onclick="closeMove()">Cancel</button>
+      <button type="button" class="btn" id="mv-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Orders from a quotation -->
+<div id="fq-overlay" class="modal-overlay" onclick="if (event.target === this) closeFromQuote()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fq-title" style="max-width:560px;">
+    <h2 id="fq-title">Orders from a quotation</h2>
+    <p class="modal-sub">Makes one draft order per supplier (by brand) with every line of the quotation, quantities as quoted (spares included). Check each one, add costs and dates, then mark it ordered.</p>
+    <div class="field"><label>Quotation</label><select id="fq-quote"></select></div>
+    <p class="muted-note" id="fq-note" style="margin:10px 0 0;"></p>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeFromQuote()">Cancel</button>
+      <button type="button" class="btn" id="fq-save">Create orders</button>
     </div>
   </div>
 </div>
@@ -75,84 +140,93 @@
 
 {% block script %}
 <script>
-const PO_STATUS = { draft: 'Draft', ordered: 'Ordered', shipped: 'Shipped', received: 'Received', cancelled: 'Cancelled' };
+const STAGES = [
+  ['ordered', 'Ordered', 'order_date'], ['ready', 'Ready', 'ready_date'], ['shipped', 'Shipped', 'dispatch_date'],
+  ['arrived', 'Arrived', 'arrived_date'], ['cleared', 'Cleared', 'cleared_date'], ['received', 'In stock', 'received_date'],
+  ['delivered', 'Delivered', 'delivered_date'],
+];
+const STAGE_LABEL = { draft: 'Draft', ordered: 'Ordered', ready: 'Ready at supplier', shipped: 'Shipped', arrived: 'Arrived',
+  cleared: 'Customs cleared', received: 'In stock', delivered: 'Delivered', cancelled: 'Cancelled' };
+const TABS = [
+  ['all', 'All', () => true],
+  ['open', 'Open', o => !['draft', 'delivered', 'cancelled'].includes(o.status)],
+  ['late', 'Late', o => o.is_overdue],
+  ['draft', 'Draft', o => o.status === 'draft'],
+  ['production', 'At supplier', o => ['ordered', 'ready'].includes(o.status)],
+  ['transit', 'In transit', o => ['shipped', 'arrived', 'cleared'].includes(o.status)],
+  ['stock', 'In stock', o => o.status === 'received'],
+  ['delivered', 'Delivered', o => o.status === 'delivered'],
+  ['cancelled', 'Cancelled', o => o.status === 'cancelled'],
+];
+const DATE_FIELDS = ['order_date', 'advance_paid_date', 'balance_paid_date', 'ready_expected', 'ready_date', 'dispatch_date',
+  'expected_date', 'arrived_date', 'cleared_date', 'delivery_planned', 'delivered_date'];
+const TEXT_FIELDS = ['supplier_ref', 'payment_terms', 'ship_mode', 'incoterm', 'forwarder', 'tracking_no',
+  'customs_agent', 'customs_ref', 'delivery_note', 'delivered_to', 'notes'];
+
 let ordersCache = [], productsCache = [], projectsCache = [], warehousesCache = [];
 let openOrder = null;
-let activeStatus = 'all';
-
+let activeTab = 'all';
 const esc = escHtml;
 const dateInput = iso => iso ? iso.substring(0, 10) : '';
 const money = (n, cur) => (cur && cur !== 'AED' ? cur + ' ' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : fmtMoney(n));
+const today = () => new Date().toISOString().substring(0, 10);
 
-// Status shown in lists: overdue and part-received are worked out, not stored
-function statusBadges(o) {
-  const part = o.qty_received > 0 && o.qty_received < o.qty_ordered && o.status !== 'cancelled';
-  return `<span class="badge po-${o.status}">${PO_STATUS[o.status] || o.status}</span>`
-    + (part ? ' <span class="badge po-part">Part received</span>' : '')
-    + (o.is_overdue ? ' <span class="badge low">Overdue</span>' : '');
+function stageBadge(o) {
+  const partR = o.qty_received > 0 && o.qty_received < o.qty_ordered && !['received', 'delivered', 'cancelled'].includes(o.status);
+  const partD = o.qty_delivered > 0 && o.qty_delivered < o.qty_ordered && o.status !== 'delivered';
+  return `<span class="badge po-${o.status}">${STAGE_LABEL[o.status] || o.status}</span>`
+    + (partR ? ' <span class="badge po-part">Part received</span>' : '')
+    + (partD ? ' <span class="badge po-part">Part delivered</span>' : '');
+}
+function nextStep(o) {
+  const n = o.next_step;
+  if (!n) return '<span class="muted">—</span>';
+  return `<span class="${n.late ? 'overdue-text' : ''}">${esc(n.label)}</span>`
+    + (n.due ? `<div class="sub${n.late ? ' overdue-text' : ''}">${n.late ? 'was due ' : 'by '}${fmtDate(n.due)}</div>` : '');
 }
 
-// ---------- status tabs (kept in the URL: #ordered) ----------
-function readHash() {
-  const h = location.hash.slice(1);
-  activeStatus = (PO_STATUS[h] || h === 'open' || h === 'overdue') ? h : 'all';
-}
+// ---------- tabs (kept in the URL: #late) ----------
+function readHash() { const h = location.hash.slice(1); activeTab = TABS.some(t => t[0] === h) ? h : 'all'; }
 readHash();
 window.addEventListener('hashchange', () => { readHash(); renderOrders(); });
-function setStatusTab(st) {
-  activeStatus = st;
-  history.replaceState(null, '', location.pathname + location.search + (st === 'all' ? '' : '#' + st));
+function setTab(t) {
+  activeTab = t;
+  history.replaceState(null, '', location.pathname + location.search + (t === 'all' ? '' : '#' + t));
   renderOrders();
-}
-const isOpen = o => o.status === 'ordered' || o.status === 'shipped';
-function inTab(o, t) {
-  if (t === 'all') return true;
-  if (t === 'open') return isOpen(o);
-  if (t === 'overdue') return o.is_overdue;
-  return o.status === t;
-}
-function ordersReportParams() {
-  return PO_STATUS[activeStatus] ? '&status=' + activeStatus : '';
 }
 
 // ---------- list ----------
-async function loadOrders() {
-  ordersCache = await api('/orders/');
-  renderOrders();
-}
+async function loadOrders() { ordersCache = await api('/orders/'); renderOrders(); }
 
 function renderOrders() {
-  const tabs = [['all', 'All'], ['open', 'Open'], ['overdue', 'Overdue'], ['draft', 'Draft'], ['ordered', 'Ordered'],
-                ['shipped', 'Shipped'], ['received', 'Received'], ['cancelled', 'Cancelled']];
-  document.getElementById('status-tabs').innerHTML = tabs.map(([t, label]) => {
-    const n = ordersCache.filter(o => inTab(o, t)).length;
-    if (t === 'overdue' && !n && activeStatus !== 'overdue') return '';
-    const on = t === activeStatus;
-    return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" aria-selected="${on}" data-st="${t}"
-      onclick="setStatusTab('${t}')">${label} <span class="tab-count${t === 'overdue' ? ' warn' : ''}">${n}</span></button>`;
+  document.getElementById('status-tabs').innerHTML = TABS.map(([key, label, fn]) => {
+    const n = ordersCache.filter(fn).length;
+    if ((key === 'late' || key === 'cancelled') && !n && activeTab !== key) return '';
+    const on = key === activeTab;
+    return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" aria-selected="${on}" data-tab="${key}"
+      onclick="setTab('${key}')">${label} <span class="tab-count${key === 'late' ? ' warn' : ''}">${n}</span></button>`;
   }).join('');
-
+  const fn = (TABS.find(t => t[0] === activeTab) || TABS[0])[2];
   const projName = id => { const p = projectsCache.find(x => x.id === id); return p ? p.project_number : ''; };
-  const rows = ordersCache.filter(o => inTab(o, activeStatus));
   DataTable.render({
     containerId: 'orders-table',
     storageKey: 'orders',
-    emptyMessage: ordersCache.length ? 'No orders here.' : 'No supplier orders yet — use “+ New order” when you order from a supplier.',
+    emptyMessage: ordersCache.length ? 'No orders here.' : 'No supplier orders yet — use “+ From a quotation” or “+ New order”.',
     columns: [
       { key: 'po', label: 'PO #', value: o => o.po_number, render: o => `<a href="#" class="panel-link mono nowrap" onclick="openOrderById(${o.id}); return false;">${esc(o.po_number)}</a>` },
       { key: 'supplier', label: 'Supplier', value: o => o.supplier, render: o => esc(o.supplier) + (o.supplier_ref ? `<div class="sub">${esc(o.supplier_ref)}</div>` : '') },
-      { key: 'project', label: 'Project', value: o => projName(o.project_id), render: o => o.project_id ? `<a class="panel-link" href="/projects/view/${o.project_id}">${esc(projName(o.project_id))}</a>` : '—' },
-      { key: 'status', label: 'Status', value: o => o.status, render: statusBadges },
-      { key: 'ordered', label: 'Ordered', value: o => o.order_date || '', render: o => `<span class="nowrap">${fmtDate(o.order_date)}</span>` },
-      { key: 'eta', label: 'Expected', value: o => o.expected_date || '', render: o => `<span class="nowrap${o.is_overdue ? ' overdue-text' : ''}">${fmtDate(o.expected_date)}</span>` },
-      { key: 'received', label: 'Received', numeric: true, value: o => o.qty_ordered ? o.qty_received / o.qty_ordered : 0,
-        render: o => `<span class="nowrap">${o.qty_received} / ${o.qty_ordered}</span>` },
+      { key: 'project', label: 'Project', value: o => projName(o.project_id), render: o => o.project_id ? `<a class="panel-link" href="/projects/view/${o.project_id}">${esc(projName(o.project_id))}</a>` : '<span class="muted">Stock</span>' },
+      { key: 'stage', label: 'Stage', value: o => STAGES.findIndex(s => s[0] === o.status), render: stageBadge },
+      { key: 'next', label: 'Next step', value: o => (o.next_step && o.next_step.due) || '', render: nextStep },
+      { key: 'eta', label: 'ETA', value: o => o.expected_date || '', render: o => `<span class="nowrap">${fmtDate(o.expected_date)}</span>` },
+      { key: 'qty', label: 'In / out', numeric: true, value: o => o.qty_ordered ? o.qty_delivered / o.qty_ordered : 0,
+        render: o => `<span class="nowrap" title="received / delivered of ordered">${o.qty_received} / ${o.qty_delivered} <span class="muted">of ${o.qty_ordered}</span></span>` },
       { key: 'value', label: 'Value', numeric: true, value: o => o.total, render: o => `<span class="nowrap">${money(o.total, o.currency)}</span>` },
     ],
-    rows: rows,
+    rows: ordersCache.filter(fn),
     actions: o => `
       <button class="btn btn-ghost btn-sm" onclick="openOrderById(${o.id})">Open</button>
-      ${o.qty_received ? '' : `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteOrder(${o.id}, '${esc(o.po_number)}')">Delete</button>`}
+      ${o.qty_received || o.qty_delivered ? '' : `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteOrder(${o.id}, '${esc(o.po_number)}')">Delete</button>`}
     `,
   });
 }
@@ -171,16 +245,16 @@ function productOptions(selected) {
 
 function addLine(item) {
   item = item || {};
-  const received = item.received_qty || 0;
-  const locked = received > 0;
+  const rcv = item.received_qty || 0, dlv = item.delivered_qty || 0;
+  const locked = rcv > 0 || dlv > 0;
   const wrap = document.getElementById('po-lines');
   wrap.insertAdjacentHTML('beforeend', `
-    <div class="po-line" data-id="${item.id || ''}" data-received="${received}">
-      <div class="field"><label>Product</label><select class="pl-product" ${locked ? 'disabled title="Goods received - product can\'t change"' : ''}>${productOptions(item.product_id)}</select></div>
+    <div class="po-line" data-id="${item.id || ''}">
+      <div class="field"><label>Product</label><select class="pl-product" ${locked ? 'disabled' : ''}>${productOptions(item.product_id)}</select></div>
       <div class="field"><label>Description</label><input class="pl-desc" value="${esc(item.description || '')}" placeholder="What's being ordered"></div>
-      <div class="field"><label>Qty</label><input class="pl-qty" type="number" min="${Math.max(1, received)}" value="${item.quantity || 1}"></div>
+      <div class="field"><label>Qty</label><input class="pl-qty" type="number" min="${Math.max(1, rcv, dlv)}" value="${item.quantity || 1}"></div>
       <div class="field"><label>Unit cost</label><input class="pl-cost" type="number" step="0.01" value="${item.unit_cost != null ? item.unit_cost : 0}"></div>
-      <div class="field"><label>Received</label><div class="pl-rcv">${received}</div></div>
+      <div class="field"><label>In / out</label><div class="pl-rcv" title="received / delivered">${rcv} / ${dlv}</div></div>
       ${locked ? '<span></span>' : `<button type="button" class="remove-line" title="Remove line" onclick="this.closest('.po-line').remove(); recalc();">×</button>`}
     </div>`);
   const row = wrap.lastElementChild;
@@ -206,6 +280,36 @@ function recalc() {
   document.getElementById('po-total').textContent = money(total, cur);
 }
 
+// Local suppliers and straight-to-site deliveries skip customs
+function syncShipMode() {
+  const mode = document.querySelector('#po-form [name=ship_mode]').value;
+  const noCustoms = mode === 'local' || mode === 'direct';
+  document.getElementById('customs-sec').style.display = noCustoms ? 'none' : '';
+  document.getElementById('deliv-num').textContent = noCustoms ? '4' : '5';
+}
+document.querySelector('#po-form [name=ship_mode]').addEventListener('change', syncShipMode);
+
+// The progress strip: each stage with its actual (or planned) date
+function renderTrack(o) {
+  const el = document.getElementById('po-track');
+  if (!o) { el.innerHTML = ''; return; }
+  const order = ['draft', ...STAGES.map(s => s[0])];
+  const idx = order.indexOf(o.status);
+  const skip = (o.ship_mode === 'local' || o.ship_mode === 'direct') ? ['arrived', 'cleared'] : [];
+  const plan = { ready: o.ready_expected, arrived: o.expected_date, delivered: o.delivery_planned, shipped: null };
+  el.innerHTML = (o.status === 'cancelled' ? '<div class="po-track-cancel">Cancelled</div>' : '') +
+    STAGES.filter(s => !skip.includes(s[0])).map(([key, label, field]) => {
+      const done = o.status !== 'cancelled' && order.indexOf(key) <= idx;
+      const date = o[field];
+      const planned = !date && plan[key];
+      const late = planned && planned.substring(0, 10) < today();
+      return `<div class="po-step${done ? ' done' : ''}${order.indexOf(key) === idx ? ' current' : ''}">
+        <span class="po-dot"></span><span class="po-step-l">${label}</span>
+        <span class="po-step-d${late ? ' overdue-text' : ''}">${date ? fmtDate(date) : planned ? (late ? 'was due ' : 'plan ') + fmtDate(planned) : ''}</span>
+      </div>`;
+    }).join('');
+}
+
 function showPanel(title) {
   document.getElementById('form-title').textContent = title;
   document.getElementById('add-panel').style.display = 'block';
@@ -217,8 +321,10 @@ function hidePanel() {
   document.getElementById('po-form').reset();
   document.getElementById('editing-id').value = '';
   document.getElementById('po-lines').innerHTML = '';
-  document.getElementById('status-bar').style.display = 'none';
-  document.getElementById('received-note').style.display = 'none';
+  document.getElementById('action-bar').style.display = 'none';
+  document.getElementById('next-note').style.display = 'none';
+  renderTrack(null);
+  syncShipMode();
   openOrder = null;
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
 }
@@ -229,12 +335,20 @@ document.querySelector('#po-form [name=currency]').addEventListener('input', rec
 
 function newOrder(projectId) {
   hidePanel();
-  const f = document.getElementById('po-form');
-  if (projectId) f.project_id.value = projectId;
-  f.order_date.value = new Date().toISOString().substring(0, 10);
+  if (projectId) document.getElementById('po-project').value = projectId;
   showPanel('New order');
   addLine();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function fillForm(o) {
+  const f = document.getElementById('po-form');
+  f.supplier.value = o.supplier;
+  f.project_id.value = o.project_id || '';
+  f.currency.value = o.currency || 'AED';
+  DATE_FIELDS.forEach(k => { f[k].value = dateInput(o[k]); });
+  TEXT_FIELDS.forEach(k => { f[k].value = o[k] || ''; });
+  syncShipMode();
 }
 
 async function openOrderById(id) {
@@ -242,49 +356,52 @@ async function openOrderById(id) {
   try { o = await api('/orders/' + id); } catch (err) { toast(err.message, true); return; }
   hidePanel();
   openOrder = o;
-  const f = document.getElementById('po-form');
-  f.supplier.value = o.supplier; f.supplier_ref.value = o.supplier_ref || '';
-  f.project_id.value = o.project_id || ''; f.currency.value = o.currency || 'AED';
-  f.order_date.value = dateInput(o.order_date); f.expected_date.value = dateInput(o.expected_date);
-  f.notes.value = o.notes || '';
+  fillForm(o);
   document.getElementById('editing-id').value = o.id;
   o.items.forEach(addLine);
-  showPanel(`Order ${o.po_number}`);
-  showStatusBar(o);
+  showPanel(`Order ${o.po_number} · ${o.supplier}`);
+  showOrderState(o);
   history.replaceState(null, '', location.pathname + '?open=' + o.id + location.hash);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function showStatusBar(o) {
-  const bar = document.getElementById('status-bar');
-  const note = document.getElementById('received-note');
+function showOrderState(o) {
+  renderTrack(o);
+  const bar = document.getElementById('action-bar');
   bar.style.display = 'flex';
-  const done = o.status === 'received';
-  document.getElementById('status-seg').style.display = done ? 'none' : '';
-  document.querySelectorAll('#status-seg button').forEach(b => b.classList.toggle('active', b.dataset.st === o.status));
-  const rb = document.getElementById('receive-btn');
-  rb.style.display = (done || o.status === 'cancelled') ? 'none' : '';
-  if (done) {
-    note.innerHTML = `Fully received${o.received_date ? ' on ' + fmtDate(o.received_date) : ''}. ${o.qty_received} item${o.qty_received === 1 ? '' : 's'} booked in.`;
+  const show = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+  const live = o.status !== 'cancelled';
+  const direct = o.ship_mode === 'direct';
+  show('place-btn', o.status === 'draft');
+  show('receive-btn', live && !direct && o.qty_received < o.qty_ordered && o.status !== 'delivered');
+  show('deliver-btn', live && o.qty_delivered < o.qty_ordered && (direct || o.qty_received > o.qty_delivered));
+  show('cancel-order-btn', live && !o.qty_received && !o.qty_delivered && o.status !== 'delivered');
+  show('reopen-btn', !live);
+  const note = document.getElementById('next-note');
+  const n = o.next_step;
+  if (n) {
+    note.innerHTML = `<strong>Next:</strong> ${esc(n.label)}` + (n.due ? ` — ${n.late ? '<span class="overdue-text">was due ' : 'by '}${fmtDate(n.due)}${n.late ? '</span>' : ''}` : '')
+      + (o.status === 'draft' ? ' · fill in the order date (or use “Mark as ordered today”) once it\'s placed.' : '');
+    note.className = 'lock-note' + (n.late ? ' late' : '');
     note.style.display = 'block';
-  } else if (o.qty_received) {
-    note.innerHTML = `${o.qty_received} of ${o.qty_ordered} received so far.`;
-    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
   }
 }
 
-document.querySelectorAll('#status-seg button').forEach(b => b.addEventListener('click', async () => {
-  if (!openOrder || b.dataset.st === openOrder.status) return;
-  if (b.dataset.st === 'cancelled' && !confirm(`Cancel order ${openOrder.po_number}?`)) return;
+async function quick(action, confirmText) {
+  if (!openOrder) return;
+  if (confirmText && !confirm(confirmText)) return;
   try {
-    const o = await api(`/orders/${openOrder.id}/status/${b.dataset.st}`, { method: 'POST' });
-    openOrder = o;
-    if (o.order_date) document.querySelector('#po-form [name=order_date]').value = dateInput(o.order_date);
-    showStatusBar(o);
-    toast(`${o.po_number} marked ${PO_STATUS[o.status].toLowerCase()}`);
-    loadOrders();
+    const o = await api(`/orders/${openOrder.id}/status/${action}`, { method: 'POST' });
+    toast(`${o.po_number}: ${STAGE_LABEL[o.status]}`);
+    await loadOrders();
+    openOrderById(o.id);
   } catch (err) { toast(err.message, true); }
-}));
+}
+document.getElementById('place-btn').addEventListener('click', () => quick('ordered'));
+document.getElementById('cancel-order-btn').addEventListener('click', () => quick('cancelled', `Cancel order ${openOrder.po_number}?`));
+document.getElementById('reopen-btn').addEventListener('click', () => quick('reopen'));
 
 function collect() {
   const f = document.getElementById('po-form');
@@ -296,17 +413,16 @@ function collect() {
     unit_cost: parseFloat(r.querySelector('.pl-cost').value) || 0,
   }));
   if (!items.length) { toast('Add at least one line', true); return null; }
-  return {
+  const payload = {
     supplier: f.supplier.value.trim(),
-    supplier_ref: f.supplier_ref.value.trim() || null,
     project_id: parseInt(f.project_id.value) || null,
-    status: openOrder && openOrder.status !== 'received' ? openOrder.status : (openOrder ? 'shipped' : 'draft'),
-    order_date: f.order_date.value || null,
-    expected_date: f.expected_date.value || null,
     currency: f.currency.value.trim() || 'AED',
-    notes: f.notes.value.trim() || null,
+    cancelled: !!(openOrder && openOrder.status === 'cancelled'),
     items,
   };
+  DATE_FIELDS.forEach(k => { payload[k] = f[k].value || null; });
+  TEXT_FIELDS.forEach(k => { payload[k] = f[k].value.trim() || null; });
+  return payload;
 }
 
 document.getElementById('po-form').addEventListener('submit', async (e) => {
@@ -317,7 +433,7 @@ document.getElementById('po-form').addEventListener('submit', async (e) => {
   try {
     const o = id ? await api('/orders/' + id, { method: 'PUT', body: JSON.stringify(payload) })
                  : await api('/orders/', { method: 'POST', body: JSON.stringify(payload) });
-    toast(id ? `${o.po_number} updated` : `${o.po_number} created`);
+    toast(`${o.po_number} saved · ${STAGE_LABEL[o.status]}`);
     await loadOrders();
     loadSuppliers();
     openOrderById(o.id);
@@ -332,7 +448,6 @@ document.getElementById('fill-btn').addEventListener('click', async () => {
   try { res = await api('/orders/from-project/' + pid); } catch (err) { toast(err.message, true); return; }
   if (!res.quotation) { toast('That project has no quotation yet', true); return; }
   if (!res.lines.length) { toast(`Everything on ${res.quotation} is covered by stock`); return; }
-  // Replace an untouched blank first line
   const lines = document.querySelectorAll('.po-line');
   if (lines.length === 1 && !lines[0].dataset.id && !lines[0].querySelector('.pl-desc').value && !lines[0].querySelector('.pl-product').value) {
     lines[0].remove();
@@ -341,42 +456,104 @@ document.getElementById('fill-btn').addEventListener('click', async () => {
   toast(`Added ${res.lines.length} line${res.lines.length === 1 ? '' : 's'} from ${res.quotation}`);
 });
 
-// ---------- receiving ----------
-function openReceive() {
-  if (!openOrder) return;
-  const todo = openOrder.items.filter(i => i.received_qty < i.quantity);
-  if (!todo.length) { toast('Everything on this order has been received'); return; }
-  document.getElementById('rcv-sub').textContent = `${openOrder.po_number} · ${openOrder.supplier}`;
-  document.getElementById('rcv-warehouse').innerHTML = warehousesCache.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+// ---------- receive / deliver ----------
+let moveMode = null;
+function openMove(mode) {
+  const o = openOrder;
+  if (!o) return;
+  moveMode = mode;
+  const direct = o.ship_mode === 'direct';
+  const todo = o.items.map(i => {
+    const left = mode === 'receive' ? i.quantity - i.received_qty
+      : (direct ? i.quantity : i.received_qty) - i.delivered_qty;
+    return { ...i, left };
+  }).filter(i => i.left > 0);
+  if (!todo.length) { toast(mode === 'receive' ? 'Everything has been received' : 'Nothing received is waiting for delivery'); return; }
+  const needsWh = todo.some(i => i.product_id) && !(mode === 'deliver' && direct);
+  if (needsWh && !warehousesCache.length) { toast('Add a warehouse on the Stock page first', true); return; }
+  document.getElementById('mv-title').textContent = mode === 'receive' ? 'Receive goods' : 'Deliver to client';
+  document.getElementById('mv-sub').textContent = `${o.po_number} · ${o.supplier}`;
+  const wh = needsWh ? `<div class="field"><label>${mode === 'receive' ? 'Into warehouse' : 'From warehouse'}</label><select id="mv-warehouse">${warehousesCache.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('')}</select></div>` : '';
+  document.getElementById('mv-fields').innerHTML = mode === 'receive'
+    ? wh + `<div class="field"><label>Note (optional)</label><input id="mv-notes" placeholder="Supplier delivery note, condition…"></div>`
+    : wh + `<div class="field"><label>Delivered on</label><input id="mv-date" type="date" value="${today()}"></div>
+            <div class="field"><label>Delivery note no.</label><input id="mv-dn" value="${esc(o.delivery_note || '')}"></div>
+            <div class="field"><label>Received by (client side)</label><input id="mv-to" value="${esc(o.delivered_to || '')}"></div>`;
   const prod = id => productsCache.find(p => p.id === id);
-  document.getElementById('rcv-lines').innerHTML = `<table class="rcv-table"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Already in</th><th class="num">Receiving now</th></tr></thead><tbody>` +
+  document.getElementById('mv-lines').innerHTML = `<table class="rcv-table"><thead><tr><th>Item</th><th class="num">Ordered</th>
+      <th class="num">${mode === 'receive' ? 'Already in' : 'Delivered'}</th><th class="num">${mode === 'receive' ? 'Receiving now' : 'Delivering now'}</th></tr></thead><tbody>` +
     todo.map(i => {
       const p = prod(i.product_id);
-      const label = p ? `<span class="mono">${esc(p.sku)}</span> ${esc(p.name)}` : esc(i.description || '—') + ' <span class="muted">(not a stock item)</span>';
-      const left = i.quantity - i.received_qty;
-      return `<tr><td>${label}</td><td class="num">${i.quantity}</td><td class="num">${i.received_qty}</td>
-        <td class="num"><input type="number" class="rcv-qty" data-item="${i.id}" min="0" max="${left}" value="${left}"></td></tr>`;
+      const label = p ? `<span class="mono">${esc(p.sku)}</span> ${esc(p.name)}` : esc(i.description || '—');
+      return `<tr><td>${label}</td><td class="num">${i.quantity}</td><td class="num">${mode === 'receive' ? i.received_qty : i.delivered_qty}</td>
+        <td class="num"><input type="number" class="mv-qty" data-item="${i.id}" min="0" max="${i.left}" value="${i.left}"></td></tr>`;
     }).join('') + '</tbody></table>';
-  document.getElementById('rcv-notes').value = '';
-  document.getElementById('rcv-overlay').classList.add('open');
+  document.getElementById('mv-hint').textContent = mode === 'receive'
+    ? 'Product lines go into stock; other lines are just marked received.'
+    : (o.project_id ? 'Product lines are issued from stock to this project; the project moves to Delivered once everything on its quotation has gone to site.'
+                    : 'Product lines are taken out of stock.');
+  document.getElementById('mv-save').textContent = mode === 'receive' ? 'Receive' : 'Deliver';
+  document.getElementById('mv-overlay').classList.add('open');
 }
-function closeReceive() { document.getElementById('rcv-overlay').classList.remove('open'); }
-document.getElementById('receive-btn').addEventListener('click', () => {
-  if (!warehousesCache.length) { toast('Add a warehouse on the Stock page first', true); return; }
-  openReceive();
-});
-document.getElementById('rcv-save').addEventListener('click', async () => {
-  const lines = [...document.querySelectorAll('.rcv-qty')].map(i => ({ item_id: parseInt(i.dataset.item), quantity: parseInt(i.value) || 0 }))
+function closeMove() { document.getElementById('mv-overlay').classList.remove('open'); }
+document.getElementById('receive-btn').addEventListener('click', () => openMove('receive'));
+document.getElementById('deliver-btn').addEventListener('click', () => openMove('deliver'));
+document.getElementById('mv-save').addEventListener('click', async () => {
+  const lines = [...document.querySelectorAll('.mv-qty')].map(i => ({ item_id: parseInt(i.dataset.item), quantity: parseInt(i.value) || 0 }))
     .filter(l => l.quantity > 0);
-  if (!lines.length) { toast('Enter what arrived', true); return; }
+  if (!lines.length) { toast('Enter the quantities', true); return; }
+  const wh = document.getElementById('mv-warehouse');
+  const body = { warehouse_id: wh ? parseInt(wh.value) : null, lines };
+  if (moveMode === 'receive') {
+    body.notes = document.getElementById('mv-notes').value.trim() || null;
+  } else {
+    body.date = document.getElementById('mv-date').value || null;
+    body.delivery_note = document.getElementById('mv-dn').value.trim() || null;
+    body.delivered_to = document.getElementById('mv-to').value.trim() || null;
+  }
   try {
-    const o = await api(`/orders/${openOrder.id}/receive`, { method: 'POST', body: JSON.stringify({
-      warehouse_id: parseInt(document.getElementById('rcv-warehouse').value), lines,
-      notes: document.getElementById('rcv-notes').value.trim() || null }) });
-    closeReceive();
-    toast(o.status === 'received' ? `${o.po_number} fully received — stock updated` : 'Received — stock updated');
+    const o = await api(`/orders/${openOrder.id}/${moveMode}`, { method: 'POST', body: JSON.stringify(body) });
+    closeMove();
+    toast(moveMode === 'receive'
+      ? (o.status === 'received' ? `${o.po_number}: all received — stock updated` : 'Received — stock updated')
+      : (o.status === 'delivered' ? `${o.po_number}: delivered to client` : 'Delivered — recorded'));
     await loadOrders();
     openOrderById(o.id);
+  } catch (err) { toast(err.message, true); }
+});
+
+// ---------- orders from a quotation ----------
+let quotesList = [];
+async function openFromQuote(preselect) {
+  try { quotesList = await api('/quotations/'); } catch (err) { toast(err.message, true); return; }
+  if (!quotesList.length) { toast('No quotations yet', true); return; }
+  const projName = id => { const p = projectsCache.find(x => x.id === id); return p ? ' · ' + p.name : ''; };
+  // Accepted quotations first: those are the ones to order for
+  const sorted = [...quotesList].sort((a, b) => (b.status === 'accepted') - (a.status === 'accepted'));
+  document.getElementById('fq-quote').innerHTML = sorted.map(q =>
+    `<option value="${q.id}" ${q.id === preselect ? 'selected' : ''}>${esc(q.quote_number)} (${q.status})${esc(projName(q.project_id))}</option>`).join('');
+  updateFqNote();
+  document.getElementById('fq-overlay').classList.add('open');
+}
+function updateFqNote() {
+  const id = parseInt(document.getElementById('fq-quote').value);
+  const existing = ordersCache.filter(o => o.quotation_id === id && o.status !== 'cancelled');
+  document.getElementById('fq-note').innerHTML = existing.length
+    ? `<span class="overdue-text">Already ordered from this quotation: ${existing.map(o => esc(o.po_number)).join(', ')}.</span> Creating again makes new orders.`
+    : '';
+}
+function closeFromQuote() { document.getElementById('fq-overlay').classList.remove('open'); }
+document.getElementById('fq-quote').addEventListener('change', updateFqNote);
+document.getElementById('from-quote-btn').addEventListener('click', () => openFromQuote());
+document.getElementById('fq-save').addEventListener('click', async () => {
+  const id = parseInt(document.getElementById('fq-quote').value);
+  try {
+    const made = await api(`/orders/from-quotation/${id}`, { method: 'POST' });
+    closeFromQuote();
+    toast(`${made.length} draft order${made.length === 1 ? '' : 's'} created: ${made.map(o => o.supplier).join(', ')}`);
+    setTab('draft');
+    await loadOrders();
+    if (made.length) openOrderById(made[0].id);
   } catch (err) { toast(err.message, true); }
 });
 
@@ -389,7 +566,7 @@ async function loadSuppliers() {
 }
 
 (async () => {
-  document.getElementById('report-btns').innerHTML = reportButtons('orders', { extra: 'ordersReportParams()' });
+  document.getElementById('report-btns').innerHTML = reportButtons('orders');
   const [products, projects, warehouses] = await Promise.all([
     api('/products/'), api('/projects/'), api('/stock/warehouses')]);
   productsCache = products; projectsCache = projects; warehousesCache = warehouses;
@@ -400,6 +577,7 @@ async function loadSuppliers() {
   const params = new URLSearchParams(location.search);
   if (params.get('open')) openOrderById(parseInt(params.get('open')));
   else if (params.get('new')) newOrder(parseInt(params.get('project')) || null);
+  else if (params.get('quotation')) openFromQuote(parseInt(params.get('quotation')));
 })();
 </script>
 {% endblock %}
