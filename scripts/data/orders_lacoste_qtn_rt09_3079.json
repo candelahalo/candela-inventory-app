@@ -1,44 +1,123 @@
 {
   "source": "QTN/RT09/3079 (Opt 2 - as per brand) dated 13 Oct 2026",
-  "customer": {"name": "Allied Enterprises LLC", "address": "Dubai Design District, P.O. Box 30069, Dubai, UAE", "category": "retail"},
-  "project": {"name": "LACOSTE - SG - 46 Dubai Outlet Mall Dubai UAE", "division": "lighting", "category": "retail",
-              "site_address": "Dubai Outlet Mall, Dubai"},
-  "client_promise": "4-6 weeks from the date of order confirmation, delivered to site",
+  "customer": {
+    "name": "Allied Enterprises LLC",
+    "address": "Dubai Design District, P.O. Box 30069, Dubai, UAE",
+    "category": "retail"
+  },
+  "project": {
+    "name": "LACOSTE - SG - 46 Dubai Outlet Mall Dubai UAE",
+    "division": "lighting",
+    "category": "retail",
+    "site_address": "Dubai Outlet Mall, Dubai"
+  },
+  "client_promise": "Confirmed by client 13 Oct 2026 - 4-6 weeks, delivered to site by 24 Nov 2026",
   "orders": [
-    {"supplier": "QUATTROBI - ITALY", "ship_mode": "air",
-     "notes": "Fittings qty include 2 spares per type. Track + accessories are for the T1 BAMBOO 230V track spots.",
-     "lines": [
-      ["D1 · KOR S · 17W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Fit Room 6 incl. 2 spare + Vestibule 3)", 9],
-      ["D2 · KOR S · 21W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Sales Area, incl. 2 spare)", 28],
-      ["D3 · KOR M · 32W · 3000K · CRI>90 · White · ON/OFF · beams 16/34/50° · D160 (Shop Front, incl. 2 spare)", 11],
-      ["T1 · BAMBOO track spot 220-240V · 21W · 3000K · CRI>90 · White · beams 15/32/51° · D76xH145 (Open Ceiling, incl. 2 spare)", 15],
-      ["230V suspended track channel 2 m (for T1)", 5],
-      ["230V suspended track channel 1 m (for T1)", 1],
-      ["Track I connector", 5],
-      ["Track L connector", 4],
-      ["Track live end connector / power feeder", 2],
-      ["Track end cap (set)", 2],
-      ["Track suspension kit (set)", 10]
-     ]},
-    {"supplier": "TRIDONIC", "ship_mode": "local",
-     "notes": "ON/OFF drivers as quoted (no spare drivers for the spare fittings). Move to the fitting supplier's order if they supply drivers.",
-     "lines": [
-      ["ON/OFF driver for D1 KOR S 17W", 7],
-      ["ON/OFF driver for D2 KOR S 21W", 26],
-      ["ON/OFF driver for D3 KOR M 32W", 9],
-      ["ON/OFF driver for S1/S2 SLIDE linear 50W/m (S1 8 + S2 16)", 24]
-     ]},
-    {"supplier": "HALO-UK", "ship_mode": "air",
-     "notes": "Qty include 2 spares per type.",
-     "lines": [
-      ["S1 · SLIDE SUSPENDED L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · Grey · ON/OFF · diffused (Sales Area, incl. 2 spare)", 19],
-      ["Suspension kit for S1 SLIDE SUSPENDED", 34],
-      ["S2 · SLIDE SURFACE L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · White · ON/OFF · diffused (Sales Area open ceiling, incl. 2 spare)", 36]
-     ]},
-    {"supplier": "LEDVANCE", "ship_mode": "local",
-     "notes": "Qty include 2 spares.",
-     "lines": [
-      ["L5 · Panel 595x595 · 36W · 4800 lm · 4000K · CRI>90 · IP54 · White · ON/OFF (BOH, incl. 2 spare)", 6]
-     ]}
-  ]
+    {
+      "supplier": "QUATTROBI - ITALY",
+      "ship_mode": "air",
+      "notes": "Fittings qty include 2 spares per type. Track + accessories are for the T1 BAMBOO 230V track spots.",
+      "lines": [
+        [
+          "D1 · KOR S · 17W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Fit Room 6 incl. 2 spare + Vestibule 3)",
+          9
+        ],
+        [
+          "D2 · KOR S · 21W · 3000K · CRI>90 · White · ON/OFF · beams 15/34/51° · D160 (Sales Area, incl. 2 spare)",
+          28
+        ],
+        [
+          "D3 · KOR M · 32W · 3000K · CRI>90 · White · ON/OFF · beams 16/34/50° · D160 (Shop Front, incl. 2 spare)",
+          11
+        ],
+        [
+          "T1 · BAMBOO track spot 220-240V · 21W · 3000K · CRI>90 · White · beams 15/32/51° · D76xH145 (Open Ceiling, incl. 2 spare)",
+          15
+        ],
+        [
+          "230V suspended track channel 2 m (for T1)",
+          5
+        ],
+        [
+          "230V suspended track channel 1 m (for T1)",
+          1
+        ],
+        [
+          "Track I connector",
+          5
+        ],
+        [
+          "Track L connector",
+          4
+        ],
+        [
+          "Track live end connector / power feeder",
+          2
+        ],
+        [
+          "Track end cap (set)",
+          2
+        ],
+        [
+          "Track suspension kit (set)",
+          10
+        ]
+      ]
+    },
+    {
+      "supplier": "TRIDONIC",
+      "ship_mode": "local",
+      "notes": "Local Tridonic dealer. ON/OFF drivers as quoted plus 2 spare drivers per type (for the spare fittings).",
+      "lines": [
+        [
+          "ON/OFF driver for D1 KOR S 17W (7 + 2 spare)",
+          9
+        ],
+        [
+          "ON/OFF driver for D2 KOR S 21W (26 + 2 spare)",
+          28
+        ],
+        [
+          "ON/OFF driver for D3 KOR M 32W (9 + 2 spare)",
+          11
+        ],
+        [
+          "ON/OFF driver for S1/S2 SLIDE linear 50W/m (S1 8 + S2 16 + 2 spare)",
+          26
+        ]
+      ]
+    },
+    {
+      "supplier": "HALO-UK",
+      "ship_mode": "air",
+      "notes": "Qty include 2 spares per type.",
+      "lines": [
+        [
+          "S1 · SLIDE SUSPENDED L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · Grey · ON/OFF · diffused (Sales Area, incl. 2 spare)",
+          19
+        ],
+        [
+          "Suspension kit for S1 SLIDE SUSPENDED",
+          34
+        ],
+        [
+          "S2 · SLIDE SURFACE L1000 · 50W/m · 7500 lm/m · 3000K · CRI>90 · White · ON/OFF · diffused (Sales Area open ceiling, incl. 2 spare)",
+          36
+        ]
+      ]
+    },
+    {
+      "supplier": "LEDVANCE",
+      "ship_mode": "local",
+      "notes": "Qty include 2 spares.",
+      "lines": [
+        [
+          "L5 · Panel 595x595 · 36W · 4800 lm · 4000K · CRI>90 · IP54 · White · ON/OFF (BOH, incl. 2 spare)",
+          6
+        ]
+      ]
+    }
+  ],
+  "client_confirmed": true,
+  "delivery_planned": "2026-11-24"
 }
