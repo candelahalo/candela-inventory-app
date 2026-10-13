@@ -106,7 +106,7 @@
 </div>
 
 <div class="tabs" id="status-tabs" role="tablist"></div>
-<div class="panel"><div id="orders-table"></div></div>
+<div id="orders-groups"></div>
 
 <!-- Receive / deliver goods (one dialog, two modes) -->
 <div id="mv-overlay" class="modal-overlay" onclick="if (event.target === this) closeMove()">
@@ -207,15 +207,42 @@ function renderOrders() {
       onclick="setTab('${key}')">${label} <span class="tab-count${key === 'late' ? ' warn' : ''}">${n}</span></button>`;
   }).join('');
   const fn = (TABS.find(t => t[0] === activeTab) || TABS[0])[2];
-  const projName = id => { const p = projectsCache.find(x => x.id === id); return p ? p.project_number : ''; };
-  DataTable.render({
-    containerId: 'orders-table',
-    storageKey: 'orders',
-    emptyMessage: ordersCache.length ? 'No orders here.' : 'No supplier orders yet — use “+ From a quotation” or “+ New order”.',
+  const rows = ordersCache.filter(fn);
+  const wrap = document.getElementById('orders-groups');
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="panel"><p class="muted" style="margin:0;">${ordersCache.length ? 'No orders here.'
+      : 'No supplier orders yet — use “+ From a quotation” or “+ New order”.'}</p></div>`;
+    return;
+  }
+  // One section per project (newest project first), stock orders last
+  const groups = new Map();
+  rows.forEach(o => {
+    const k = o.project_id || 0;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(o);
+  });
+  const keys = [...groups.keys()].sort((a, b) => (a === 0) - (b === 0) || b - a);
+  wrap.innerHTML = keys.map(k => {
+    const list = groups.get(k);
+    const p = projectsCache.find(x => x.id === k);
+    const late = list.filter(o => o.is_overdue).length;
+    const value = list.reduce((a, o) => a + o.total, 0);
+    const title = k === 0 ? 'Stock orders (no project)'
+      : p ? `<a href="/projects/view/${p.id}" class="po-group-title">${esc(p.name)}</a> <span class="mono muted">${esc(p.project_number)}</span>`
+          : 'Project';
+    return `<div class="panel po-group">
+      <div class="po-group-head"><div>${k === 0 ? `<span class="po-group-title">${title}</span>` : title}</div>
+        <div class="po-group-meta">${list.length} order${list.length === 1 ? '' : 's'}${late ? ` · <span class="overdue-text">${late} late</span>` : ''} · ${fmtMoney(value)}
+        ${k ? `<a class="btn btn-ghost btn-sm" href="/orders?new=1&project=${k}">+ Order</a>` : ''}</div></div>
+      <div id="og-${k}"></div></div>`;
+  }).join('');
+  keys.forEach(k => DataTable.render({
+    containerId: 'og-' + k,
+    storageKey: 'orders-group-' + k,
+    emptyMessage: 'No orders here.',
     columns: [
       { key: 'po', label: 'PO #', value: o => o.po_number, render: o => `<a href="#" class="panel-link mono nowrap" onclick="openOrderById(${o.id}); return false;">${esc(o.po_number)}</a>` },
       { key: 'supplier', label: 'Supplier', value: o => o.supplier, render: o => esc(o.supplier) + (o.supplier_ref ? `<div class="sub">${esc(o.supplier_ref)}</div>` : '') },
-      { key: 'project', label: 'Project', value: o => projName(o.project_id), render: o => o.project_id ? `<a class="panel-link" href="/projects/view/${o.project_id}">${esc(projName(o.project_id))}</a>` : '<span class="muted">Stock</span>' },
       { key: 'stage', label: 'Stage', value: o => STAGES.findIndex(s => s[0] === o.status), render: stageBadge },
       { key: 'next', label: 'Next step', value: o => (o.next_step && o.next_step.due) || '', render: nextStep },
       { key: 'eta', label: 'ETA', value: o => o.expected_date || '', render: o => `<span class="nowrap">${fmtDate(o.expected_date)}</span>` },
@@ -223,12 +250,12 @@ function renderOrders() {
         render: o => `<span class="nowrap" title="received / delivered of ordered">${o.qty_received} / ${o.qty_delivered} <span class="muted">of ${o.qty_ordered}</span></span>` },
       { key: 'value', label: 'Value', numeric: true, value: o => o.total, render: o => `<span class="nowrap">${money(o.total, o.currency)}</span>` },
     ],
-    rows: ordersCache.filter(fn),
+    rows: groups.get(k),
     actions: o => `
       <button class="btn btn-ghost btn-sm" onclick="openOrderById(${o.id})">Open</button>
       ${o.qty_received || o.qty_delivered ? '' : `<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteOrder(${o.id}, '${esc(o.po_number)}')">Delete</button>`}
     `,
-  });
+  }));
 }
 
 async function deleteOrder(id, num) {

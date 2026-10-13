@@ -973,3 +973,8 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
 .po-step-d { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; min-height: 14px; }
 .po-track-cancel { align-self: center; margin-right: 12px; font-weight: 700; color: var(--red); font-size: 13px; }
 .lock-note.late { background: #F7E2DC; color: var(--red); }
+
+.po-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.po-group-title { font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; }
+a.po-group-title:hover { color: var(--amber-deep); }
+.po-group-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
