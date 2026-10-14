@@ -1,0 +1,12 @@
+Model: AGE M, Adjustable
+Source: LED
+CCT: 4000K
+CRI >90
+Wattage: 15W
+Luminous Flux: 1710 lm
+Finish: White
+Control: 1-10V Dimmable
+IP Rating: IP20
+Beam Angle: 24°
+Dimension: D90 mm X H90 mm
+Warranty: 5 Years

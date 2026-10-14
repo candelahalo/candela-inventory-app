@@ -1,0 +1,12 @@
+Model: SLIDE SUSPENDED
+Source: LED
+CCT: 3000K
+CRI >90
+Wattage: 50W/M
+Luminous Flux: 7500 lm/M
+Finish: Grey
+Control: ON/OFF
+IP Rating: IP20
+Beam Angle: Diffused
+Dimension: L1000 mm x W75 mm X H75 mm
+Warranty: 5 Years
