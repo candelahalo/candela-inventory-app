@@ -259,6 +259,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             {"key": "shipping", "label": "Shipment"},
             {"key": "expected_date", "label": "ETA", "kind": "date"},
             {"key": "progress", "label": "Received / delivered"},
+            {"key": "currency", "label": "Currency"},
             {"key": "total", "label": "Value", "kind": "money"},
         ]
         rows = []
@@ -274,6 +275,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
                 "shipping": " · ".join(filter(None, [(o.ship_mode or "").capitalize(), o.forwarder, o.tracking_no])),
                 "expected_date": o.expected_date,
                 "progress": f"{o.qty_received} / {o.qty_delivered} of {o.qty_ordered}",
+                "currency": o.currency or "AED",
                 "total": o.total,
             })
         return "Supplier orders" + (f" - {status.capitalize()}" if status else ""), columns, rows

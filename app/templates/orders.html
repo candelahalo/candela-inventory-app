@@ -226,13 +226,17 @@ function renderOrders() {
     const list = groups.get(k);
     const p = projectsCache.find(x => x.id === k);
     const late = list.filter(o => o.is_overdue).length;
-    const value = list.reduce((a, o) => a + o.total, 0);
+    // Value per currency, e.g. "AED 39,388.00 + EUR 1,080.00"
+    const byCur = {};
+    list.forEach(o => { const c = (o.currency || 'AED').toUpperCase(); byCur[c] = (byCur[c] || 0) + o.total; });
+    const value = Object.keys(byCur).sort((a, b) => (a === 'AED' ? -1 : b === 'AED' ? 1 : a.localeCompare(b)))
+      .map(c => money(byCur[c], c)).join(' + ');
     const title = k === 0 ? 'Stock orders (no project)'
       : p ? `<a href="/projects/view/${p.id}" class="po-group-title">${esc(p.name)}</a> <span class="mono muted">${esc(p.project_number)}</span>`
           : 'Project';
     return `<div class="panel po-group">
       <div class="po-group-head"><div>${k === 0 ? `<span class="po-group-title">${title}</span>` : title}</div>
-        <div class="po-group-meta">${list.length} order${list.length === 1 ? '' : 's'}${late ? ` · <span class="overdue-text">${late} late</span>` : ''} · ${fmtMoney(value)}
+        <div class="po-group-meta">${list.length} order${list.length === 1 ? '' : 's'}${late ? ` · <span class="overdue-text">${late} late</span>` : ''} · ${value}
         ${k ? `<a class="btn btn-ghost btn-sm" href="/orders?new=1&project=${k}">+ Order</a>` : ''}</div></div>
       <div id="og-${k}"></div></div>`;
   }).join('');
@@ -267,7 +271,20 @@ async function deleteOrder(id, num) {
 // ---------- editor ----------
 function productOptions(selected) {
   return `<option value="">— Not a stock item —</option>` + productsCache.map(p =>
-    `<option value="${p.id}" data-cost="${p.cost_price || 0}" ${p.id === selected ? 'selected' : ''}>${esc(p.sku)} — ${esc(p.name)}</option>`).join('');
+    `<option value="${p.id}" ${p.id === selected ? 'selected' : ''}>${esc(p.sku)} — ${esc(p.name)}</option>`).join('');
+}
+
+// A product's cost in this order's currency: its supplier price when the
+// currencies match, otherwise its AED cost (converted at the Settings rate).
+async function orderCost(productId, aedCost) {
+  const p = productsCache.find(x => x.id === productId);
+  const cur = (document.querySelector('#po-form [name=currency]').value || 'AED').trim().toUpperCase();
+  if (!p) return aedCost || 0;
+  if ((p.cost_currency || 'AED') === cur && cur !== 'AED') return p.cost_amount ?? 0;
+  const aed = aedCost != null ? aedCost : (p.cost_price || 0);
+  if (cur === 'AED') return aed;
+  const rates = await loadRates();
+  return rates[cur] ? Math.round(aed / rates[cur] * 100) / 100 : aed;
 }
 
 function addLine(item) {
@@ -289,7 +306,7 @@ function addLine(item) {
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
     if (opt.value) {
-      row.querySelector('.pl-cost').value = opt.dataset.cost || 0;
+      orderCost(parseInt(opt.value)).then(c => { row.querySelector('.pl-cost').value = c; recalc(); });
       if (!row.querySelector('.pl-desc').value) row.querySelector('.pl-desc').value = opt.textContent.trim();
     }
     recalc();
@@ -479,6 +496,7 @@ document.getElementById('fill-btn').addEventListener('click', async () => {
   if (lines.length === 1 && !lines[0].dataset.id && !lines[0].querySelector('.pl-desc').value && !lines[0].querySelector('.pl-product').value) {
     lines[0].remove();
   }
+  for (const l of res.lines) if (l.product_id) l.unit_cost = await orderCost(l.product_id, l.unit_cost);
   res.lines.forEach(addLine);
   toast(`Added ${res.lines.length} line${res.lines.length === 1 ? '' : 's'} from ${res.quotation}`);
 });

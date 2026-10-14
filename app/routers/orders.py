@@ -175,27 +175,39 @@ def _supplier_of(it):
     return brand.strip()
 
 
+def _order_price(it):
+    """Currency and unit cost for an order line: a product costed in USD or EUR
+    is ordered at its supplier price in that currency; anything else at the
+    AED cost the quotation was made with."""
+    prod = getattr(it, "product", None)
+    if prod is not None and prod.cost_currency in ("USD", "EUR") and prod.cost_amount is not None:
+        return prod.cost_currency, prod.cost_amount
+    return "AED", it.unit_cost or 0.0
+
+
 @router.post("/from-quotation/{quotation_id}", response_model=List[schemas.PurchaseOrderOut], status_code=201)
 def orders_from_quotation(quotation_id: int, db: Session = Depends(get_db),
                           current: models.User = Depends(auth.get_current_user)):
-    """One draft order per supplier with every line of the quotation, so the
-    whole job can be ordered in one go. Quantities include spares as quoted;
-    costs come from the quotation's cost snapshot."""
+    """One draft order per supplier (and currency) with every line of the
+    quotation, so the whole job can be ordered in one go. Quantities include
+    spares as quoted. Products costed in USD or EUR are ordered at that price;
+    the rest at the quotation's AED cost."""
     quote = db.query(models.Quotation).get(quotation_id)
     if not quote:
         raise HTTPException(status_code=404, detail="Quotation not found")
     groups = OrderedDict()
     for it in quote.items:
-        groups.setdefault(_supplier_of(it), []).append(it)
+        currency, cost = _order_price(it)
+        groups.setdefault((_supplier_of(it), currency), []).append((it, cost))
     created = []
-    for supplier, lines in groups.items():
+    for (supplier, currency), lines in groups.items():
         po = models.PurchaseOrder(po_number=_next_po_number(db), supplier=supplier, status="draft",
-                                  project_id=quote.project_id, quotation_id=quote.id, currency="AED",
+                                  project_id=quote.project_id, quotation_id=quote.id, currency=currency,
                                   notes=f"From quotation {quote.quote_number}")
-        for it in lines:
+        for it, cost in lines:
             po.items.append(models.PurchaseOrderItem(
                 product_id=getattr(it, "product_id", None), description=_line_text(it), quantity=it.quantity,
-                unit_cost=it.unit_cost or 0.0, received_qty=0, delivered_qty=0))
+                unit_cost=cost, received_qty=0, delivered_qty=0))
         db.add(po)
         db.flush()
         log_activity(db, current.username, "order", po.id, _label(po), "created",
