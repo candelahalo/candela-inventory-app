@@ -994,7 +994,7 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; margin-left: auto; }
 .btn-danger-solid:hover { filter: brightness(0.95); }
 
-/* Product cost: amount + currency, AED result */
+/* Product cost: amount + currency, landed %, AED result */
 .cost-row { display: flex; gap: 6px; }
 .cost-row input { flex: 1; width: 0; min-width: 0; }
 .cost-row select { width: 82px; flex: none; }

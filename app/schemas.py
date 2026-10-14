@@ -15,10 +15,12 @@ class ProductBase(BaseModel):
     brand: Optional[str] = None
     supplier: Optional[str] = None  # usual supplier (HALO is own brand: varies)
     unit: str = "pcs"
-    # Cost as the supplier quotes it; cost_price (AED) is worked out from
-    # these on save. Leave cost_amount out to give cost_price in AED.
+    # Cost as the supplier quotes it plus a landed-cost %; cost_price (AED,
+    # landed) is worked out from these on save. Leave cost_amount out to give
+    # cost_price in AED.
     cost_currency: str = "AED"
     cost_amount: Optional[float] = None
+    landed_pct: Optional[float] = 0.0
     cost_price: float = 0.0
     selling_price: float = 0.0
     reorder_level: int = 0

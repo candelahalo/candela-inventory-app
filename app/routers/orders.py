@@ -177,11 +177,15 @@ def _supplier_of(it):
 
 def _order_price(it):
     """Currency and unit cost for an order line: a product costed in USD or EUR
-    is ordered at its supplier price in that currency; anything else at the
-    AED cost the quotation was made with."""
+    is ordered at its supplier price in that currency, and one with a landed %
+    at its plain AED supplier price (freight and duty aren't paid to the
+    supplier); anything else at the AED cost the quotation was made with."""
     prod = getattr(it, "product", None)
-    if prod is not None and prod.cost_currency in ("USD", "EUR") and prod.cost_amount is not None:
-        return prod.cost_currency, prod.cost_amount
+    if prod is not None and prod.cost_amount is not None:
+        if prod.cost_currency in ("USD", "EUR"):
+            return prod.cost_currency, prod.cost_amount
+        if prod.landed_pct:
+            return "AED", prod.cost_amount
     return "AED", it.unit_cost or 0.0
 
 

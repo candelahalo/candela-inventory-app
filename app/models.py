@@ -47,11 +47,13 @@ class Product(Base):
     # recognised the next time the same item appears
     match_key = Column(String(500), index=True)
     unit = Column(String(32), default="pcs")
-    # Cost as the supplier quotes it (AED, USD or EUR). cost_price is the same
-    # in AED, at the rate in Settings; it is what profit uses. Freight is
-    # charged separately, not added here.
+    # Cost as the supplier quotes it (AED, USD or EUR) plus a landed-cost %
+    # for freight, duty and clearing. cost_price is the result in AED, at the
+    # rate in Settings; it is what profit uses. Supplier orders use the plain
+    # supplier price (cost_amount).
     cost_currency = Column(String(3), default="AED")
     cost_amount = Column(Float)
+    landed_pct = Column(Float, default=0.0)
     cost_price = Column(Float, default=0.0)
     selling_price = Column(Float, default=0.0)
     reorder_level = Column(Integer, default=0)

@@ -23,6 +23,7 @@
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
       <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
       <div class="field"><label>Cost price</label><div class="cost-row"><input name="cost_amount" type="number" step="0.01" min="0" value="0"><select name="cost_currency"><option>AED</option><option>USD</option><option>EUR</option></select></div><div class="cost-note"></div></div>
+      <div class="field"><label>Landed cost % <span style="font-weight:400;color:var(--muted)">(freight, duty, clearing)</span></label><input name="landed_pct" type="number" step="0.1" min="0" value="0"></div>
       <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
       <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="3" placeholder="Source : LED&#10;CCT : 3000K&#10;Power : 12W&#10;IP Rating : IP65"></textarea></div>
     </div>
@@ -211,11 +212,12 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 loadProducts();
 wireCostFields(document.getElementById('product-form'));
 
-// Under the AED cost in the list: what the supplier quotes, if not AED
+// Under the AED cost in the list: the supplier price and landed %, if not plain AED
 function costSub(p) {
   const cur = p.cost_currency || 'AED';
-  if (cur === 'AED') return '';
-  return `<span class="cost-sub">${cur} ${fmtNum(p.cost_amount ?? p.cost_price, 2)}</span>`;
+  if (cur === 'AED' && !p.landed_pct) return '';
+  const pct = p.landed_pct ? ` +${p.landed_pct}%` : '';
+  return `<span class="cost-sub">${cur} ${fmtNum(p.cost_amount ?? p.cost_price, 2)}${pct}</span>`;
 }
 
 // Suppliers used before, for the "Usual supplier" type-ahead

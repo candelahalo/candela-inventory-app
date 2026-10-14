@@ -1,9 +1,13 @@
 """Product costs in foreign currency.
 
-A product's cost is entered as the supplier quotes it (AED, USD or EUR). The
-AED cost that profit uses is amount x rate, with the rate from Settings.
-Freight is charged separately, not added to product costs. Quotations keep the
-AED cost they were made with, so changing a rate only affects new quotations.
+A product's cost is entered as the supplier quotes it (AED, USD or EUR) plus a
+landed-cost % for freight, duty and clearing. The AED cost that profit uses is
+
+    amount x rate x (1 + landed % / 100)
+
+with the rate from Settings. Supplier orders use the plain supplier price.
+Quotations keep the AED cost they were made with, so changing a rate or a
+landed % only affects new quotations.
 """
 from datetime import datetime
 
@@ -21,11 +25,11 @@ def rates(db):
     return out
 
 
-def to_aed(amount, currency, rate_map):
+def to_aed(amount, currency, rate_map, landed_pct=0.0):
     rate = rate_map.get(currency or "AED")
     if rate is None:
         return None
-    return round((amount or 0.0) * rate, 2)
+    return round((amount or 0.0) * rate * (1 + (landed_pct or 0.0) / 100), 2)
 
 
 def apply_cost(product, rate_map):
@@ -36,9 +40,13 @@ def apply_cost(product, rate_map):
         raise HTTPException(status_code=400, detail=f"Cost currency must be one of {', '.join(CURRENCIES)}")
     if product.cost_amount is None:
         product.cost_amount = product.cost_price or 0.0
+        product.landed_pct = 0.0
         cur = "AED"
     product.cost_currency = cur
-    aed = to_aed(product.cost_amount, cur, rate_map)
+    product.landed_pct = product.landed_pct or 0.0
+    if product.landed_pct < 0 or product.landed_pct > 500:
+        raise HTTPException(status_code=400, detail="Landed cost % should be between 0 and 500")
+    aed = to_aed(product.cost_amount, cur, rate_map, product.landed_pct)
     if aed is None:
         raise HTTPException(status_code=400, detail=f"Set the {cur} rate in Settings first")
     product.cost_price = aed

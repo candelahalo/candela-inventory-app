@@ -274,17 +274,21 @@ function productOptions(selected) {
     `<option value="${p.id}" ${p.id === selected ? 'selected' : ''}>${esc(p.sku)} — ${esc(p.name)}</option>`).join('');
 }
 
-// A product's cost in this order's currency: its supplier price when the
-// currencies match, otherwise its AED cost (converted at the Settings rate).
+// A product's supplier price in this order's currency (no landed %: freight
+// and duty aren't paid to the supplier), converted at the Settings rate when
+// the currencies differ.
 async function orderCost(productId, aedCost) {
   const p = productsCache.find(x => x.id === productId);
   const cur = (document.querySelector('#po-form [name=currency]').value || 'AED').trim().toUpperCase();
   if (!p) return aedCost || 0;
-  if ((p.cost_currency || 'AED') === cur && cur !== 'AED') return p.cost_amount ?? 0;
-  const aed = aedCost != null ? aedCost : (p.cost_price || 0);
-  if (cur === 'AED') return aed;
+  const pcur = p.cost_currency || 'AED';
+  if (p.cost_amount == null) return aedCost != null ? aedCost : (p.cost_price || 0);
+  if (pcur === cur) return p.cost_amount;
   const rates = await loadRates();
-  return rates[cur] ? Math.round(aed / rates[cur] * 100) / 100 : aed;
+  if (rates[pcur] == null) return aedCost != null ? aedCost : (p.cost_price || 0);
+  const aed = p.cost_amount * rates[pcur];
+  if (cur === 'AED') return Math.round(aed * 100) / 100;
+  return rates[cur] ? Math.round(aed / rates[cur] * 100) / 100 : Math.round(aed * 100) / 100;
 }
 
 function addLine(item) {
