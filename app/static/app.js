@@ -310,3 +310,19 @@ function reportButtons(kind, opts = {}) {
   return exportMenu([reportItems(kind, opts)]);
 }
 
+
+
+// ---------- Ticking several rows ----------
+// Shows "N selected  [Delete selected] [Clear]" above a table while rows are
+// ticked. onDelete(ids) does the deleting; onClear() unticks.
+function bulkBar(barId, ids, noun, onDelete, onClear) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  if (!ids.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = `<strong>${ids.length}</strong> ${noun}${ids.length === 1 ? '' : 's'} selected
+    <button type="button" class="btn btn-sm btn-danger-solid" data-bulk-delete>Delete selected</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-bulk-clear>Clear</button>`;
+  bar.querySelector('[data-bulk-delete]').onclick = () => onDelete(ids.map(Number));
+  bar.querySelector('[data-bulk-clear]').onclick = onClear;
+}

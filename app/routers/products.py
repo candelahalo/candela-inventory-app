@@ -6,6 +6,7 @@ from app.database import get_db
 from app import models, schemas
 from app.utils import save_product_image, log_activity
 from app import auth
+from app import product_removal
 
 router = APIRouter(prefix="/products", tags=["Products"],
                    dependencies=[Depends(auth.get_current_user)])
@@ -58,6 +59,27 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     db.commit()
     db.refresh(product)
     return product
+
+
+@router.post("/bulk-delete/check")
+def bulk_delete_check(payload: schemas.IdsIn, db: Session = Depends(get_db),
+                      current: models.User = Depends(auth.require_admin)):
+    """What deleting these products would touch, shown before confirming."""
+    ids = [p.id for p in db.query(models.Product).filter(models.Product.id.in_(payload.ids)).all()]
+    return product_removal.impact(db, ids)
+
+
+@router.post("/bulk-delete")
+def bulk_delete(payload: schemas.IdsIn, db: Session = Depends(get_db),
+                current: models.User = Depends(auth.require_admin)):
+    """Deletes the ticked products for good (admin only). Quotation and order
+    lines keep their text; stock records and datasheets go with them."""
+    products = db.query(models.Product).filter(models.Product.id.in_(payload.ids)).all()
+    if not products:
+        raise HTTPException(status_code=400, detail="Nothing selected.")
+    n = product_removal.remove_products(db, products, current.username, "deleted with others (bulk)")
+    db.commit()
+    return {"deleted": n}
 
 
 @router.delete("/{product_id}", status_code=204)

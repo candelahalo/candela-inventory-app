@@ -107,6 +107,7 @@
 
 <div class="chips" id="class-chips"></div>
 <div class="panel">
+  <div class="bulk-bar" id="bulk-bar" hidden></div>
   <div id="quotations-table"></div>
 </div>
 {% endblock %}
@@ -564,6 +565,8 @@ async function loadQuotations() {
         + ' quotations' + (activeDivision === 'unset' || activeCategory === 'unset' ? ' with that left unset.' : '.'),
     columns: columns,
     rows: shown,
+    select: { id: q => q.id, onChange: ids => bulkBar('bulk-bar', ids, 'quotation', bulkDeleteQuotations,
+      () => { DataTable.clearSelection('quotations'); loadQuotations(); }) },
     actions: q => `
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">${q.status === 'accepted' ? 'Open' : 'Edit'}</button>
       <button class="btn btn-ghost btn-sm" title="Open the quotation PDF in a new tab (download or print it from there)" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
@@ -681,6 +684,22 @@ function downloadDoc(id, kind) {
   const preview = kind === 'preview';
   return withDownloadToken(preview ? 'preview' : kind, token =>
     `/quotations/${id}/${preview ? 'pdf' : kind}?token=${token}${preview ? '&preview=1' : ''}`);
+}
+
+async function bulkDeleteQuotations(ids) {
+  const nums = quotesCache.filter(q => ids.includes(q.id)).map(q => q.quote_number);
+  const accepted = quotesCache.filter(q => ids.includes(q.id) && q.status === 'accepted').length;
+  const msg = `Delete ${ids.length} quotation${ids.length === 1 ? '' : 's'}?\n\n${nums.slice(0, 12).join(', ')}${nums.length > 12 ? ' …' : ''}`
+    + (accepted ? `\n\n${accepted} of them ${accepted === 1 ? 'is' : 'are'} accepted by the client.` : '')
+    + '\n\nThis can\'t be undone.';
+  if (!confirm(msg)) return;
+  try {
+    const r = await api('/quotations/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    DataTable.clearSelection('quotations');
+    if (openQuote && ids.includes(openQuote.id)) hideAddPanel();
+    toast(`${r.deleted} quotation${r.deleted === 1 ? '' : 's'} deleted`);
+    loadQuotations();
+  } catch (err) { toast(err.message, true); }
 }
 
 async function deleteQuotation(id, quoteNumber) {

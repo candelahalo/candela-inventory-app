@@ -40,6 +40,7 @@
 <div class="chips" id="type-chips"></div>
 
 <div class="panel">
+  <div class="bulk-bar" id="bulk-bar" hidden></div>
   <div id="products-table"></div>
 </div>
 
@@ -124,6 +125,29 @@ async function deleteProduct(id, name) {
   } catch (err) { toast(err.message, true); }
 }
 
+function isAdminUser() {
+  const s = getSession();
+  return !!(s && s.role === 'admin');
+}
+
+async function bulkDeleteProducts(ids) {
+  let impact;
+  try { impact = await api('/products/bulk-delete/check', { method: 'POST', body: JSON.stringify({ ids }) }); }
+  catch (err) { toast(err.message, true); return; }
+  const lines = [`Delete ${impact.products} product${impact.products === 1 ? '' : 's'} for good?`, ''];
+  if (impact.stock_movements) lines.push(`• ${impact.stock_movements} stock record(s) are deleted (their stock goes to zero)`);
+  if (impact.datasheets) lines.push(`• ${impact.datasheets} datasheet(s) are deleted`);
+  if (impact.quotation_lines || impact.order_lines) lines.push(`• ${impact.quotation_lines + impact.order_lines} quotation/order line(s) keep their text and photo`);
+  lines.push('', 'This can\'t be undone.');
+  if (!confirm(lines.join('\n'))) return;
+  try {
+    const r = await api('/products/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    DataTable.clearSelection('products');
+    toast(`${r.deleted} product${r.deleted === 1 ? '' : 's'} deleted`);
+    loadProducts();
+  } catch (err) { toast(err.message, true); }
+}
+
 async function loadProducts() {
   const [products, datasheets] = await Promise.all([api('/products/'), api('/datasheets/')]);
   productsCache = products;
@@ -161,6 +185,9 @@ function renderProducts() {
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },
     ],
     rows: rows,
+    // Admins can tick several products and delete them together
+    select: isAdminUser() ? { id: p => p.id, onChange: ids => bulkBar('bulk-bar', ids, 'product', bulkDeleteProducts,
+      () => { DataTable.clearSelection('products'); renderProducts(); }) } : null,
     actions: p => `
       <a class="btn btn-ghost btn-sm" href="/products/view/${p.id}">Open</a>
       <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>

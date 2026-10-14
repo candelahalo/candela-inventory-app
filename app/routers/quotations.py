@@ -385,6 +385,22 @@ def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optio
         db.rollback()
 
 
+@router.post("/bulk-delete")
+def bulk_delete_quotations(payload: schemas.IdsIn, db: Session = Depends(get_db),
+                           current: models.User = Depends(auth.get_current_user)):
+    """Deletes the ticked quotations, the same way as deleting them one by one."""
+    quotes = db.query(models.Quotation).filter(models.Quotation.id.in_(payload.ids)).all()
+    if not quotes:
+        raise HTTPException(status_code=400, detail="Nothing selected.")
+    for q in quotes:
+        log_activity(db, current.username, "quotation", q.id, q.quote_number, "deleted", "deleted with others (bulk)")
+        if q.project is not None:
+            workflow.note_on_project(db, q.project, f"{q.quote_number} deleted")
+        db.delete(q)
+    db.commit()
+    return {"deleted": len(quotes)}
+
+
 @router.delete("/{quotation_id}", status_code=204)
 def delete_quotation(quotation_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)

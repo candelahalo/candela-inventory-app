@@ -17,16 +17,14 @@ Usage (on the server):
     cd /opt/candela-inventory-app && venv/bin/python scripts/remove_all_products.py --yes    # remove
 """
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.database import SessionLocal  # noqa: E402
 from app import models  # noqa: E402
-from app.utils import log_activity, url_to_disk_path  # noqa: E402
-
-PHOTO = re.compile(r"/static/uploads/products/[0-9a-f]{32}\.jpg")
+from app.utils import log_activity  # noqa: E402
+from app.product_removal import remove_products  # noqa: E402
 
 
 def main():
@@ -52,32 +50,7 @@ def main():
             print("\nNothing changed. Run again with --yes to remove.")
             return
 
-        by_id = {p.id: p for p in products}
-        for line in q_lines:
-            p = by_id[line.product_id]
-            desc = (line.description or p.spec_summary or "").strip()
-            if p.name and not desc.lower().startswith(p.name.lower()):
-                desc = f"{p.name}\n{desc}".strip()
-            line.description = desc or None
-            line.unit = line.unit or p.unit
-            if not line.image_path and p.image_path and PHOTO.fullmatch(p.image_path):
-                line.image_path = p.image_path
-            line.product_id = None
-        for line in po_lines:
-            p = by_id[line.product_id]
-            line.description = line.description or f"{p.sku} — {p.name}"
-            line.product_id = None
-        for m in moves:
-            db.delete(m)
-        for s in sheets:
-            try:
-                os.remove(url_to_disk_path(s.file_path))
-            except (FileNotFoundError, TypeError):
-                pass
-            db.delete(s)
-        db.flush()
-        for p in products:
-            db.delete(p)
+        remove_products(db, products, "system", "removed with all products")
         log_activity(db, "system", "product", None, "All products", "deleted",
                      f"{len(products)} products removed; quotation and order lines kept as text")
         db.commit()

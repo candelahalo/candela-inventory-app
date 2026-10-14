@@ -431,3 +431,7 @@ class DeliverIn(BaseModel):
     delivery_note: Optional[str] = None
     delivered_to: Optional[str] = None
     date: Optional[datetime] = None
+
+
+class IdsIn(BaseModel):
+    ids: List[int]

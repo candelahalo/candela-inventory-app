@@ -982,3 +982,14 @@ a.po-group-title:hover { color: var(--amber-deep); }
 .import-note { background: #E8EEF5; color: #2D4A66; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; margin-bottom: 16px; display: grid; gap: 4px; }
 .keep-orig { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-weight: 500; cursor: pointer; }
 .keep-orig input { width: auto; margin: 0; }
+
+/* ---------- Bulk selection ---------- */
+table.dt th.th-check, table.dt td.td-check { width: 1%; padding-right: 4px; }
+table.dt th.th-check input, table.dt td.td-check input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--amber); }
+table.dt tr.row-selected td { background: #FDF6EA; }
+.bulk-bar { display: flex; align-items: center; gap: 12px; background: var(--charcoal); color: #fff; border-radius: 8px;
+  padding: 8px 10px 8px 16px; margin-bottom: 12px; font-size: 14px; position: sticky; top: 8px; z-index: 5; }
+.bulk-bar[hidden] { display: none; }
+.bulk-bar .btn-ghost { color: #fff; border-color: rgba(255,255,255,0.3); background: transparent; }
+.btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; margin-left: auto; }
+.btn-danger-solid:hover { filter: brightness(0.95); }
