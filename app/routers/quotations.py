@@ -15,7 +15,7 @@ import os
 from app.database import get_db
 from app import models, schemas
 from app.utils import url_to_disk_path, log_activity, save_product_image
-from app.pdf_import import parse_quotation_pdf
+from app.pdf_import import parse_quotation_pdf, product_defs
 from app import auth
 from app import workflow
 from app.settings import BASE_URL
@@ -193,9 +193,11 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
     """
     Reads an existing Candela quotation PDF and returns the fields for a new
     quotation form - customer, project, terms, every line with its photo.
-    Nothing is saved: the form opens filled in for someone to check and save.
-    Lines are linked to a catalogue product only when the match is clear;
-    the rest come in as custom lines with the PDF's description and price.
+    The quotation itself isn't saved: the form opens filled in for someone
+    to check and save. Every line is linked to a product - one already in
+    the list (recognised by its spec) or a new one added now, with the
+    spec in the quotation's own format, its photo and quoted price.
+    Identical items (the same fitting in two locations) share one product.
     """
     data = await file.read(MAX_IMPORT_BYTES + 1)
     if len(data) > MAX_IMPORT_BYTES:
@@ -209,6 +211,44 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=400, detail="Couldn't read that PDF. Is it a Candela quotation (not a scan)?")
+
+    # Every line to a product: recognised by its spec fingerprint, or created
+    created, by_key = [], {}
+    for it in product_defs(result["items"]):
+        d = it.pop("_product")
+        for k in ("_lead", "_desc", "_brandcol"):
+            it.pop(k, None)
+        prod = by_key.get(d["key"])
+        if prod is None and it.get("product_id"):
+            prod = db.query(models.Product).get(it["product_id"])
+        if prod is None:
+            prod = db.query(models.Product).filter(models.Product.match_key == d["key"][:500]).first()
+        if prod is None:
+            sku, n = d["sku"] or "ITEM", 2
+            while db.query(models.Product).filter(models.Product.sku == sku).first():
+                sku, n = f"{d['sku'][:60]}-{n}", n + 1
+            prod = models.Product(
+                sku=sku, name=d["name"], brand=d["brand"], category=d["category"], product_type=d["product_type"],
+                unit=it.get("unit") or "pcs", cost_price=0.0, selling_price=it.get("unit_price") or 0.0,
+                reorder_level=0, is_active=True, spec_summary=d["spec"], image_path=it.get("image_path"),
+                match_key=d["key"][:500])
+            db.add(prod)
+            db.flush()
+            log_activity(db, current.username, "product", prod.id, f"{prod.sku} — {prod.name}", "created",
+                         f"from quotation PDF {result.get('original_number') or file.filename or ''}".strip())
+            created.append(f"{prod.sku} — {prod.name}")
+        else:
+            if not prod.is_active:
+                prod.is_active = True
+            if not prod.image_path and it.get("image_path"):
+                prod.image_path = it["image_path"]
+            if not prod.match_key:
+                prod.match_key = d["key"][:500]
+        by_key[d["key"]] = prod
+        it["product_id"] = prod.id
+        it["product_label"] = f"{prod.sku} — {prod.name}"
+    result["created_products"] = created
+    result["matched_lines"] = len(result["items"])
 
     # Point at an existing customer / project when the names match
     if result.get("customer_name"):
@@ -231,12 +271,17 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
     project = _resolve_project(payload, customer, db, current.username)
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                       "project_name", "project_id"})
+                                       "project_name", "project_id", "quote_number", "quote_date"})
     if not data.get("valid_until"):
         data["valid_until"] = datetime.utcnow() + timedelta(days=VALIDITY_DAYS)
-    quotation = models.Quotation(quote_number=_next_quote_number(db),
+    number = (payload.quote_number or "").strip()[:64] or None
+    if number and db.query(models.Quotation).filter(models.Quotation.quote_number == number).first():
+        raise HTTPException(status_code=400, detail=f"There's already a quotation numbered {number}.")
+    quotation = models.Quotation(quote_number=number or _next_quote_number(db),
                                  customer_id=customer.id,
                                  **data)
+    if payload.quote_date:
+        quotation.created_at = payload.quote_date
     quotation.project = project
     _fill_division_category(quotation, project, customer)
     _add_items(quotation, payload, db)
@@ -274,7 +319,7 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     old_project_id = quotation.project_id
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                       "project_name", "project_id"})
+                                       "project_name", "project_id", "quote_number", "quote_date"})
     for key, value in data.items():
         setattr(quotation, key, value)
     quotation.customer_id = customer.id
@@ -313,7 +358,7 @@ def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optio
         customer = _resolve_customer(payload, db, current.username)
         project = _resolve_project(payload, customer, db, current.username)
         data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                           "project_name", "project_id"})
+                                           "project_name", "project_id", "quote_number", "quote_date"})
         if editing_id:
             quotation = db.query(models.Quotation).get(editing_id)
             if not quotation:
@@ -323,7 +368,9 @@ def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optio
             quotation.items.clear()
             db.flush()
         else:
-            quotation = models.Quotation(quote_number=_next_quote_number(db), **data)
+            quotation = models.Quotation(quote_number=(payload.quote_number or "").strip() or _next_quote_number(db), **data)
+            if payload.quote_date:
+                quotation.created_at = payload.quote_date
             db.add(quotation)
         quotation.customer = customer
         quotation.project = project
@@ -619,7 +666,7 @@ def _quotation_excel_response(quotation, db: Session):
     r += 4
 
     cover.merge_cells(f"B{r}:D{r}")
-    cover[f"B{r}"] = "FOR CANDELA LIGHTING AND AUTOMATION LLC"
+    cover[f"B{r}"] = "FOR CANDELARIA LIGHT FITTINGS TRADING LLC"
     cover[f"B{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
     cover.merge_cells(f"E{r}:G{r}")
     cover[f"E{r}"] = "ACCEPTED BY CLIENT"
@@ -883,7 +930,7 @@ def _quotation_excel_response(quotation, db: Session):
             "All bank guarantees are issued per our bank's standard format.",
         ]),
         ("Delivery", [
-            "Once delivered, goods are no longer the responsibility of Candela Lighting and Automation LLC and cannot be returned or refunded.",
+            "Once delivered, goods are no longer the responsibility of Candelaria Light Fittings Trading LLC and cannot be returned or refunded.",
         ]),
         ("Warranty", [
             "Standard manufacturing warranty on all items is three years, unless a different term is agreed in writing.",

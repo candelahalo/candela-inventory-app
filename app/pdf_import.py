@@ -85,7 +85,8 @@ def _validity_days(s):
 
 
 def _parse_cover(page, out):
-    lines = _lines(page.extract_words())
+    # A label and its value can sit a few points apart ("To" vs ": Allied...")
+    lines = _lines(page.extract_words(), tol=7)
     for i, ln in enumerate(lines):
         text = _clean(ln["text"])
         low = text.lower()
@@ -273,7 +274,7 @@ def _parse_table_page(page, items, totals, warnings, want_images):
                 if lc.get(k):
                     parts[k].append(lc[k])
         qty, price, total = _num(c["qty"]), _num(c["price"]), _num(c["total"].replace("AED", ""))
-        unit = (c.get("unit") or "").strip().lower()
+        unit = next((t for t in (c.get("unit") or "").split() if not _is_num(t)), "").strip().lower()
         unit = {"pcs": "pcs", "pc": "pcs", "nos": "pcs", "no": "pcs", "no.": "pcs", "each": "pcs", "ea": "pcs",
                 "m": "m", "mtr": "m", "mtrs": "m", "meter": "m", "metre": "m", "lm": "m", "rm": "m"}.get(unit, unit or "pcs")
         desc_lines = [" ".join(x.split()) for x in parts["desc"]]
@@ -293,6 +294,8 @@ def _parse_table_page(page, items, totals, warnings, want_images):
             "line_total": round(total, 2),
             "discount_pct": 0.0,
             "image": _line_image(page, band, cols) if want_images else None,
+            # raw cells, used to build a product from the line
+            "_lead": lead, "_desc": [" ".join(x.split()) for x in parts["desc"]], "_brandcol": brand,
         }
         if qty and price and abs(qty * price - total) > 0.05:
             # The row total is less than qty x price: a line discount
@@ -319,6 +322,111 @@ def _classify(text):
     division = "automation" if "automation" in t else ("lighting" if "light" in t else None)
     category = "retail" if "retail" in t else ("residential" if re.search(r"villa|residen|home|apartment", t) else None)
     return division, category
+
+
+# ---------- products from imported lines ----------
+# A line with an SL number is a fitting; a line without one (driver,
+# suspension kit, track channel ...) belongs to the fitting above it.
+
+DRIVER_BRANDS = ("TRIDONIC", "MEAN WELL", "MEANWELL", "OSRAM", "PHILIPS", "LUTRON", "HELVAR",
+                 "ELDOLED", "INVENTRONICS", "MOONS", "LIFUD")
+SKU_PREFIX = {"QUATTROBI": "QB", "TRIDONIC": "TRI", "HALO": "HALO", "RUHA": "RUHA", "LEDVANCE": "LDV"}
+FINISH_CODE = {"white": "WH", "black": "BK", "grey": "GY", "gray": "GY", "silver": "SL", "gold": "GD", "bronze": "BZ"}
+
+
+def _norm(s):
+    return " ".join((s or "").lower().split())
+
+
+def _slug(s):
+    return re.sub(r"[^A-Z0-9]+", "-", (s or "").upper()).strip("-")
+
+
+def _field(lines, name):
+    for l in lines:
+        m = re.match(r"\s*" + name + r"\s*:?\s*(.+)", l, re.I)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def _clean_brand(b):
+    # "QUATTROBI - ITALY" -> QUATTROBI, "HALO-UK" -> HALO
+    return re.split(r"\s*-\s*", (b or "").strip())[0].strip() or None
+
+
+def _category(text):
+    t = text.lower()
+    if re.search(r"driver|connector|channel|end ?cap|kit|feeder|power supply|transformer", t):
+        return "Accessories", "Accessories"
+    if "track" in t:
+        return "Surface Mounted", "Track Light"
+    if "suspended" in t or "pendant" in t:
+        return "Suspended", "Pendant"
+    if "surface" in t:
+        return "Surface Mounted", None
+    if "panel" in t:
+        return "Recessed Visible", None
+    return None, None
+
+
+def product_defs(items):
+    """For each imported line: the product it stands for (name, brand,
+    spec in the quotation's own format, SKU, a fingerprint to recognise it
+    again), keyed so identical items share one product."""
+    parent = None
+    for it in items:
+        spec = [l for l in it.get("_desc", []) if not l.lower().startswith(("location:", "brand:"))]
+        if it.get("sl") or parent is None:
+            brand = _clean_brand(it.get("_brandcol"))
+            model = _field(spec, "Model")
+            model = model.split(",")[0].strip() if model else next((l for l in spec if ":" not in l), None)
+            watt, cct, finish = _field(spec, "Wattage"), _field(spec, "CCT"), _field(spec, "Finish")
+            name = " ".join(filter(None, [model, watt, cct, finish])) or (it.get("_lead") or "Item")
+            prefix = SKU_PREFIX.get((brand or "").upper(), _slug(brand)[:4] or "ITEM")
+            sku = "-".join(filter(None, [prefix, _slug(model), _slug(watt).replace("-", ""),
+                                         (_slug(cct).replace("000K", "0K") if cct else None),
+                                         FINISH_CODE.get((finish or "").lower())]))
+            cat, typ = _category(" ".join([model or "", _field(spec, "Type") or "", " ".join(spec[:2])]))
+            it["_product"] = {"key": "m|" + _norm(brand) + "|" + _norm("\n".join(spec)), "name": name[:255],
+                              "brand": brand, "sku": sku[:64], "spec": "\n".join(spec) or None,
+                              "category": cat, "product_type": typ}
+            parent = {"brand": brand, "model": model or name, "watt": watt, "prefix": prefix}
+            continue
+        # A line belonging to the fitting above
+        text = " ".join(it.get("_desc", [])).strip()
+        label = (it.get("_brandcol") or it.get("_lead") or "").strip()
+        driver = "driver" in (label + " " + text).lower()
+        brand = next((b for b in DRIVER_BRANDS if b in text.upper()), None) if driver else None
+        brand = brand or parent["brand"]
+        if driver:
+            ref = " ".join(filter(None, [parent["model"].split()[0], parent["watt"]]))
+            core = re.sub(r"(?i)\bfor the above\b", "", text)
+            core = re.sub(r"(?i)^driver\s+", "", core).strip() or "Driver"
+            name = f"{core} for {ref}"
+            prefix = SKU_PREFIX.get(brand.upper(), _slug(brand)[:4]) if brand else parent["prefix"]
+            sku = f"{prefix}-DRV-{_slug(ref).replace('-W', 'W')}"
+        else:
+            ref = parent["model"]
+            name = f"{text or label} ({ref})"
+            sku = f"{parent['prefix']}-{_slug(text or label)}"
+            if len(sku) + len(_slug(ref)) < 60:
+                sku += "-" + _slug(ref)
+        cat, typ = _category(name if driver or text else label)
+        it["_product"] = {"key": "s|" + _norm(brand) + "|" + _norm(ref) + "|" + _norm(text or label),
+                          "name": name[:255], "brand": brand, "sku": sku[:64], "spec": name,
+                          "category": cat or "Accessories", "product_type": typ or "Accessories"}
+    # Different items that came out with the same name (e.g. stretch ceilings
+    # of different sizes): add the dimension to tell them apart
+    seen = {}
+    for it in items:
+        p = it["_product"]
+        if seen.setdefault(p["name"], p["key"]) != p["key"]:
+            dim = _field([l for l in it.get("_desc", [])], "Dimension")
+            if dim:
+                p["name"] = f"{p['name']} {dim}"[:255]
+                p["sku"] = f"{p['sku']}-{_slug(dim).replace('-MM', '')}"[:64]
+    return items
 
 
 def _match_product(item, products):
@@ -417,9 +525,20 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
     gross = round(sum(i["line_total"] for i in items), 2)
     if discount and gross:
         # One discount on the whole offer: spread as the same % on every line
-        pct = round(discount / gross * 100, 4)
+        pct = discount / gross * 100
         for i in items:
-            i["discount_pct"] = round(100 - (100 - i["discount_pct"]) * (1 - pct / 100), 4)
+            i["discount_pct"] = round(100 - (100 - i["discount_pct"]) * (1 - pct / 100), 6)
+        # Each line total is rounded to fils, so the sum can be a few fils
+        # off; the biggest line takes up the difference so the total matches.
+        def app_total(i):  # as the app works it out
+            return round(i["quantity"] * i["unit_price"] * (1 - i["discount_pct"] / 100), 2)
+        target = round(gross - discount, 2)
+        diff = round(target - sum(app_total(i) for i in items), 2)
+        big = max(items, key=lambda i: i["quantity"] * i["unit_price"])
+        base = big["quantity"] * big["unit_price"]
+        if diff and base:
+            want = app_total(big) + diff
+            big["discount_pct"] = (1 - want / base) * 100
         warnings.append(f"Overall discount of {discount:,.2f} applied as {pct:.2f}% on every line.")
 
     # Products and photos

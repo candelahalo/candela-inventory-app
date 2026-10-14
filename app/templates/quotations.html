@@ -7,6 +7,8 @@
     <p>Prepare professional, standardized pricing for clients.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn btn-ghost" id="import-btn" title="Bring in a quotation made before the app, from its PDF">Import PDF</button>
+    <input type="file" id="import-file" accept="application/pdf,.pdf" hidden>
     <button class="btn" id="show-add-btn">+ New quotation</button></div>
 </div>
 
@@ -24,6 +26,7 @@
       <button type="button" class="btn btn-ghost btn-sm" id="revise-btn" title="Make a new version (R1, R2…) and keep this one unchanged">Revise</button>
     </div>
   </div>
+  <div class="import-note" id="import-note" style="display:none;"></div>
   <div class="lock-note" id="lock-note" style="display:none;">Accepted by the client, so this quotation is locked. Use <strong>Revise</strong> to make a new version.</div>
   <form id="quote-form">
     <input type="hidden" id="editing-id">
@@ -335,6 +338,8 @@ function hideAddPanel() {
   setProject(null);
   clearClassAuto();
   openQuote = null;
+  importedMeta = null;
+  document.getElementById('import-note').style.display = 'none';
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
 }
@@ -720,6 +725,75 @@ function collectQuotationPayload() {
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
   return payload;
+}
+
+// ---------- Import an old quotation from its PDF ----------
+// The server reads the PDF; nothing is saved until Save is pressed here.
+let importedMeta = null;
+document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  toast('Reading ' + file.name + ' …');
+  const fd = new FormData();
+  fd.append('file', file);
+  let res;
+  try { res = await fetch('/quotations/import-pdf', { method: 'POST', headers: authHeaders(), body: fd }); }
+  catch (err) { toast('Upload failed: ' + err.message, true); return; }
+  if (res.status === 401) { signOut(); return; }
+  if (res.status === 413) { toast('That PDF is larger than the server accepts. Ask for the upload limit to be raised.', true); return; }
+  if (!res.ok) {
+    let d = res.statusText;
+    try { d = (await res.json()).detail || d; } catch (err) {}
+    toast(d, true);
+    return;
+  }
+  const d = await res.json();
+  // New products may have been added from the PDF: refresh the list first
+  try { productsCache = await api('/products/'); } catch (err) {}
+  openImportedQuotation(d, file.name);
+});
+
+function openImportedQuotation(d, fileName) {
+  hideAddPanel();
+  const form = document.getElementById('quote-form');
+  showAddPanel('New quotation — from ' + (d.original_number || fileName));
+  if (d.customer_id) setCustomer(d.customer_id);
+  else { document.getElementById('q-customer-input').value = d.customer_name || ''; updateCustomerHint(); }
+  if (d.project_id) setProject(d.project_id);
+  else { document.getElementById('q-project-input').value = d.project_name || ''; updateProjectHint(); }
+  ['attention_to', 'subject', 'currency', 'scope', 'delivery_time', 'payment_terms', 'prepared_by_name',
+   'prepared_by_title', 'notes', 'valid_until', 'vat_percent', 'freight_charges'].forEach(k => {
+    if (d[k] !== null && d[k] !== undefined && form[k]) form[k].value = d[k];
+  });
+  form.transportation_charges.value = d.transportation_charges || '';
+  form.division.value = d.division || '';
+  form.category.value = d.category || '';
+  clearClassAuto();
+  fillClassFromLinks();
+  document.getElementById('line-items').innerHTML = '';
+  d.items.forEach(i => addLine({
+    product_id: i.product_id, unit: i.unit, image_path: i.image_path, type_code: i.type_code,
+    description: i.description, quantity: i.quantity, unit_price: i.unit_price, unit_cost: 0,
+    discount_pct: i.discount_pct,
+  }));
+  importedMeta = { original_number: d.original_number, date: d.date };
+  const n = d.items.length, made = (d.created_products || []).length;
+  const totalOk = d.pdf_total == null || Math.abs(d.pdf_total - d.imported_total) < 0.5;
+  const parts = [
+    `<strong>Read from ${escHtml(fileName)}</strong>${d.original_number ? ' (' + escHtml(d.original_number) + ')' : ''}: ${n} line${n === 1 ? '' : 's'}, all linked to products`
+      + (made ? ` — <strong>${made} new product${made === 1 ? '' : 's'} added</strong> to Products (spec, photo and price from the PDF; add cost prices there)` : ' already in Products') + '.',
+    totalOk ? `Total ${escHtml(d.currency || 'AED')} ${Number(d.imported_total).toLocaleString(undefined, { minimumFractionDigits: 2 })} (VAT excluded) matches the PDF.`
+            : `<span class="overdue-text">Total comes to ${Number(d.imported_total).toLocaleString(undefined, { minimumFractionDigits: 2 })} but the PDF says ${Number(d.pdf_total).toLocaleString(undefined, { minimumFractionDigits: 2 })} — check the lines.</span>`,
+    ...(d.warnings || []).map(w => escHtml(w)),
+    'Check it, then <strong>Save quotation</strong> — it gets the next app number; the original number is kept in Notes. The quotation isn\'t saved yet.',
+  ];
+  const note = document.getElementById('import-note');
+  note.innerHTML = parts.map(x => `<div>${x}</div>`).join('');
+  note.style.display = 'block';
+  recalcMargins();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Preview / PDF / Excel of what's in the form right now - including unsaved

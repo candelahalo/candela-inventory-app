@@ -978,3 +978,7 @@ table.kv td:first-child { color: var(--muted); width: 38%; font-size: 13px; }
 .po-group-title { font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; }
 a.po-group-title:hover { color: var(--amber-deep); }
 .po-group-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+
+.import-note { background: #E8EEF5; color: #2D4A66; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; margin-bottom: 16px; display: grid; gap: 4px; }
+.keep-orig { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-weight: 500; cursor: pointer; }
+.keep-orig input { width: auto; margin: 0; }

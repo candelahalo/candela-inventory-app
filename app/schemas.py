@@ -144,6 +144,9 @@ class QuotationCreate(BaseModel):
     # If no project_id is given, a project with this name is found or created
     # against the same customer, so a quotation can start a new job directly.
     project_name: Optional[str] = None
+    # Bringing in an old quotation: keep its own number and date (new ones only)
+    quote_number: Optional[str] = None
+    quote_date: Optional[datetime] = None
     # Left empty, these are taken from the project, then the customer
     division: Optional[Literal["lighting", "automation"]] = None
     category: Optional[Literal["retail", "residential"]] = None

@@ -1,7 +1,7 @@
 """quotation lines without a product (custom lines), with their own unit and photo
 
 Revision ID: f6a3d8b2c5e1
-Revises: e2b7c4d9a1f5
+Revises: c3f9a2d6e8b1
 Create Date: 2026-10-10 23:00:00
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'f6a3d8b2c5e1'
-down_revision = 'e2b7c4d9a1f5'
+down_revision = 'c3f9a2d6e8b1'
 branch_labels = None
 depends_on = None
 
