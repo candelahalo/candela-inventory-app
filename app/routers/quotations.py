@@ -401,6 +401,29 @@ def bulk_delete_quotations(payload: schemas.IdsIn, db: Session = Depends(get_db)
     return {"deleted": len(quotes)}
 
 
+@router.post("/line-preview/{product_id}")
+def product_line_preview(product_id: int, payload: schemas.ProductCreate, db: Session = Depends(get_db),
+                         current: models.User = Depends(auth.get_current_user)):
+    """How a product looks as a quotation line - with the edits on the
+    product page, saved or not. Nothing is stored."""
+    saved = db.query(models.Product).get(product_id)
+    if not saved:
+        raise HTTPException(status_code=404, detail="Product not found")
+    # Unsaved copies, never added to the database session
+    prod = models.Product(id=saved.id, sku=payload.sku, name=payload.name, unit=payload.unit or "pcs",
+                          image_path=saved.image_path, spec_summary=payload.spec_summary)
+    q = models.Quotation(quote_number="PREVIEW", subject=f"Preview - {payload.name}", currency="AED",
+                         vat_percent=5.0, freight_charges=0.0, transportation_charges="")
+    q.items = [models.QuotationItem(product_id=saved.id, product=prod, description=payload.spec_summary,
+                                    quantity=1, unit_price=payload.selling_price or 0.0, unit_cost=0.0,
+                                    discount_pct=0.0)]
+    try:
+        return _quotation_pdf_response(q, db, inline=True, items_only=True)
+    finally:
+        db.expunge_all()
+        db.rollback()
+
+
 @router.delete("/{quotation_id}", status_code=204)
 def delete_quotation(quotation_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     quotation = db.query(models.Quotation).get(quotation_id)
@@ -483,7 +506,7 @@ def quotation_pdf(quotation_id: int, token: str = Query(...), preview: bool = Fa
     return _quotation_pdf_response(quotation, db, inline=preview)
 
 
-def _quotation_pdf_response(quotation, db: Session, inline: bool = False):
+def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_only: bool = False):
     # Map product -> its most recent datasheet, so the product name in the
     # document can link straight to the spec sheet.
     product_ids = [i.product_id for i in quotation.items if i.product_id]
@@ -499,7 +522,7 @@ def _quotation_pdf_response(quotation, db: Session, inline: bool = False):
             datasheet_links.setdefault(s.product_id, f"{BASE_URL}/datasheets/{s.id}/preview")
 
     html_str = templates.get_template("quotation_pdf.html").render(
-        {"q": quotation, "request": None, "datasheet_links": datasheet_links}
+        {"q": quotation, "request": None, "datasheet_links": datasheet_links, "items_only": items_only}
     )
     pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
     filename = f"{quotation.quote_number.replace('/', '-')}.pdf"

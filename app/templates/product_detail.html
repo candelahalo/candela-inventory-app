@@ -6,7 +6,9 @@
     <h1 id="prod-name">Loading…</h1>
     <p id="prod-meta"></p>
   </div>
-  <div class="head-actions"><span id="report-btns"></span>
+  <div class="head-actions">
+    <button class="btn" id="line-preview-btn" title="How this product looks as a line on a quotation, with the edits below (saved or not)">Preview on a quote</button>
+    <span id="report-btns"></span>
     <a href="/products" class="btn btn-ghost">← All products</a></div>
 </div>
 
@@ -273,5 +275,28 @@ api('/orders/suppliers').then(names => {
   const dl = document.getElementById('supplier-list');
   if (dl) dl.innerHTML = names.map(n => `<option value="${escHtml(n)}">`).join('');
 }).catch(() => {});
+
+// "Preview on a quote": the product as a quotation line, using what's in the
+// form right now (saved or not). Opens a PDF in a new tab.
+document.getElementById('line-preview-btn').addEventListener('click', async () => {
+  const form = document.getElementById('product-form');
+  const payload = formToJSON(form);
+  payload.cost_price = parseFloat(payload.cost_price || 0);
+  payload.selling_price = parseFloat(payload.selling_price || 0);
+  payload.reorder_level = parseInt(payload.reorder_level || 0);
+  if (!payload.sku || !payload.name) { toast('SKU and name are needed', true); return; }
+  const tab = window.open('', '_blank');  // inside the click, so it isn't blocked
+  if (tab) tab.document.body.innerHTML = '<p style="font:14px sans-serif;padding:32px;color:#7A7364">Preparing preview…</p>';
+  try {
+    const res = await fetch('/quotations/line-preview/' + productId, {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Could not build the preview'); }
+    const url = URL.createObjectURL(await res.blob());
+    if (tab) tab.location.replace(url); else window.open(url, '_blank');
+  } catch (err) {
+    if (tab) tab.close();
+    toast(err.message, true);
+  }
+});
 </script>
 {% endblock %}

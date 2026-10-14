@@ -178,6 +178,7 @@
 </head>
 <body>
 
+{% if not items_only %}
 <!-- ===== COVER PAGE ===== -->
 <div class="cover-brand"><img src="app/static/candela-logo-doc.png"></div>
 
@@ -224,6 +225,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
 
 <div class="page-break"></div>
 
+{% endif %}
 <!-- ===== ITEM SCHEDULE ===== -->
 <div class="schedule-head">
   <h2 class="schedule-title">Itemized Schedule</h2>
@@ -280,6 +282,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   </div>
 </div>
 
+{% if not items_only %}
 <div class="page-break"></div>
 
 <!-- ===== TERMS & CONDITIONS ===== -->
@@ -317,5 +320,6 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   </div>
 </div>
 
+{% endif %}
 </body>
 </html>

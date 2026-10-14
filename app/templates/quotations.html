@@ -15,6 +15,7 @@
 <div class="panel" id="add-panel" style="display:none;">
   <div class="editor-head">
     <h2 id="form-title">New quotation</h2>
+    <button type="button" class="btn btn-sm" id="top-preview-btn" title="See the quotation PDF exactly as it is in this form - nothing is saved">Preview PDF</button>
     <div class="status-bar" id="status-bar" style="display:none;">
       <span class="status-bar-label">Status</span>
       <div class="seg" id="status-seg">
@@ -817,6 +818,8 @@ function openImportedQuotation(d, fileName) {
 
 // Preview / PDF / Excel of what's in the form right now - including unsaved
 // changes - without saving anything. Preview opens in a new tab.
+document.getElementById('top-preview-btn').addEventListener('click', () => draftDocument('preview'));
+
 async function draftDocument(mode) {
   const payload = collectQuotationPayload();
   if (!payload) return;
