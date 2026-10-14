@@ -37,7 +37,7 @@
         <div class="field"><label>Usual supplier</label><input name="supplier" list="supplier-list" placeholder="Who we buy it from"><datalist id="supplier-list"></datalist></div>
         <div class="field"><label>Unit</label><input name="unit"></div>
         <div class="field"><label>Reorder level</label><input name="reorder_level" type="number"></div>
-        <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01"></div>
+        <div class="field"><label>Cost price</label><div class="cost-row"><input name="cost_amount" type="number" step="0.01" min="0"><select name="cost_currency"><option>AED</option><option>USD</option><option>EUR</option></select></div><div class="cost-note"></div></div>
         <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01"></div>
         <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
       </div>
@@ -160,7 +160,9 @@ async function loadProduct() {
   form.supplier.value = product.supplier || '';
   form.unit.value = product.unit || 'pcs';
   form.reorder_level.value = product.reorder_level;
-  form.cost_price.value = product.cost_price;
+  form.cost_amount.value = product.cost_amount ?? product.cost_price;
+  form.cost_currency.value = product.cost_currency || 'AED';
+  if (form._updateCost) form._updateCost(); else wireCostFields(form);
   form.selling_price.value = product.selling_price;
   form.spec_summary.value = product.spec_summary || '';
 
@@ -193,8 +195,7 @@ document.getElementById('photo-input').addEventListener('change', async (e) => {
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const payload = formToJSON(e.target);
-  payload.cost_price = parseFloat(payload.cost_price || 0);
+  const payload = costPayload(formToJSON(e.target));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
   try {
@@ -280,8 +281,7 @@ api('/orders/suppliers').then(names => {
 // form right now (saved or not). Opens a PDF in a new tab.
 document.getElementById('line-preview-btn').addEventListener('click', async () => {
   const form = document.getElementById('product-form');
-  const payload = formToJSON(form);
-  payload.cost_price = parseFloat(payload.cost_price || 0);
+  const payload = costPayload(formToJSON(form));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
   if (!payload.sku || !payload.name) { toast('SKU and name are needed', true); return; }

@@ -993,3 +993,12 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .bulk-bar .btn-ghost { color: #fff; border-color: rgba(255,255,255,0.3); background: transparent; }
 .btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; margin-left: auto; }
 .btn-danger-solid:hover { filter: brightness(0.95); }
+
+/* Product cost: amount + currency, AED result */
+.cost-row { display: flex; gap: 6px; }
+.cost-row input { flex: 1; width: 0; min-width: 0; }
+.cost-row select { width: 82px; flex: none; }
+.cost-note { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.cost-note strong { color: var(--ink); }
+.cost-warn { color: #b0473a; }
+.cost-sub { display: block; font-size: 11.5px; color: var(--muted); }

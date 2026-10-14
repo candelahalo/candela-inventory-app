@@ -326,3 +326,56 @@ function bulkBar(barId, ids, noun, onDelete, onClear) {
   bar.querySelector('[data-bulk-delete]').onclick = () => onDelete(ids.map(Number));
   bar.querySelector('[data-bulk-clear]').onclick = onClear;
 }
+
+// ---------- Product cost in AED, USD or EUR ----------
+// Rates (AED for 1 unit) come from Settings. AED cost = amount x rate; the
+// server works out the same figure on save. Freight is charged separately.
+let _ratesPromise = null;
+function loadRates() {
+  if (!_ratesPromise) {
+    _ratesPromise = api('/rates/').then(rows => {
+      const m = { AED: 1 };
+      rows.forEach(r => { if (r.rate) m[r.currency] = r.rate; });
+      return m;
+    }).catch(() => ({ AED: 1 }));
+  }
+  return _ratesPromise;
+}
+
+function costToAED(amount, currency, rates) {
+  const rate = rates[currency || 'AED'];
+  if (rate == null) return null;
+  return Math.round((Number(amount) || 0) * rate * 100) / 100;
+}
+
+function fmtNum(n, dp) {
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
+}
+
+// The line under the cost field: "= AED 482.40 (EUR 120.00 × 4.02)"
+function costNoteText(amount, currency, rates) {
+  if (!currency || currency === 'AED') return '';
+  const aed = costToAED(amount, currency, rates);
+  if (aed == null) return `<span class="cost-warn">Set the ${currency} rate in Settings first</span>`;
+  return `= <strong>${fmtMoney(aed)}</strong> <span class="cost-how">(${currency} ${fmtNum(amount || 0, 2)} × ${rates[currency]})</span>`;
+}
+
+// Wires the cost amount / currency inputs of a product form so the AED
+// figure updates as you type.
+function wireCostFields(form) {
+  const note = form.querySelector('.cost-note');
+  const update = () => loadRates().then(rates => {
+    note.innerHTML = costNoteText(form.cost_amount.value, form.cost_currency.value, rates);
+  });
+  ['cost_amount', 'cost_currency'].forEach(n => form[n].addEventListener('input', update));
+  form._updateCost = update;
+  update();
+}
+
+// Numbers from the cost inputs, ready to send with a product
+function costPayload(payload) {
+  payload.cost_currency = payload.cost_currency || 'AED';
+  payload.cost_amount = parseFloat(payload.cost_amount || 0);
+  delete payload.cost_price;
+  return payload;
+}

@@ -7,6 +7,7 @@ from app import models, schemas
 from app.utils import save_product_image, log_activity
 from app import auth
 from app import product_removal
+from app import fx
 
 router = APIRouter(prefix="/products", tags=["Products"],
                    dependencies=[Depends(auth.get_current_user)])
@@ -32,6 +33,7 @@ def create_product(payload: schemas.ProductCreate, db: Session = Depends(get_db)
     if existing:
         raise HTTPException(status_code=400, detail="SKU already exists")
     product = models.Product(**payload.model_dump())
+    fx.apply_cost(product, fx.rates(db))
     db.add(product)
     db.flush()
     log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "created")
@@ -55,6 +57,7 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
         raise HTTPException(status_code=404, detail="Product not found")
     for key, value in payload.model_dump().items():
         setattr(product, key, value)
+    fx.apply_cost(product, fx.rates(db))
     log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated")
     db.commit()
     db.refresh(product)

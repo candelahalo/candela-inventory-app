@@ -22,7 +22,7 @@
       <div class="field"><label>Usual supplier</label><input name="supplier" list="supplier-list" placeholder="Who we buy it from"><datalist id="supplier-list"></datalist></div>
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
       <div class="field"><label>Reorder level</label><input name="reorder_level" type="number" value="0"></div>
-      <div class="field"><label>Cost price (AED)</label><input name="cost_price" type="number" step="0.01" value="0"></div>
+      <div class="field"><label>Cost price</label><div class="cost-row"><input name="cost_amount" type="number" step="0.01" min="0" value="0"><select name="cost_currency"><option>AED</option><option>USD</option><option>EUR</option></select></div><div class="cost-note"></div></div>
       <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
       <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="3" placeholder="Source : LED&#10;CCT : 3000K&#10;Power : 12W&#10;IP Rating : IP65"></textarea></div>
     </div>
@@ -114,6 +114,7 @@ document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('add-panel').style.display = 'none';
   document.getElementById('show-add-btn').style.display = '';
   document.getElementById('product-form').reset();
+  document.getElementById('product-form')._updateCost();
 });
 
 async function deleteProduct(id, name) {
@@ -180,7 +181,7 @@ function renderProducts() {
       { key: 'product_type', label: 'Type', value: p => p.product_type || '', render: p => p.product_type || '—' },
       { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
         render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : '—' },
-      { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) },
+      { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },
     ],
@@ -197,8 +198,7 @@ function renderProducts() {
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const payload = formToJSON(e.target);
-  payload.cost_price = parseFloat(payload.cost_price || 0);
+  const payload = costPayload(formToJSON(e.target));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
   try {
@@ -209,6 +209,14 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 });
 
 loadProducts();
+wireCostFields(document.getElementById('product-form'));
+
+// Under the AED cost in the list: what the supplier quotes, if not AED
+function costSub(p) {
+  const cur = p.cost_currency || 'AED';
+  if (cur === 'AED') return '';
+  return `<span class="cost-sub">${cur} ${fmtNum(p.cost_amount ?? p.cost_price, 2)}</span>`;
+}
 
 // Suppliers used before, for the "Usual supplier" type-ahead
 api('/orders/suppliers').then(names => {

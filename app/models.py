@@ -47,6 +47,11 @@ class Product(Base):
     # recognised the next time the same item appears
     match_key = Column(String(500), index=True)
     unit = Column(String(32), default="pcs")
+    # Cost as the supplier quotes it (AED, USD or EUR). cost_price is the same
+    # in AED, at the rate in Settings; it is what profit uses. Freight is
+    # charged separately, not added here.
+    cost_currency = Column(String(3), default="AED")
+    cost_amount = Column(Float)
     cost_price = Column(Float, default=0.0)
     selling_price = Column(Float, default=0.0)
     reorder_level = Column(Integer, default=0)
@@ -57,6 +62,16 @@ class Product(Base):
 
     stock_movements = relationship("StockMovement", back_populates="product")
     datasheets = relationship("Datasheet", back_populates="product")
+
+
+class ExchangeRate(Base):
+    """AED for one unit of a currency, set in Settings (e.g. EUR -> 4.02)."""
+    __tablename__ = "exchange_rates"
+
+    currency = Column(String(3), primary_key=True)
+    rate = Column(Float, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_by = Column(String(64))
 
 
 class Warehouse(Base):

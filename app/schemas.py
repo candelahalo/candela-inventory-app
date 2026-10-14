@@ -15,6 +15,10 @@ class ProductBase(BaseModel):
     brand: Optional[str] = None
     supplier: Optional[str] = None  # usual supplier (HALO is own brand: varies)
     unit: str = "pcs"
+    # Cost as the supplier quotes it; cost_price (AED) is worked out from
+    # these on save. Leave cost_amount out to give cost_price in AED.
+    cost_currency: str = "AED"
+    cost_amount: Optional[float] = None
     cost_price: float = 0.0
     selling_price: float = 0.0
     reorder_level: int = 0
@@ -29,6 +33,7 @@ class ProductCreate(ProductBase):
 class ProductOut(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    cost_currency: Optional[str] = "AED"
     image_path: Optional[str] = None
     created_at: datetime
 

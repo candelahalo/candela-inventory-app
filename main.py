@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers import (products, stock, customers, quotations, projects,
                          datasheets, activity, auth_router, backup,
-                         reports_router, ui, orders)
+                         reports_router, ui, orders, rates)
 
 app = FastAPI(title="Candela Inventory, Stock & Project Tracker", version="0.4.0")
 
@@ -42,6 +42,7 @@ app.include_router(quotations.download_router)
 app.include_router(quotations.router)
 app.include_router(projects.router)
 app.include_router(orders.router)
+app.include_router(rates.router)
 app.include_router(datasheets.public_router)
 app.include_router(datasheets.router)
 app.include_router(activity.router)

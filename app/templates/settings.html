@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>Settings</h1>
-    <p>Your password, staff logins, and backups.</p>
+    <p>Your password, staff logins, exchange rates and backups.</p>
   </div>
 </div>
 
@@ -46,6 +46,21 @@
     </div>
   </form>
   <div id="users-table" style="margin-top:18px;"></div>
+</div>
+
+<div class="panel" id="rates-card">
+  <h2>Exchange Rates</h2>
+  <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px; max-width:760px;">
+    For product costs quoted in USD or EUR: AED cost = <strong>amount × rate</strong>.
+    Saving a new rate updates the AED cost of every product in that currency;
+    quotations already made keep the cost they had. Freight is charged separately.
+  </p>
+  <form id="rates-form">
+    <div class="form-grid" id="rates-fields"></div>
+    <div class="form-actions" id="rates-actions" style="display:none;">
+      <button type="submit" class="btn">Save rates</button>
+    </div>
+  </form>
 </div>
 
 <div class="panel">
@@ -288,12 +303,40 @@ async function deleteBackup(id) {
   } catch (err) { toast(err.message, true); }
 }
 
+// ---------- Exchange rates ----------
+async function loadRatesPanel() {
+  const rows = await api('/rates/');
+  const admin = me && me.is_admin;
+  document.getElementById('rates-fields').innerHTML = rows.map(r => `
+    <div class="field">
+      <label>1 ${r.currency} = AED</label>
+      <input name="${r.currency}" type="number" step="0.0001" min="0" value="${r.rate ?? ''}"
+             placeholder="${r.currency === 'EUR' ? 'e.g. 4.02' : ''}" ${admin ? '' : 'disabled'} ${r.currency === 'EUR' ? 'required' : ''}>
+      <div class="cost-note">${r.rate == null ? '<span class="cost-warn">Not set yet</span>' :
+        (r.updated_at ? 'Set ' + fmtDate(r.updated_at) + (r.updated_by ? ' by ' + escHtml(r.updated_by) : '') : '')}
+        · ${r.products} product${r.products === 1 ? '' : 's'} costed in ${r.currency}</div>
+    </div>`).join('');
+  document.getElementById('rates-actions').style.display = admin ? '' : 'none';
+}
+
+document.getElementById('rates-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const rates = {};
+  for (const inp of e.target.querySelectorAll('input')) if (inp.value) rates[inp.name] = parseFloat(inp.value);
+  try {
+    const r = await api('/rates/', { method: 'PUT', body: JSON.stringify({ rates }) });
+    toast('Rates saved' + (r.products_updated ? ` — ${r.products_updated} product cost${r.products_updated === 1 ? '' : 's'} updated` : ''));
+    loadRatesPanel();
+  } catch (err) { toast(err.message, true); }
+});
+
 (async () => {
   me = await api('/auth/me');
   if (me.is_admin) {
     document.getElementById('users-card').style.display = '';
     await loadUsers();
   }
+  await loadRatesPanel();
   await loadBackups();
 })();
 </script>
