@@ -350,3 +350,15 @@ function costPayload(payload) {
   delete payload.cost_price;
   return payload;
 }
+
+// ---------- Message carried to the next page ----------
+// e.g. "Product updated" after saving and going back to the list.
+function flashNext(message) {
+  try { sessionStorage.setItem('flash', message); } catch (e) { /* no storage: skip */ }
+}
+function showFlash() {
+  let msg = null;
+  try { msg = sessionStorage.getItem('flash'); sessionStorage.removeItem('flash'); } catch (e) { /* ignore */ }
+  if (msg) toast(msg);
+}
+document.addEventListener('DOMContentLoaded', showFlash);

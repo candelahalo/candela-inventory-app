@@ -9,7 +9,7 @@
   <div class="head-actions">
     <button class="btn" id="line-preview-btn" title="How this product looks as a line on a quotation, with the edits below (saved or not)">Preview on a quote</button>
     <span id="report-btns"></span>
-    <a href="/products" class="btn btn-ghost">← All products</a></div>
+    <a href="/products" class="btn btn-ghost" onclick="backToProducts(); return false;">← All products</a></div>
 </div>
 
 <div class="product-detail-grid">
@@ -193,6 +193,21 @@ document.getElementById('photo-input').addEventListener('change', async (e) => {
   finally { e.target.value = ''; }
 });
 
+// Back to the products list (loaded fresh): to the tab we came from,
+// otherwise to the tab of this product's category.
+function backToProducts() {
+  let hash = null;
+  try {
+    const r = new URL(document.referrer);
+    if (r.origin === location.origin && r.pathname === '/products') hash = sessionStorage.getItem('productsTab') || '';
+  } catch (e) { /* no referrer or storage */ }
+  if (hash === null) {
+    const cat = product && product.category;
+    hash = cat ? '#category=' + encodeURIComponent(cat) : '';
+  }
+  location.href = '/products' + hash;
+}
+
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = costPayload(formToJSON(e.target));
@@ -200,8 +215,8 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   payload.reorder_level = parseInt(payload.reorder_level || 0);
   try {
     await api('/products/' + productId, { method: 'PUT', body: JSON.stringify(payload) });
-    toast('Product updated');
-    loadProduct();
+    flashNext('Product updated');
+    backToProducts();
   } catch (err) { toast(err.message, true); }
 });
 

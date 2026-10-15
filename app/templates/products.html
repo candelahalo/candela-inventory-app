@@ -71,6 +71,7 @@ function setCategory(cat) {
 }
 
 function renderTabs() {
+  try { sessionStorage.setItem('productsTab', location.hash); } catch (e) { /* no storage */ }
   const count = cat => cat === 'all' ? productsCache.length
     : cat === 'other' ? productsCache.filter(p => isOtherCategory(p.category)).length
     : productsCache.filter(p => p.category === cat).length;
