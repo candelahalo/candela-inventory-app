@@ -88,8 +88,6 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         columns = [
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
-            {"key": "category", "label": "Category"},
-            {"key": "product_type", "label": "Type"},
             {"key": "warehouse_name", "label": "Warehouse"},
             {"key": "quantity_on_hand", "label": "On hand", "kind": "number"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
