@@ -20,6 +20,8 @@ from types import SimpleNamespace
 
 import pdfplumber
 
+from app.categories import classify
+
 _NUM = re.compile(r"^\(?-?[\d,]*\d(\.\d+)?\)?$")
 
 
@@ -356,18 +358,8 @@ def _clean_brand(b):
 
 
 def _category(text):
-    t = text.lower()
-    if re.search(r"driver|connector|channel|end ?cap|kit|feeder|power supply|transformer", t):
-        return "Accessories", "Accessories"
-    if "track" in t:
-        return "Surface Mounted", "Track Light"
-    if "suspended" in t or "pendant" in t:
-        return "Suspended", "Pendant"
-    if "surface" in t:
-        return "Surface Mounted", None
-    if "panel" in t:
-        return "Recessed Visible", None
-    return None, None
+    """Category for an imported item (types are no longer used)."""
+    return classify(text), None
 
 
 def product_defs(items):
@@ -415,7 +407,7 @@ def product_defs(items):
         cat, typ = _category(name if driver or text else label)
         it["_product"] = {"key": "s|" + _norm(brand) + "|" + _norm(ref) + "|" + _norm(text or label),
                           "name": name[:255], "brand": brand, "sku": sku[:64], "spec": name,
-                          "category": cat or "Accessories", "product_type": typ or "Accessories"}
+                          "category": cat or "Accessories", "product_type": typ}
     # Different items that came out with the same name (e.g. stretch ceilings
     # of different sizes): add the dimension to tell them apart
     seen = {}

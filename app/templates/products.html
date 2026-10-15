@@ -17,7 +17,6 @@
       <div class="field"><label>SKU</label><input name="sku" required placeholder="CND-LED-001"></div>
       <div class="field"><label>Name</label><input name="name" required placeholder="LED Downlight 12W"></div>
       <div class="field"><label>Category</label><select name="category" id="p-category" required></select></div>
-      <div class="field"><label>Type</label><select name="product_type" id="p-type"></select></div>
       <div class="field"><label>Brand</label><input name="brand" placeholder="Optional"></div>
       <div class="field"><label>Usual supplier</label><input name="supplier" list="supplier-list" placeholder="Who we buy it from"><datalist id="supplier-list"></datalist></div>
       <div class="field"><label>Unit</label><input name="unit" value="pcs"></div>
@@ -38,7 +37,6 @@
 </div>
 
 <div class="tabs" id="category-tabs" role="tablist"></div>
-<div class="chips" id="type-chips"></div>
 
 <div class="panel">
   <div class="bulk-bar" id="bulk-bar" hidden></div>
@@ -53,30 +51,22 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Exports follow the category tab and type chip that are showing.
+  // Exports follow the category tab that's showing.
   document.getElementById('report-btns').innerHTML = reportButtons('products', { extra: 'productsReportParams()' });
 });
 
-// Category tabs: All, each HALO category, and "Other" for anything still on
-// an older category. Kept in the URL so a refresh lands on the same tab.
+// Category tabs: All, each category, and "Other" for anything with no
+// category (or an old one). Kept in the URL so a refresh lands on the same tab.
 let activeCategory = readHashFilters().category || 'all';
-let activeType = readHashFilters().type || 'all';
 const isOtherCategory = c => !PRODUCT_CATEGORIES.includes(c || '');
 
 function productsReportParams() {
-  return (activeCategory === 'all' ? '' : '&category=' + encodeURIComponent(activeCategory)) +
-         (activeType === 'all' ? '' : '&type=' + encodeURIComponent(activeType));
+  return activeCategory === 'all' ? '' : '&category=' + encodeURIComponent(activeCategory);
 }
 
 function setCategory(cat) {
   activeCategory = cat;
-  writeHashFilters(activeCategory, activeType);
-  renderProducts();
-}
-
-function setType(t) {
-  activeType = t;
-  writeHashFilters(activeCategory, activeType);
+  writeHashFilters(activeCategory);
   renderProducts();
 }
 
@@ -104,10 +94,9 @@ function closeLightbox() {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
 document.getElementById('show-add-btn').addEventListener('click', () => {
-  // A product added from a category tab / type chip starts with those.
+  // A product added from a category tab starts in that category.
   fillCategorySelect(document.getElementById('p-category'),
     PRODUCT_CATEGORIES.includes(activeCategory) ? activeCategory : '');
-  fillTypeSelect(document.getElementById('p-type'), PRODUCT_TYPES.includes(activeType) ? activeType : '');
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
 });
@@ -162,11 +151,9 @@ async function loadProducts() {
 
 function renderProducts() {
   renderTabs();
-  const inCat = activeCategory === 'all' ? productsCache
+  const rows = activeCategory === 'all' ? productsCache
     : activeCategory === 'other' ? productsCache.filter(p => isOtherCategory(p.category))
     : productsCache.filter(p => p.category === activeCategory);
-  document.getElementById('type-chips').innerHTML = typeChips(inCat.map(p => p.product_type), activeType, 'setType');
-  const rows = inCat.filter(p => inType(p.product_type, activeType));
 
   DataTable.render({
     containerId: 'products-table',
@@ -179,7 +166,6 @@ function renderProducts() {
       { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<a href="/products/view/${p.id}" class="mono">${p.sku}</a>` },
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}" style="display:inline-block; min-width:170px;">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
-      { key: 'product_type', label: 'Type', value: p => p.product_type || '', render: p => p.product_type || '—' },
       { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
         render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : '—' },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },

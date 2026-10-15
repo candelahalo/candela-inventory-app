@@ -110,61 +110,26 @@ async function shrinkImageForUpload(file) {
 }
 
 // ---------- Product categories ----------
-// The categories used on halolights.uk. Products and datasheets pick from
-// this list so the spelling stays consistent everywhere.
+// One list for products, stock and datasheets, so the spelling stays
+// consistent everywhere (keep in step with app/categories.py).
 const PRODUCT_CATEGORIES = [
-  'Recessed Invisible', 'Recessed Visible', 'Semi Recessed', 'Low Voltage Track',
-  'Suspended', 'Led Flex', 'Surface Mounted', 'Accessories',
+  'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted',
+  'Linear Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light', 'Accessories',
 ];
 
-// Product types: a second level next to the category, e.g. a Recessed
-// Invisible product can be a Spotlight or a Downlight.
-const PRODUCT_TYPES = [
-  'Spotlight', 'Downlight', 'Track Light', 'Low Voltage Track',
-  'Strip Light', 'Neon', 'Pendant', 'Accessories',
-];
-
-function fillTypeSelect(select, current) {
-  const opts = ['<option value="">Not set</option>'];
-  if (current && !PRODUCT_TYPES.includes(current)) {
-    opts.push(`<option value="${escHtml(current)}">${escHtml(current)}</option>`);
-  }
-  PRODUCT_TYPES.forEach(t => opts.push(`<option value="${t}">${t}</option>`));
-  select.innerHTML = opts.join('');
-  select.value = current || '';
-}
-
-// 'all', 'unset' (no type yet) or a type name
-const inType = (value, active) => active === 'all' ? true : active === 'unset' ? !value : value === active;
-
-// Row of type chips with counts, for the rows already filtered by category.
-// handler is the name of a function taking the chosen type.
-function typeChips(values, active, handler) {
-  const count = t => values.filter(v => inType(v, t)).length;
-  const types = ['all', ...PRODUCT_TYPES, ...(count('unset') ? ['unset'] : [])];
-  return types.map(t => {
-    const n = count(t);
-    const label = t === 'all' ? 'All types' : t === 'unset' ? 'No type' : t;
-    return `<button type="button" class="chip${t === active ? ' active' : ''}${n || t === active ? '' : ' zero'}"
-      onclick="${handler}('${t}')">${label}<span class="n">${n}</span></button>`;
-  }).join('');
-}
-
-// Category + type filters kept in the URL (#category=...&type=...), so a
-// refresh or shared link lands on the same view. An old-style
-// #Recessed%20Invisible hash still works as a category.
+// Category filter kept in the URL (#category=...), so a refresh or shared
+// link lands on the same tab. An old-style #Spotlight hash still works.
 function readHashFilters() {
   const h = location.hash.slice(1);
   if (!h) return {};
   if (!h.includes('=')) return { category: decodeURIComponent(h) };
   const p = new URLSearchParams(h);
-  return { category: p.get('category') || undefined, type: p.get('type') || undefined };
+  return { category: p.get('category') || undefined };
 }
 
-function writeHashFilters(category, type) {
+function writeHashFilters(category) {
   const p = new URLSearchParams();
   if (category && category !== 'all') p.set('category', category);
-  if (type && type !== 'all') p.set('type', type);
   const q = p.toString();
   history.replaceState(null, '', q ? '#' + q : location.pathname);
 }

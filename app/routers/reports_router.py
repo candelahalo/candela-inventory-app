@@ -20,17 +20,8 @@ def _dt(value):
 CATEGORY_LABELS = {"retail": "Retail", "residential": "Residential"}  # project categories
 DIVISION_LABELS = {"lighting": "Lighting", "automation": "Automation"}  # project divisions
 
-# Product types - a second level next to the category (keep in step with app.js)
-PRODUCT_TYPES = [
-    "Spotlight", "Downlight", "Track Light", "Low Voltage Track",
-    "Strip Light", "Neon", "Pendant", "Accessories",
-]
-
-# Product categories, as used on halolights.uk (keep in step with app.js)
-PRODUCT_CATEGORIES = [
-    "Recessed Invisible", "Recessed Visible", "Semi Recessed", "Low Voltage Track",
-    "Suspended", "Led Flex", "Surface Mounted", "Accessories",
-]
+# Product categories (keep in step with app.js)
+from app.categories import PRODUCT_CATEGORIES  # noqa: E402
 
 
 def _cat_suffix(category):
@@ -71,7 +62,6 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
             {"key": "category", "label": "Category"},
-            {"key": "product_type", "label": "Type"},
             {"key": "brand", "label": "Brand"},
             {"key": "unit", "label": "Unit"},
             {"key": "selling_price", "label": "Selling price", "kind": "money"},
@@ -89,7 +79,6 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             {"key": "sku", "label": "SKU"},
             {"key": "name", "label": "Product"},
             {"key": "category", "label": "Category"},
-            {"key": "product_type", "label": "Type"},
             {"key": "warehouse_name", "label": "Warehouse"},
             {"key": "quantity_on_hand", "label": "On hand", "kind": "number"},
             {"key": "reorder_level", "label": "Reorder level", "kind": "number"},
@@ -557,8 +546,6 @@ def download_report(kind: str, fmt: str, token: str = Query(...), preview: bool 
         raise HTTPException(status_code=400, detail="Division must be lighting or automation")
     if kind in ("products", "stock", "movements") and category is not None and category not in PRODUCT_CATEGORIES + ["other"]:
         raise HTTPException(status_code=400, detail="Unknown product category")
-    if kind in ("products", "stock", "movements") and ptype is not None and ptype not in PRODUCT_TYPES + ["unset"]:
-        raise HTTPException(status_code=400, detail="Unknown product type")
 
     user = auth.get_download_user_from_token(token, db)
     admin = user.role == "admin"

@@ -55,7 +55,10 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     product = db.query(models.Product).get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    for key, value in payload.model_dump().items():
+    data = payload.model_dump()
+    if "product_type" not in payload.model_fields_set:
+        data.pop("product_type")  # no longer on the form: keep what's stored
+    for key, value in data.items():
         setattr(product, key, value)
     fx.apply_cost(product, fx.rates(db))
     log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated")
