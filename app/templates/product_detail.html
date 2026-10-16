@@ -35,6 +35,11 @@
         <div id="ds-list"></div>
         <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
         <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload PDF</button>
+        <div class="ds-or">or paste the brand's link</div>
+        <div class="ds-link-row">
+          <input type="url" id="ds-url" placeholder="https://brand.com/…/datasheet.pdf">
+          <button class="btn btn-ghost btn-sm" id="ds-url-btn" type="button">Get PDF</button>
+        </div>
       </div>
       <label class="ds-opt"><input type="radio" name="ds-mode" value="none">
         <span><strong>Not needed</strong> <span class="muted">(e.g. accessories)</span></span></label>
@@ -264,6 +269,25 @@ document.getElementById('ds-file').addEventListener('change', async (e) => {
   } catch (err) { toast(err.message, true); }
   finally { e.target.value = ''; }
 });
+
+// The brand's datasheet link: the server downloads the PDF and keeps a copy
+async function datasheetFromLink() {
+  const input = document.getElementById('ds-url');
+  const url = input.value.trim();
+  if (!url) { toast("Paste the brand's datasheet link first", true); return; }
+  const btn = document.getElementById('ds-url-btn');
+  btn.disabled = true; btn.textContent = 'Getting…';
+  try {
+    await api('/datasheets/from-link/' + productId, { method: 'POST', body: JSON.stringify({ url }) });
+    input.value = '';
+    toast('Datasheet downloaded from the link');
+    product.datasheet_mode = 'supplier';
+    loadDatasheets();
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; btn.textContent = 'Get PDF'; }
+}
+document.getElementById('ds-url-btn').addEventListener('click', datasheetFromLink);
+document.getElementById('ds-url').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); datasheetFromLink(); } });
 
 document.querySelectorAll('input[name=ds-mode]').forEach(r => r.addEventListener('change', async () => {
   try {

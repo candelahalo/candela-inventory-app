@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
-from app.utils import save_datasheet, url_to_disk_path, log_activity
+from app.utils import save_datasheet, save_datasheet_bytes, url_to_disk_path, log_activity
+from pydantic import BaseModel
 from app import auth
 
 router = APIRouter(prefix="/datasheets", tags=["Datasheets"],
@@ -64,6 +65,35 @@ def upload_datasheet(
     db.add(datasheet)
     db.flush()
     log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "created")
+    db.commit()
+    db.refresh(datasheet)
+    return datasheet
+
+
+class LinkIn(BaseModel):
+    url: str
+
+
+@router.post("/from-link/{product_id}", response_model=schemas.DatasheetOut, status_code=201)
+def datasheet_from_link(product_id: int, payload: LinkIn, db: Session = Depends(get_db),
+                        current: models.User = Depends(auth.get_current_user)):
+    """Download the brand's datasheet PDF from a pasted link and keep a copy,
+    the same as uploading it."""
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    from app.pdf_fetch import fetch_pdf
+    data, name = fetch_pdf(payload.url)
+    file_path, original_filename = save_datasheet_bytes(data, name)
+    product.datasheet_mode, product.no_datasheet = "supplier", False
+    datasheet = models.Datasheet(
+        title=product.name, brand=product.brand, category=product.category, product_id=product.id,
+        file_path=file_path, original_filename=original_filename,
+    )
+    db.add(datasheet)
+    db.flush()
+    log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "created",
+                 "from link " + payload.url[:300])
     db.commit()
     db.refresh(datasheet)
     return datasheet

@@ -152,6 +152,13 @@ def save_datasheet(file: UploadFile) -> tuple[str, str]:
     data = file.file.read(MAX_DATASHEET_BYTES + 1)
     if len(data) > MAX_DATASHEET_BYTES:
         raise HTTPException(status_code=413, detail="That PDF is over 60 MB - too large to upload")
+    return save_datasheet_bytes(data, file.filename)
+
+
+def save_datasheet_bytes(data: bytes, original_name: str) -> tuple[str, str]:
+    """Store a datasheet PDF (uploaded or downloaded from a brand's link)."""
+    if not data.lstrip()[:5].startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="That isn't a PDF file")
     # Supplier catalogue PDFs are often heavy: shrink their photos before storing
     from app.pdf_shrink import shrink_pdf
     data = shrink_pdf(data)
@@ -162,4 +169,4 @@ def save_datasheet(file: UploadFile) -> tuple[str, str]:
     with open(dest, "wb") as f:
         f.write(data)
 
-    return f"/static/uploads/datasheets/{filename}", file.filename
+    return f"/static/uploads/datasheets/{filename}", original_name
