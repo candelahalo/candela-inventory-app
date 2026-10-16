@@ -29,7 +29,7 @@ def _items(quotation, db):
             continue
         e = by_product.get(it.product_id)
         if e is None:
-            e = {"name": it.product.name, "types": [], "sheet": None}
+            e = {"name": it.product.name, "types": [], "sheet": None, "skip": bool(it.product.no_datasheet)}
             by_product[it.product_id] = e
             out.append(e)
         if it.type_code and it.type_code not in e["types"]:
@@ -46,8 +46,9 @@ def _items(quotation, db):
 
 
 def missing(quotation, db):
-    """Products on the quote that have no datasheet yet."""
-    return [e["name"] for e in _items(quotation, db) if e["sheet"] is None]
+    """Products on the quote that have no datasheet yet (not counting the
+    ones marked "No datasheet needed")."""
+    return [e["name"] for e in _items(quotation, db) if e["sheet"] is None and not e["skip"]]
 
 
 def _pages(sheet):

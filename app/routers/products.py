@@ -67,6 +67,20 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     return product
 
 
+@router.put("/{product_id}/no-datasheet")
+def set_no_datasheet(product_id: int, value: bool, db: Session = Depends(get_db),
+                     current: models.User = Depends(auth.get_current_user)):
+    """Tick / untick "No datasheet needed" (e.g. accessories)."""
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    product.no_datasheet = value
+    log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated",
+                 "no datasheet needed" if value else "datasheet needed")
+    db.commit()
+    return {"no_datasheet": product.no_datasheet}
+
+
 @router.post("/bulk-delete/check")
 def bulk_delete_check(payload: schemas.IdsIn, db: Session = Depends(get_db),
                       current: models.User = Depends(auth.require_admin)):

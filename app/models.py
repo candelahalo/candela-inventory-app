@@ -60,6 +60,7 @@ class Product(Base):
     is_active = Column(Boolean, default=True)
     image_path = Column(String(500))  # e.g. /static/uploads/products/xyz.jpg
     spec_summary = Column(Text)  # short spec block used as default quotation line description
+    no_datasheet = Column(Boolean, default=False)  # e.g. accessories: the submittal doesn't ask for one
     created_at = Column(DateTime, default=datetime.utcnow)
 
     stock_movements = relationship("StockMovement", back_populates="product")

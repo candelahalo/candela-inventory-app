@@ -168,7 +168,7 @@ function renderProducts() {
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}" style="display:inline-block; min-width:170px;">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
       { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
-        render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : '—' },
+        render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : (p.no_datasheet ? '<span class="muted" title="No datasheet needed">n/a</span>' : '—') },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },

@@ -35,6 +35,7 @@ class ProductCreate(ProductBase):
 class ProductOut(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    no_datasheet: Optional[bool] = False
     cost_currency: Optional[str] = "AED"
     image_path: Optional[str] = None
     created_at: datetime

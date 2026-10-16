@@ -23,6 +23,15 @@
       <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('photo-input').click()">Upload photo</button>
     </div>
+
+    <div class="ds-box">
+      <h2>Datasheet</h2>
+      <div id="ds-list"></div>
+      <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
+      <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload PDF</button>
+      <label class="ds-skip"><input type="checkbox" id="ds-skip"><span>No datasheet needed <span class="muted">(e.g. accessories)</span></span></label>
+      <p class="ds-note">Goes with this product into quotation links and the submittal PDF.</p>
+    </div>
   </div>
 
   <div class="panel">
@@ -64,34 +73,6 @@
 <div class="panel">
   <h2>Recent quotations</h2>
   <div id="usage-quotes"></div>
-</div>
-
-<div class="panel">
-  <div class="page-head" style="margin-bottom:16px;">
-    <h2 style="margin:0;">Datasheets</h2>
-    <button class="btn btn-ghost btn-sm" id="show-ds-btn">+ Upload datasheet</button>
-  </div>
-  <p style="color:var(--muted); font-size:13px; margin-top:-8px;">
-    Attached datasheets are linked from the product name in quotation PDFs and Excel files,
-    so clients can open the spec sheet directly.
-  </p>
-
-  <div id="ds-panel" style="display:none; padding:16px; background:var(--paper-2); border-radius:var(--radius); margin-bottom:16px;">
-    <form id="datasheet-form">
-      <div class="form-grid">
-        <div class="field span2"><label>Title</label><input name="title" required placeholder="Igniz Zoom — Spec Sheet"></div>
-        <div class="field"><label>Brand</label><input name="brand" placeholder="Halo, One Light, ..."></div>
-        <div class="field"><label>Category</label><select name="category"></select></div>
-        <div class="field span2"><label>PDF file</label><input type="file" id="ds-file" accept="application/pdf" required></div>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-sm">Upload</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ds-panel').style.display='none';">Cancel</button>
-      </div>
-    </form>
-  </div>
-
-  <div id="datasheets-table"></div>
 </div>
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -220,67 +201,64 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   } catch (err) { toast(err.message, true); }
 });
 
-document.getElementById('show-ds-btn').addEventListener('click', () => {
-  // A datasheet attached here starts with the product's own brand and category.
-  const dsForm = document.getElementById('datasheet-form');
-  fillCategorySelect(dsForm.category, product && product.category);
-  if (product && !dsForm.brand.value) dsForm.brand.value = product.brand || '';
-  document.getElementById('ds-panel').style.display = 'block';
-});
+// ---------- Datasheet (box under the photo) ----------
+let sheets = [];
 
 async function loadDatasheets() {
-  const sheets = await api('/datasheets/?product_id=' + productId);
-  DataTable.render({
-    containerId: 'datasheets-table',
-    storageKey: 'product-datasheets',
-    emptyMessage: 'No datasheets attached to this product yet.',
-    columns: [
-      { key: 'title', label: 'Title', value: d => d.title, render: d => d.title },
-      { key: 'brand', label: 'Brand', value: d => d.brand || '', render: d => d.brand || '—' },
-      { key: 'category', label: 'Category', value: d => d.category || '', render: d => d.category || '—' },
-      { key: 'uploaded', label: 'Uploaded', value: d => d.uploaded_at, render: d => fmtDate(d.uploaded_at) },
-    ],
-    rows: sheets,
-    actions: d => `
-      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/preview" target="_blank">Preview</a>
-      <a class="btn btn-ghost btn-sm" href="/datasheets/${d.id}/download">Download</a>
-      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteDatasheet(${d.id})">Delete</button>
-    `,
-  });
+  sheets = await api('/datasheets/?product_id=' + productId);
+  const skip = !!(product && product.no_datasheet);
+  document.getElementById('ds-skip').checked = skip;
+  document.getElementById('ds-list').innerHTML = sheets.length
+    ? sheets.map((d, i) => `<div class="ds-item${i ? ' old' : ''}">
+        <span class="ds-name" title="${escHtml(d.original_filename || d.title)}">${escHtml(d.original_filename || d.title)}</span>
+        <span class="ds-date">${i ? 'older · ' : ''}${fmtDate(d.uploaded_at)}</span>
+        <span class="ds-actions">
+          <a href="/datasheets/${d.id}/preview" target="_blank">View</a>
+          <a href="#" onclick="deleteDatasheet(${d.id}); return false;" class="danger">Remove</a>
+        </span></div>`).join('')
+    : `<div class="ds-empty">${skip ? 'Not needed for this product' : 'No datasheet yet'}</div>`;
+  document.getElementById('ds-upload-btn').textContent = sheets.length ? 'Replace PDF' : 'Upload PDF';
+  document.getElementById('ds-upload-btn').style.display = skip && !sheets.length ? 'none' : '';
 }
 
 async function deleteDatasheet(id) {
-  if (!confirm('Delete this datasheet?')) return;
+  if (!confirm('Remove this datasheet?')) return;
   try {
     await api('/datasheets/' + id, { method: 'DELETE' });
-    toast('Datasheet deleted');
+    toast('Datasheet removed');
     loadDatasheets();
   } catch (err) { toast(err.message, true); }
 }
 
-document.getElementById('datasheet-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const file = document.getElementById('ds-file').files[0];
-  if (!file) { toast('Choose a PDF file', true); return; }
-
+// Upload straight away: title, brand and category come from the product.
+// The newest upload is the one used in quotations and the submittal.
+document.getElementById('ds-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
   const fd = new FormData();
-  fd.append('title', form.title.value);
-  fd.append('brand', form.brand.value);
-  fd.append('category', form.category.value);
+  fd.append('title', product ? product.name : 'Datasheet');
+  if (product && product.brand) fd.append('brand', product.brand);
+  if (product && product.category) fd.append('category', product.category);
   fd.append('product_id', productId);
   fd.append('file', file);
-
   try {
     toast('Uploading and compressing the PDF…');
     const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: authHeaders() });
     if (res.status === 413) throw new Error('That PDF is too large for the server upload limit');
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
     toast('Datasheet uploaded');
-    form.reset();
-    document.getElementById('ds-panel').style.display = 'none';
     loadDatasheets();
   } catch (err) { toast(err.message, true); }
+  finally { e.target.value = ''; }
+});
+
+document.getElementById('ds-skip').addEventListener('change', async (e) => {
+  try {
+    const r = await api(`/products/${productId}/no-datasheet?value=${e.target.checked}`, { method: 'PUT' });
+    product.no_datasheet = r.no_datasheet;
+    toast(r.no_datasheet ? 'Marked: no datasheet needed' : 'Datasheet needed');
+    loadDatasheets();
+  } catch (err) { e.target.checked = !e.target.checked; toast(err.message, true); }
 });
 
 (async () => {
