@@ -153,6 +153,7 @@
   .item-name { font-weight: 600; font-size: 10px; margin: 2px 0 4px; }
   .ds-link { color: inherit; text-decoration: none; }
   .item-spec { color: #56503F; font-size: 8.5px; line-height: 1.5; white-space: pre-line; }
+  .item-runs { color: #14161A; font-weight: 600; margin-top: 2px; }
 
   /* ---------- Totals ---------- */
   .totals-wrap { display: flex; justify-content: flex-end; margin-top: 4px; }
@@ -260,6 +261,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
           {% if ds_link %}<a class="ds-link" href="{{ ds_link }}">{{ item.product.name if item.product else '' }}</a>{% else %}{{ item.product.name if item.product else '' }}{% endif %}
         </div>
         {% if item.description %}<div class="item-spec">{{ item.description }}</div>{% endif %}
+        {% if item.runs %}<div class="item-spec item-runs">Runs: {{ item.runs_text }}</div>{% endif %}
       </td>
       <td class="num">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
       <td class="num">{{ item.quantity }}</td>

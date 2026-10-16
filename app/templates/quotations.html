@@ -206,6 +206,11 @@ function lineRow(item) {
       <span class="line-margin" data-margin>—</span>
     </div>
     <textarea class="li-desc" rows="2">${item && item.description ? escHtml(item.description) : ''}</textarea>
+    <div class="li-runs-row">
+      <label>Runs <span class="muted">(lengths, optional)</span></label>
+      <input class="li-runs" maxlength="255" placeholder="e.g. 9 + 10 + 15" value="${item && item.runs ? escHtml(item.runs) : ''}">
+      <span class="li-runs-check"></span>
+    </div>
   </div>`;
 }
 
@@ -261,8 +266,38 @@ function addLine(item) {
   block.querySelectorAll('.li-qty, .li-price, .li-cost, .li-disc').forEach(el => {
     el.addEventListener('input', recalcMargins);
   });
+  block.querySelectorAll('.li-runs, .li-qty, .li-unit').forEach(el => el.addEventListener('input', () => checkRuns(block)));
   sync();
+  checkRuns(block);
   recalcMargins();
+}
+
+// Runs: "9 + 10 + 15" (or "9m, 10m", "2 x 10") -> [9, 10, 15]; null if not lengths
+function parseRuns(text) {
+  const parts = (text || '').split(/[+,;&]/).map(s => s.trim()).filter(Boolean);
+  const nums = [];
+  for (const p of parts) {
+    const m = p.match(/^(?:(\d+)\s*[x×*]\s*)?(\d+(?:\.\d+)?)\s*[a-zA-Z]*\.?$/);
+    if (!m) return null;
+    for (let i = 0; i < parseInt(m[1] || '1'); i++) nums.push(parseFloat(m[2]));
+  }
+  return nums.length ? nums : null;
+}
+
+// Next to the runs: "= 34 m ✓" when they add up to the qty, a warning when not
+function checkRuns(block) {
+  const out = block.querySelector('.li-runs-check');
+  const text = block.querySelector('.li-runs').value;
+  const nums = parseRuns(text);
+  if (!text.trim() || !nums) { out.textContent = ''; out.className = 'li-runs-check'; return; }
+  const total = Math.round(nums.reduce((a, b) => a + b, 0) * 100) / 100;
+  const qty = parseFloat(block.querySelector('.li-qty').value) || 0;
+  const unitEl = block.querySelector('.li-unit');
+  const u = unitEl.value.trim() || unitEl.placeholder || '';
+  const unit = /^(m|mtrs?|meters?|metres?|mm|cm|rm|lm)$/i.test(u) ? u : 'm';
+  const ok = Math.abs(total - qty) < 0.001;
+  out.textContent = ok ? `= ${total} ${unit} ✓` : `adds up to ${total} ${unit} — Qty is ${qty}`;
+  out.className = 'li-runs-check ' + (ok ? 'ok' : 'warn');
 }
 
 function recalcMargins() {
@@ -726,6 +761,7 @@ function collectQuotationPayload() {
     unit_price: parseFloat(block.querySelector('.li-price').value),
     unit_cost: parseFloat(block.querySelector('.li-cost').value || 0),
     discount_pct: parseFloat(block.querySelector('.li-disc').value || 0),
+    runs: block.querySelector('.li-runs').value.trim() || null,
   }));
   if (!items.length) { toast('Add at least one line item', true); return null; }
 

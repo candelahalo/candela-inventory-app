@@ -222,6 +222,35 @@ class Quotation(Base):
         return round(self.grand_total + self.vat_amount, 2)
 
 
+LENGTH_UNITS = ("m", "mtr", "mtrs", "meter", "meters", "metre", "metres", "mm", "cm", "rm", "lm")
+
+
+def parse_runs(text):
+    """[9.0, 10.0, 15.0] from "9 + 10 + 15" / "9m, 10m, 15m"; "2 x 10" counts
+    as two runs of 10. None when it isn't a list of lengths."""
+    import re
+    parts = [p.strip() for p in re.split(r"[+,;&]", text or "") if p.strip()]
+    nums = []
+    for p in parts:
+        m = re.fullmatch(r"(?:(\d+)\s*[x×*]\s*)?(\d+(?:\.\d+)?)\s*[a-zA-Z]*\.?", p)
+        if not m:
+            return None
+        nums += [float(m.group(2))] * int(m.group(1) or 1)
+    return nums or None
+
+
+def format_runs(text, unit=None):
+    if not (text or "").strip():
+        return ""
+    nums = parse_runs(text)
+    if not nums:
+        return text.strip()
+    u = unit if (unit or "").lower() in LENGTH_UNITS else "m"
+    f = lambda n: f"{n:g}"  # noqa: E731
+    shown = " + ".join(f"{f(n)} {u}" for n in nums)
+    return shown + (f" = {f(sum(nums))} {u}" if len(nums) > 1 else "")
+
+
 class QuotationItem(Base):
     __tablename__ = "quotation_items"
 
@@ -238,9 +267,16 @@ class QuotationItem(Base):
     unit_price = Column(Float, nullable=False)
     unit_cost = Column(Float, default=0.0)  # snapshot of product cost at quoting time, so margin stays historically accurate
     discount_pct = Column(Float, default=0.0)
+    # Lengths a linear / custom light is made in, as typed: "9 + 10 + 15"
+    runs = Column(String(255))
 
     quotation = relationship("Quotation", back_populates="items")
     product = relationship("Product")
+
+    @property
+    def runs_text(self):
+        """Runs for the quotation: "9 m + 10 m + 15 m = 34 m" (or as typed)."""
+        return format_runs(self.runs, self.unit or (self.product.unit if self.product else None))
 
     @property
     def line_total(self):

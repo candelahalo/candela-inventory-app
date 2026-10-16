@@ -484,7 +484,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
             product_id=item.product_id, unit=item.unit, image_path=item.image_path,
             type_code=item.type_code, description=item.description,
             quantity=item.quantity, unit_price=item.unit_price, unit_cost=item.unit_cost,
-            discount_pct=item.discount_pct))
+            discount_pct=item.discount_pct, runs=item.runs))
     db.add(new_quote)
     db.flush()
     log_activity(db, current.username, "quotation", new_quote.id, new_quote.quote_number, "created",
@@ -802,6 +802,8 @@ def _quotation_excel_response(quotation, db: Session):
         ds_url = datasheet_links.get(item.product_id)
         if item.description:
             blocks.append(TextBlock(spec_font, "\n" + item.description))
+        if item.runs:
+            blocks.append(TextBlock(spec_font, "\nRuns: " + item.runs_text))
 
         desc_cell = ws.cell(row=row, column=3)
         desc_cell.value = CellRichText(*blocks)
@@ -838,6 +840,7 @@ def _quotation_excel_response(quotation, db: Session):
 
         # Size the row to fit the spec text so nothing gets clipped
         spec_lines = (item.description or "").count("\n") + 1 if item.description else 0
+        spec_lines += 1 if item.runs else 0
         ws.row_dimensions[row].height = max(62, 26 + spec_lines * 11)
 
         line_img = item.image_path or (product.image_path if product else None)

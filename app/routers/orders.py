@@ -148,6 +148,8 @@ def _line_text(it):
     keep = [l for l in desc if not l.lower().startswith(("brand:", "location:", "warranty:"))]
     head = f"{it.product.sku} — {it.product.name}" if getattr(it, "product", None) else ""
     parts = [p for p in [it.type_code, head] + keep[:4] if p]
+    if getattr(it, "runs", None):
+        parts.append("Runs: " + it.runs_text)
     return " · ".join(parts)[:500]
 
 

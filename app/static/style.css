@@ -1002,3 +1002,18 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .cost-note strong { color: var(--ink); }
 .cost-warn { color: #b0473a; }
 .cost-sub { display: block; font-size: 11.5px; color: var(--muted); }
+
+/* Quotation line: runs of a linear / custom light ("9 + 10 + 15") */
+.line-item-block .li-desc + .li-runs-row { margin-top: -4px; }
+.li-runs-row { display: flex; align-items: center; gap: 10px; padding: 0 12px 12px; }
+.li-runs-row label { font-size: 11px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.li-runs-row label .muted { font-weight: 400; color: var(--muted); }
+.li-runs-row input {
+  flex: 0 1 280px; min-width: 0; font-family: var(--font-body); font-size: 14px;
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--paper); box-sizing: border-box;
+}
+.li-runs-row input:focus { outline: 2px solid var(--amber); outline-offset: -1px; background: var(--white); }
+.li-runs-check { font-size: 12.5px; color: var(--muted); }
+.li-runs-check.ok { color: var(--green, #2e7d32); }
+.li-runs-check.warn { color: #b0473a; }

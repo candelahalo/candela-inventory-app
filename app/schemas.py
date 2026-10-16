@@ -117,6 +117,7 @@ class QuotationItemCreate(BaseModel):
     unit_price: float
     unit_cost: Optional[float] = None  # omitted on create -> snapshotted from the product
     discount_pct: float = 0.0
+    runs: Optional[str] = None  # lengths a linear light is made in: "9 + 10 + 15"
 
 
     @field_validator("image_path")
@@ -131,6 +132,11 @@ class QuotationItemCreate(BaseModel):
     @classmethod
     def _short_unit(cls, v):
         return (v or "").strip()[:16] or None
+
+    @field_validator("runs")
+    @classmethod
+    def _short_runs(cls, v):
+        return (v or "").strip()[:255] or None
 
 
 class QuotationItemOut(QuotationItemCreate):
