@@ -18,6 +18,7 @@ from app.utils import url_to_disk_path, log_activity, save_product_image
 from app.pdf_import import parse_quotation_pdf, product_defs
 from app import auth
 from app import workflow
+from app import submittal
 from app.settings import BASE_URL
 from datetime import datetime, timedelta
 import re
@@ -533,6 +534,31 @@ def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
+
+
+@router.get("/{quotation_id}/submittal-check")
+def submittal_check(quotation_id: int, db: Session = Depends(get_db)):
+    """Items that have no datasheet yet, so the user is warned before the
+    submittal is made."""
+    quotation = db.query(models.Quotation).get(quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    return {"missing": submittal.missing(quotation, db)}
+
+
+@download_router.get("/{quotation_id}/submittal")
+def quotation_submittal(quotation_id: int, token: str = Query(...), preview: bool = False,
+                        db: Session = Depends(get_db)):
+    """Cover + index + every product's datasheet, stamped - for approval."""
+    auth.get_download_user_from_token(token, db)
+    quotation = db.query(models.Quotation).get(quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    pdf_bytes = submittal.build(quotation, db, templates)
+    filename = f"Submittal-{quotation.quote_number.replace('/', '-')}.pdf"
+    disposition = "inline" if preview else "attachment"
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
+                             headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})
 
 
 @download_router.get("/{quotation_id}/excel")

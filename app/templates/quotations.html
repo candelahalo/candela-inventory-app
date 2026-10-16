@@ -368,6 +368,8 @@ function setHeaderButtons(q) {
     { text: 'Preview PDF', onclick: `downloadDoc(${q.id}, 'preview')` },
     { text: 'Download PDF', onclick: `downloadDoc(${q.id}, 'pdf')` },
     { text: 'Download Excel', onclick: `downloadDoc(${q.id}, 'excel')` },
+  ] }, { label: 'For approval (no prices)', items: [
+    { text: 'Submittal PDF — datasheets', onclick: `submittalPdf(${q.id})` },
   ] }]);
 }
 
@@ -720,6 +722,21 @@ async function openFromLink() {
     if (p) setProject(p.id);
     fillClassFromLinks();
   }
+}
+
+// Submittal: cover + index + every product's datasheet, in one PDF. Warns
+// first about products that have no datasheet yet.
+async function submittalPdf(id) {
+  try {
+    const r = await api('/quotations/' + id + '/submittal-check');
+    if (r.missing.length) {
+      const list = r.missing.slice(0, 15).map(n => '• ' + n).join('\n') + (r.missing.length > 15 ? '\n…' : '');
+      if (!confirm(`${r.missing.length} item${r.missing.length === 1 ? ' has' : 's have'} no datasheet yet (upload on the product page):\n\n${list}\n\nThey will show as "datasheet to follow". Make the submittal anyway?`)) return;
+    }
+  } catch (err) { toast(err.message, true); return; }
+  toast('Preparing submittal…');
+  // Downloaded rather than opened in a tab: after the check a new tab would be blocked
+  withDownloadToken('pdf', token => `/quotations/${id}/submittal?token=${token}`);
 }
 
 // kind: 'preview' (PDF in a new tab), 'pdf' or 'excel' (downloads).
