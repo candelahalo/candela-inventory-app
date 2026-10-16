@@ -187,7 +187,7 @@ function lineRow(item) {
   // The blank option is a custom line: something not in the product list
   // (its description, unit and photo live on the line itself).
   const opts = `<option value="" data-unit="">— Custom line (not in product list) —</option>` +
-    productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}">${escHtml(p.sku)} — ${escHtml(p.name)}</option>`).join('');
+    productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${escHtml(p.sku)} — ${escHtml(p.name)}</option>`).join('');
   return `<div class="line-item-block" data-line-image="${item && item.image_path ? escHtml(item.image_path) : ''}">
     <div class="line-item-row">
       <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
@@ -239,6 +239,10 @@ function addLine(item) {
     photo.src = src;
     photo.style.display = src ? 'block' : 'none';
     unitInput.placeholder = opt.dataset.unit || 'pcs';
+    // Runs only for Custom Light and Accessories (or a line that already has them)
+    const runsInput = block.querySelector('.li-runs');
+    const wantsRuns = RUNS_CATEGORIES.includes(opt.dataset.category || '');
+    block.querySelector('.li-runs-row').style.display = wantsRuns || runsInput.value.trim() ? '' : 'none';
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
@@ -273,6 +277,9 @@ function addLine(item) {
 }
 
 // Runs: "9 + 10 + 15" (or "9m, 10m", "2 x 10") -> [9, 10, 15]; null if not lengths
+// Product categories whose quote lines can list runs (lengths)
+const RUNS_CATEGORIES = ['Custom Light', 'Accessories'];
+
 function parseRuns(text) {
   const parts = (text || '').split(/[+,;&]/).map(s => s.trim()).filter(Boolean);
   const nums = [];
