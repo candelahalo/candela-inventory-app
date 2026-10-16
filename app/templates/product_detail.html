@@ -272,7 +272,9 @@ document.getElementById('datasheet-form').addEventListener('submit', async (e) =
   fd.append('file', file);
 
   try {
+    toast('Uploading and compressing the PDF…');
     const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: authHeaders() });
+    if (res.status === 413) throw new Error('That PDF is too large for the server upload limit');
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
     toast('Datasheet uploaded');
     form.reset();

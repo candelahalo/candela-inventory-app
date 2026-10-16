@@ -508,6 +508,18 @@ def quotation_pdf(quotation_id: int, token: str = Query(...), preview: bool = Fa
 
 
 def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_only: bool = False):
+    pdf_bytes = _quotation_pdf_bytes(quotation, db, items_only)
+    filename = f"{quotation.quote_number.replace('/', '-')}.pdf"
+    # inline opens it in the browser's PDF viewer instead of downloading
+    disposition = "inline" if inline else "attachment"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+    )
+
+
+def _quotation_pdf_bytes(quotation, db: Session, items_only: bool = False):
     # Map product -> its most recent datasheet, so the product name in the
     # document can link straight to the spec sheet.
     product_ids = [i.product_id for i in quotation.items if i.product_id]
@@ -525,15 +537,7 @@ def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_
     html_str = templates.get_template("quotation_pdf.html").render(
         {"q": quotation, "request": None, "datasheet_links": datasheet_links, "items_only": items_only}
     )
-    pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
-    filename = f"{quotation.quote_number.replace('/', '-')}.pdf"
-    # inline opens it in the browser's PDF viewer instead of downloading
-    disposition = "inline" if inline else "attachment"
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
-    )
+    return HTML(string=html_str, base_url=".").write_pdf()
 
 
 @router.get("/{quotation_id}/submittal-check")
@@ -549,12 +553,12 @@ def submittal_check(quotation_id: int, db: Session = Depends(get_db)):
 @download_router.get("/{quotation_id}/submittal")
 def quotation_submittal(quotation_id: int, token: str = Query(...), preview: bool = False,
                         db: Session = Depends(get_db)):
-    """Cover + index + every product's datasheet, stamped - for approval."""
+    """The quotation followed by every product's datasheet, stamped."""
     auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    pdf_bytes = submittal.build(quotation, db, templates)
+    pdf_bytes = submittal.build(quotation, db, _quotation_pdf_bytes(quotation, db))
     filename = f"Submittal-{quotation.quote_number.replace('/', '-')}.pdf"
     disposition = "inline" if preview else "attachment"
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",

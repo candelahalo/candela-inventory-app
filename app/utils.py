@@ -142,14 +142,24 @@ def _compress_jpeg(img: Image.Image) -> bytes:
     return best
 
 
+MAX_DATASHEET_BYTES = 60 * 1024 * 1024
+
+
 def save_datasheet(file: UploadFile) -> tuple[str, str]:
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Datasheet must be a PDF file")
+
+    data = file.file.read(MAX_DATASHEET_BYTES + 1)
+    if len(data) > MAX_DATASHEET_BYTES:
+        raise HTTPException(status_code=413, detail="That PDF is over 60 MB - too large to upload")
+    # Supplier catalogue PDFs are often heavy: shrink their photos before storing
+    from app.pdf_shrink import shrink_pdf
+    data = shrink_pdf(data)
 
     filename = f"{uuid.uuid4().hex}.pdf"
     dest = DATASHEET_DIR / filename
 
     with open(dest, "wb") as f:
-        f.write(file.file.read())
+        f.write(data)
 
     return f"/static/uploads/datasheets/{filename}", file.filename
