@@ -183,16 +183,32 @@ function clearClassAuto() { ['q-division', 'q-category'].forEach(id => { documen
 
 function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[st] || st}</span>`; }
 
+// Product choices for a quote line: only the chosen category, and only those
+// matching the search text. The line's current product always stays listed.
+function productOptions(cat, query, keepId) {
+  const q = (query || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const inCat = p => !cat ? true : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
+  const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '')).toUpperCase().includes(w));
+  const list = productsCache.filter(p => (inCat(p) && hit(p)) || p.id === keepId);
+  return `<option value="" data-unit="">— Custom line (not in product list) —</option>` +
+    list.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${escHtml(p.name)} · ${escHtml(p.sku)}</option>`).join('');
+}
+
 function lineRow(item) {
   // The blank option is a custom line: something not in the product list
   // (its description, unit and photo live on the line itself).
-  const opts = `<option value="" data-unit="">— Custom line (not in product list) —</option>` +
-    productsCache.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${escHtml(p.sku)} — ${escHtml(p.name)}</option>`).join('');
+  const opts = productOptions('', '', item ? item.product_id : null);
+  const cat = item && item.product_id ? ((productsCache.find(p => p.id === item.product_id) || {}).category || '') : '';
+  const catOpts = `<option value="">All</option>` + PRODUCT_CATEGORIES.map(c => `<option${c === cat ? ' selected' : ''}>${c}</option>`).join('')
+    + `<option value="__other">Other</option>`;
   return `<div class="line-item-block" data-line-image="${item && item.image_path ? escHtml(item.image_path) : ''}">
     <div class="line-item-row">
       <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
       </div>
-      <div class="field"><label>Product</label><select class="li-product">${opts}</select></div>
+      <div class="field"><label>Category</label><select class="li-cat">${catOpts}</select></div>
+      <div class="field"><label>Product</label><div class="li-prod-wrap">
+        <input class="li-search" type="search" placeholder="Search…" autocomplete="off" title="Search products">
+        <select class="li-product">${opts}</select></div></div>
       <div class="field"><label>Type code</label><input class="li-type" placeholder="WL1" value="${item && item.type_code ? escHtml(item.type_code) : ''}"></div>
       <div class="field"><label>Qty</label><input class="li-qty" type="number" value="${item ? item.quantity : 1}" min="1"></div>
       <div class="field"><label>Unit</label><input class="li-unit" maxlength="16" value="${item && item.unit ? escHtml(item.unit) : ''}" title="Leave empty to use the product's unit"></div>
@@ -231,6 +247,32 @@ function addLine(item) {
     if (opt) block.querySelector('.li-cost').value = opt.dataset.cost || 0;
   }
   const unitInput = block.querySelector('.li-unit');
+  // Category + search narrow the product list; picking from it works as before
+  const catSel = block.querySelector('.li-cat');
+  const search = block.querySelector('.li-search');
+  const refilter = () => {
+    const keep = sel.value ? parseInt(sel.value) : null;
+    sel.innerHTML = productOptions(catSel.value, search.value, keep);
+    sel.value = keep == null ? '' : String(keep);
+  };
+  catSel.addEventListener('change', () => {
+    refilter();
+    // A new line, or one still on another category: open on the first product of this one
+    const opt = sel.selectedOptions[0];
+    if (catSel.value && (!opt || !opt.value || (opt.dataset.category || '') !== catSel.value)) {
+      const first = [...sel.options].find(o => o.value && (catSel.value === '__other' || o.dataset.category === catSel.value));
+      if (first) { sel.value = first.value; sel.dispatchEvent(new Event('change')); }
+    }
+  });
+  search.addEventListener('input', refilter);
+  search.addEventListener('keydown', e => {
+    // Enter picks the first match
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = search.value.trim().toUpperCase().split(/\s+/).filter(Boolean);
+    const pick = [...sel.options].find(o => o.value && q.every(w => o.textContent.toUpperCase().includes(w)));
+    if (pick) { sel.value = pick.value; sel.dispatchEvent(new Event('change')); search.value = ''; refilter(); }
+  });
   const sync = () => {
     const opt = sel.selectedOptions[0];
     if (!opt) return;
