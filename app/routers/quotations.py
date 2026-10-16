@@ -225,11 +225,15 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
         if prod is None:
             prod = db.query(models.Product).filter(models.Product.match_key == d["key"][:500]).first()
         if prod is None:
-            sku, n = d["sku"] or "ITEM", 2
+            # Same naming pattern as every other product
+            from app.naming import standard_name, standard_sku
+            name = standard_name(d["name"], d["brand"], d["category"])
+            base = standard_sku(d["name"], d["brand"], d["category"]) or d["sku"] or "ITEM"
+            sku, n = base, 2
             while db.query(models.Product).filter(models.Product.sku == sku).first():
-                sku, n = f"{d['sku'][:60]}-{n}", n + 1
+                sku, n = f"{base[:60]}-{n}", n + 1
             prod = models.Product(
-                sku=sku, name=d["name"], brand=d["brand"], category=d["category"], product_type=d["product_type"],
+                sku=sku, name=name, brand=d["brand"], category=d["category"], product_type=d["product_type"],
                 unit=it.get("unit") or "pcs", cost_price=0.0, selling_price=it.get("unit_price") or 0.0,
                 reorder_level=0, is_active=True, spec_summary=d["spec"], image_path=it.get("image_path"),
                 match_key=d["key"][:500])
