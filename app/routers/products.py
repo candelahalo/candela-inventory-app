@@ -56,8 +56,9 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     data = payload.model_dump()
-    if "product_type" not in payload.model_fields_set:
-        data.pop("product_type")  # no longer on the form: keep what's stored
+    for key in ("product_type", "description", "features"):
+        if key not in payload.model_fields_set:
+            data.pop(key)  # not sent (no longer / not on that form): keep what's stored
     for key, value in data.items():
         setattr(product, key, value)
     fx.apply_cost(product, fx.rates(db))
@@ -67,18 +68,25 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     return product
 
 
-@router.put("/{product_id}/no-datasheet")
-def set_no_datasheet(product_id: int, value: bool, db: Session = Depends(get_db),
-                     current: models.User = Depends(auth.get_current_user)):
-    """Tick / untick "No datasheet needed" (e.g. accessories)."""
+DATASHEET_MODES = ("halo", "supplier", "none")
+
+
+@router.put("/{product_id}/datasheet-mode")
+def set_datasheet_mode(product_id: int, mode: str, db: Session = Depends(get_db),
+                       current: models.User = Depends(auth.get_current_user)):
+    """HALO (made automatically) / Supplier PDF / Not needed."""
+    if mode not in DATASHEET_MODES:
+        raise HTTPException(status_code=400, detail="Choose halo, supplier or none")
     product = db.query(models.Product).get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    product.no_datasheet = value
+    product.datasheet_mode = mode
+    product.no_datasheet = mode == "none"
     log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated",
-                 "no datasheet needed" if value else "datasheet needed")
+                 {"halo": "datasheet: HALO (automatic)", "supplier": "datasheet: supplier PDF",
+                  "none": "datasheet: not needed"}[mode])
     db.commit()
-    return {"no_datasheet": product.no_datasheet}
+    return {"datasheet_mode": product.datasheet_mode}
 
 
 @router.post("/bulk-delete/check")

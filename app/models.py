@@ -61,6 +61,12 @@ class Product(Base):
     image_path = Column(String(500))  # e.g. /static/uploads/products/xyz.jpg
     spec_summary = Column(Text)  # short spec block used as default quotation line description
     no_datasheet = Column(Boolean, default=False)  # e.g. accessories: the submittal doesn't ask for one
+    # Which datasheet goes out with this product: "halo" (made automatically
+    # in the HALO layout - the default), "supplier" (the uploaded PDF) or
+    # "none" (e.g. accessories). no_datasheet mirrors "none".
+    datasheet_mode = Column(String(16), default="halo", nullable=False)
+    description = Column(Text)  # HALO sheet page 2: short description
+    features = Column(Text)  # HALO sheet page 2: product features
     created_at = Column(DateTime, default=datetime.utcnow)
 
     stock_movements = relationship("StockMovement", back_populates="product")

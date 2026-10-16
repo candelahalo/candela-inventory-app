@@ -1,7 +1,8 @@
 import os
+import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -53,6 +54,9 @@ def upload_datasheet(
             raise HTTPException(status_code=404, detail="Product not found")
 
     file_path, original_filename = save_datasheet(file)
+    if product_id:
+        # Uploading the supplier's PDF means that's the datasheet to use
+        product.datasheet_mode, product.no_datasheet = "supplier", False
     datasheet = models.Datasheet(
         title=title, brand=brand, category=category, product_id=product_id,
         file_path=file_path, original_filename=original_filename,
@@ -63,6 +67,19 @@ def upload_datasheet(
     db.commit()
     db.refresh(datasheet)
     return datasheet
+
+
+@public_router.get("/halo/{product_id}")
+def halo_datasheet(product_id: int, db: Session = Depends(get_db)):
+    """The product's HALO datasheet, made from its data each time it's opened.
+    Public like the uploaded datasheets: quotation PDFs link here."""
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    from app import halo_sheet
+    pdf = halo_sheet.build(product)
+    name = re.sub(r"[^A-Za-z0-9._-]+", "-", f"HALO-{product.sku}").strip("-") + ".pdf"
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
 
 
 @public_router.get("/{datasheet_id}/preview")
@@ -132,6 +149,11 @@ def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), current: 
     if os.path.exists(file_on_disk):
         os.remove(file_on_disk)
     log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "deleted")
+    product = datasheet.product
     db.delete(datasheet)
+    db.flush()
+    # Last supplier PDF gone: back to the HALO sheet made automatically
+    if product and product.datasheet_mode == "supplier" and not product.datasheets:
+        product.datasheet_mode = "halo"
     db.commit()
     return None

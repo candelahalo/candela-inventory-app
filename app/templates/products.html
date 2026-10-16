@@ -167,8 +167,10 @@ function renderProducts() {
       { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<a href="/products/view/${p.id}" class="mono">${p.sku}</a>` },
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}" style="display:inline-block; min-width:170px;">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
-      { key: 'datasheets', label: 'Datasheets', numeric: true, value: p => datasheetCounts[p.id] || 0,
-        render: p => datasheetCounts[p.id] ? `<span class="badge">${datasheetCounts[p.id]}</span>` : (p.no_datasheet ? '<span class="muted" title="No datasheet needed">n/a</span>' : '—') },
+      { key: 'datasheets', label: 'Datasheet', value: p => p.datasheet_mode || 'halo',
+        render: p => p.datasheet_mode === 'none' ? '<span class="muted" title="Not needed">n/a</span>'
+          : p.datasheet_mode === 'supplier' ? (datasheetCounts[p.id] ? '<span class="badge" title="Supplier PDF">PDF</span>' : '<span class="badge low" title="Supplier PDF not uploaded yet">PDF missing</span>')
+          : '<span class="badge" title="HALO datasheet, made automatically">HALO</span>' },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },

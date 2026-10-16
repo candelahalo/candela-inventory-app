@@ -1,11 +1,12 @@
-"""Submittal: the quotation PDF followed by each product's datasheet (the
-supplier's own PDF - Quattrobi, Tridonic, Ledvance, ...), in quote order.
+"""Submittal: the quotation PDF followed by each product's datasheet, in
+quote order - the supplier's own PDF (Quattrobi, Tridonic, Ledvance, ...) or
+the HALO sheet made automatically, as chosen on the product page.
 
 Every datasheet page gets a small strip across the top: company, project,
 type code and product, so loose pages can still be traced to the quote.
 
-Each product uses its latest datasheet, the same one the quotation PDF links
-to. Products without one are simply left out (the user is warned first).
+Supplier choice uses the latest uploaded PDF; one with no PDF yet is left out
+(the user is warned first). "Not needed" products are left out quietly.
 """
 import html
 import io
@@ -29,7 +30,9 @@ def _items(quotation, db):
             continue
         e = by_product.get(it.product_id)
         if e is None:
-            e = {"name": it.product.name, "types": [], "sheet": None, "skip": bool(it.product.no_datasheet)}
+            mode = getattr(it.product, "datasheet_mode", None) or "halo"
+            e = {"name": it.product.name, "types": [], "sheet": None, "mode": mode,
+                 "product": it.product, "skip": mode == "none"}
             by_product[it.product_id] = e
             out.append(e)
         if it.type_code and it.type_code not in e["types"]:
@@ -48,7 +51,7 @@ def _items(quotation, db):
 def missing(quotation, db):
     """Products on the quote that have no datasheet yet (not counting the
     ones marked "No datasheet needed")."""
-    return [e["name"] for e in _items(quotation, db) if e["sheet"] is None and not e["skip"]]
+    return [e["name"] for e in _items(quotation, db) if e["mode"] == "supplier" and e["sheet"] is None]
 
 
 def _pages(sheet):
@@ -93,9 +96,14 @@ def build(quotation, db, quote_pdf: bytes):
 
     entries, pages = [], []
     for e in _items(quotation, db):
-        if e["sheet"] is None:
+        if e["mode"] == "halo":
+            from app import halo_sheet
+            sheet_pages = list(PdfReader(io.BytesIO(halo_sheet.build(e["product"]))).pages)
+        elif e["mode"] == "supplier" and e["sheet"] is not None:
+            sheet_pages = _pages(e["sheet"])
+        else:
             continue
-        for p in _pages(e["sheet"]):
+        for p in sheet_pages:
             if p.get("/Rotate", 0) % 360:
                 p.transfer_rotation_to_content()
             box = p.mediabox

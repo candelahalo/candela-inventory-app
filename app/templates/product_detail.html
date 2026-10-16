@@ -26,11 +26,19 @@
 
     <div class="ds-box">
       <h2>Datasheet</h2>
-      <div id="ds-list"></div>
-      <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
-      <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload PDF</button>
-      <label class="ds-skip"><input type="checkbox" id="ds-skip"><span>No datasheet needed <span class="muted">(e.g. accessories)</span></span></label>
-      <p class="ds-note">Goes with this product into quotation links and the submittal PDF.</p>
+      <label class="ds-opt"><input type="radio" name="ds-mode" value="halo">
+        <span><strong>HALO</strong> — made automatically <a href="/datasheets/halo/{{ product_id }}" target="_blank" class="ds-link">Preview</a>
+        <span class="muted">from the spec, photo and the texts below Spec summary</span></span></label>
+      <label class="ds-opt"><input type="radio" name="ds-mode" value="supplier">
+        <span><strong>Supplier PDF</strong> <span class="muted">(European brands: upload theirs)</span></span></label>
+      <div id="ds-supplier" class="ds-sub">
+        <div id="ds-list"></div>
+        <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
+        <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload PDF</button>
+      </div>
+      <label class="ds-opt"><input type="radio" name="ds-mode" value="none">
+        <span><strong>Not needed</strong> <span class="muted">(e.g. accessories)</span></span></label>
+      <p class="ds-note">The chosen datasheet is linked from quotations and goes into the submittal PDF.</p>
     </div>
   </div>
 
@@ -49,6 +57,8 @@
         <div class="field"><label>Landed cost % <span style="font-weight:400;color:var(--muted)">(freight, duty, clearing)</span></label><input name="landed_pct" type="number" step="0.1" min="0"></div>
         <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01"></div>
         <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
+        <div class="field"><label>Description <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="description" rows="4" placeholder="Short text about the product"></textarea></div>
+        <div class="field"><label>Features <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="features" rows="4" placeholder="One per line"></textarea></div>
       </div>
       <div class="form-actions">
         <button type="submit" class="btn">Save changes</button>
@@ -146,6 +156,8 @@ async function loadProduct() {
   if (form._updateCost) form._updateCost(); else wireCostFields(form);
   form.selling_price.value = product.selling_price;
   form.spec_summary.value = product.spec_summary || '';
+  form.description.value = product.description || '';
+  form.features.value = product.features || '';
 
   const photo = document.getElementById('prod-photo');
   if (product.image_path) {
@@ -206,8 +218,9 @@ let sheets = [];
 
 async function loadDatasheets() {
   sheets = await api('/datasheets/?product_id=' + productId);
-  const skip = !!(product && product.no_datasheet);
-  document.getElementById('ds-skip').checked = skip;
+  const mode = (product && product.datasheet_mode) || 'halo';
+  document.querySelectorAll('input[name=ds-mode]').forEach(r => { r.checked = r.value === mode; });
+  document.getElementById('ds-supplier').style.display = mode === 'supplier' ? '' : 'none';
   document.getElementById('ds-list').innerHTML = sheets.length
     ? sheets.map((d, i) => `<div class="ds-item${i ? ' old' : ''}">
         <span class="ds-name" title="${escHtml(d.original_filename || d.title)}">${escHtml(d.original_filename || d.title)}</span>
@@ -216,9 +229,8 @@ async function loadDatasheets() {
           <a href="/datasheets/${d.id}/preview" target="_blank">View</a>
           <a href="#" onclick="deleteDatasheet(${d.id}); return false;" class="danger">Remove</a>
         </span></div>`).join('')
-    : `<div class="ds-empty">${skip ? 'Not needed for this product' : 'No datasheet yet'}</div>`;
+    : `<div class="ds-empty">No PDF uploaded yet</div>`;
   document.getElementById('ds-upload-btn').textContent = sheets.length ? 'Replace PDF' : 'Upload PDF';
-  document.getElementById('ds-upload-btn').style.display = skip && !sheets.length ? 'none' : '';
 }
 
 async function deleteDatasheet(id) {
@@ -247,19 +259,20 @@ document.getElementById('ds-file').addEventListener('change', async (e) => {
     if (res.status === 413) throw new Error('That PDF is too large for the server upload limit');
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
     toast('Datasheet uploaded');
+    product.datasheet_mode = 'supplier';
     loadDatasheets();
   } catch (err) { toast(err.message, true); }
   finally { e.target.value = ''; }
 });
 
-document.getElementById('ds-skip').addEventListener('change', async (e) => {
+document.querySelectorAll('input[name=ds-mode]').forEach(r => r.addEventListener('change', async () => {
   try {
-    const r = await api(`/products/${productId}/no-datasheet?value=${e.target.checked}`, { method: 'PUT' });
-    product.no_datasheet = r.no_datasheet;
-    toast(r.no_datasheet ? 'Marked: no datasheet needed' : 'Datasheet needed');
+    const res = await api(`/products/${productId}/datasheet-mode?mode=${r.value}`, { method: 'PUT' });
+    product.datasheet_mode = res.datasheet_mode;
+    toast({ halo: 'Datasheet: HALO, made automatically', supplier: 'Datasheet: supplier PDF', none: 'Datasheet: not needed' }[res.datasheet_mode]);
     loadDatasheets();
-  } catch (err) { e.target.checked = !e.target.checked; toast(err.message, true); }
-});
+  } catch (err) { toast(err.message, true); loadDatasheets(); }
+}));
 
 (async () => {
   await loadProduct();

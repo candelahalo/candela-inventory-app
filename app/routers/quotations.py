@@ -519,20 +519,31 @@ def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_
     )
 
 
+def _datasheet_links(quotation, db: Session):
+    """product id -> link to the datasheet that goes with it: the uploaded
+    supplier PDF, or the HALO sheet made automatically. "Not needed": none."""
+    products = {i.product_id: i.product for i in quotation.items if i.product_id and i.product}
+    links = {}
+    if not products:
+        return links
+    sheets = (db.query(models.Datasheet)
+              .filter(models.Datasheet.product_id.in_(list(products)))
+              .order_by(models.Datasheet.uploaded_at.desc()).all())
+    latest = {}
+    for s in sheets:
+        latest.setdefault(s.product_id, s)
+    for pid, p in products.items():
+        mode = getattr(p, "datasheet_mode", None) or "halo"
+        if mode == "supplier" and pid in latest:
+            links[pid] = f"{BASE_URL}/datasheets/{latest[pid].id}/preview"
+        elif mode == "halo":
+            links[pid] = f"{BASE_URL}/datasheets/halo/{pid}"
+    return links
+
+
 def _quotation_pdf_bytes(quotation, db: Session, items_only: bool = False):
-    # Map product -> its most recent datasheet, so the product name in the
-    # document can link straight to the spec sheet.
-    product_ids = [i.product_id for i in quotation.items if i.product_id]
-    datasheet_links = {}
-    if product_ids:
-        sheets = (
-            db.query(models.Datasheet)
-            .filter(models.Datasheet.product_id.in_(product_ids))
-            .order_by(models.Datasheet.uploaded_at.desc())
-            .all()
-        )
-        for s in sheets:
-            datasheet_links.setdefault(s.product_id, f"{BASE_URL}/datasheets/{s.id}/preview")
+    # The product name in the document links straight to its datasheet
+    datasheet_links = _datasheet_links(quotation, db)
 
     html_str = templates.get_template("quotation_pdf.html").render(
         {"q": quotation, "request": None, "datasheet_links": datasheet_links, "items_only": items_only}
@@ -575,18 +586,8 @@ def quotation_excel(quotation_id: int, token: str = Query(...), db: Session = De
 
 
 def _quotation_excel_response(quotation, db: Session):
-    # Map product -> its most recent datasheet for clickable links in the sheet
-    product_ids = [i.product_id for i in quotation.items if i.product_id]
-    datasheet_links = {}
-    if product_ids:
-        sheets = (
-            db.query(models.Datasheet)
-            .filter(models.Datasheet.product_id.in_(product_ids))
-            .order_by(models.Datasheet.uploaded_at.desc())
-            .all()
-        )
-        for s in sheets:
-            datasheet_links.setdefault(s.product_id, f"{BASE_URL}/datasheets/{s.id}/preview")
+    # Clickable product names in the sheet, to each product's datasheet
+    datasheet_links = _datasheet_links(quotation, db)
 
     from openpyxl.worksheet.page import PageMargins
     from openpyxl.cell.rich_text import CellRichText, TextBlock

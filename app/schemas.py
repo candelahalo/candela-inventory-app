@@ -26,6 +26,8 @@ class ProductBase(BaseModel):
     reorder_level: int = 0
     is_active: bool = True
     spec_summary: Optional[str] = None
+    description: Optional[str] = None  # HALO datasheet texts
+    features: Optional[str] = None
 
 
 class ProductCreate(ProductBase):
@@ -36,6 +38,7 @@ class ProductOut(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     no_datasheet: Optional[bool] = False
+    datasheet_mode: Optional[str] = "halo"
     cost_currency: Optional[str] = "AED"
     image_path: Optional[str] = None
     created_at: datetime
