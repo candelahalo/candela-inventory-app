@@ -8,6 +8,22 @@ from app.utils import save_product_image, log_activity
 from app import auth
 from app import product_removal
 from app import fx
+from app import naming
+
+
+def _standardise(db, data, current_id=None):
+    """Name in the shared pattern; SKU made from it when left empty."""
+    data["name"] = naming.standard_name(data.get("name"), data.get("brand"), data.get("category"))
+    if not (data.get("sku") or "").strip():
+        sku = base = naming.standard_sku(data["name"], data.get("brand"), data.get("category"))
+        i = 2
+        while db.query(models.Product).filter(models.Product.sku == sku, models.Product.id != (current_id or 0)).first():
+            sku = f"{base[:60]}-{i}"
+            i += 1
+        data["sku"] = sku
+    else:
+        data["sku"] = data["sku"].strip().upper()
+    return data
 
 router = APIRouter(prefix="/products", tags=["Products"],
                    dependencies=[Depends(auth.get_current_user)])
@@ -29,10 +45,11 @@ def list_products(
 
 @router.post("/", response_model=schemas.ProductOut, status_code=201)
 def create_product(payload: schemas.ProductCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
-    existing = db.query(models.Product).filter(models.Product.sku == payload.sku).first()
+    data = _standardise(db, payload.model_dump())
+    existing = db.query(models.Product).filter(models.Product.sku == data["sku"]).first()
     if existing:
         raise HTTPException(status_code=400, detail="SKU already exists")
-    product = models.Product(**payload.model_dump())
+    product = models.Product(**data)
     fx.apply_cost(product, fx.rates(db))
     db.add(product)
     db.flush()
@@ -56,6 +73,11 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     data = payload.model_dump()
+    data["brand"] = data.get("brand")
+    data = _standardise(db, data, current_id=product_id)
+    clash = db.query(models.Product).filter(models.Product.sku == data["sku"], models.Product.id != product_id).first()
+    if clash:
+        raise HTTPException(status_code=400, detail="SKU already used by " + clash.name)
     for key in ("product_type", "description", "features"):
         if key not in payload.model_fields_set:
             data.pop(key)  # not sent (no longer / not on that form): keep what's stored

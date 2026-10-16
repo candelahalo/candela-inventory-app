@@ -8,7 +8,7 @@ from app.models import DocStatus, MovementType, ProjectStatus
 
 # ---------- Product ----------
 class ProductBase(BaseModel):
-    sku: str
+    sku: str = ""  # empty: made from the name (see app/naming.py)
     name: str
     category: Optional[str] = None
     product_type: Optional[str] = None
