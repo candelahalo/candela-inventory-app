@@ -7,11 +7,31 @@
     <p>Your light fitting and home automation catalog.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn btn-ghost" id="from-ds-btn" title="Upload a datasheet PDF: the form fills itself, you check and save">+ From datasheet PDF</button>
     <button class="btn" id="show-add-btn">+ Add product</button></div>
 </div>
 
 <div class="panel" id="add-panel" style="display:none;">
-  <h2>Add a product</h2>
+  <h2 id="add-title">Add a product</h2>
+  <div id="ds-start" class="ds-start" style="display:none;">
+    <input type="file" id="ds-start-file" accept="application/pdf" style="display:none;">
+    <div class="ds-start-row">
+      <button type="button" class="btn btn-sm" onclick="document.getElementById('ds-start-file').click()">Choose datasheet PDF</button>
+      <span id="ds-start-name" class="muted">The form below fills itself from the PDF — check it, then save.</span>
+    </div>
+    <div id="ds-start-found" style="display:none;">
+      <div class="ds-start-grid">
+        <img id="ds-start-photo" alt="">
+        <div>
+          <div class="ds-versions" id="ds-versions"></div>
+          <div class="ds-kind"><span>This PDF is:</span>
+            <label><input type="radio" name="ds-start-kind" value="supplier"> Supplier PDF</label>
+            <label><input type="radio" name="ds-start-kind" value="halo"> HALO PDF</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <form id="product-form">
     <div class="form-grid">
       <div class="field"><label>SKU <span style="font-weight:400;color:var(--muted)">(leave empty: made from the name)</span></label><input name="sku" placeholder="e.g. QB-KOR-S-17W-30K-WH"></div>
@@ -30,7 +50,7 @@
       <button type="submit" class="btn">Save product</button>
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
-    <p style="color:var(--muted); font-size:12.5px; margin-top:10px;">
+    <p id="add-note" style="color:var(--muted); font-size:12.5px; margin-top:10px;">
       Photo and datasheets are added on the product's own page after saving.
     </p>
   </form>
@@ -101,12 +121,19 @@ document.getElementById('show-add-btn').addEventListener('click', () => {
     PRODUCT_CATEGORIES.includes(activeCategory) ? activeCategory : '');
   document.getElementById('add-panel').style.display = 'block';
   document.getElementById('show-add-btn').style.display = 'none';
+  document.getElementById('from-ds-btn').style.display = 'none';
 });
 document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('add-panel').style.display = 'none';
   document.getElementById('show-add-btn').style.display = '';
+  document.getElementById('from-ds-btn').style.display = '';
   document.getElementById('product-form').reset();
   document.getElementById('product-form')._updateCost();
+  dsStart = null;
+  document.getElementById('ds-start').style.display = 'none';
+  document.getElementById('ds-start-found').style.display = 'none';
+  document.getElementById('add-title').textContent = 'Add a product';
+  document.getElementById('add-note').style.display = '';
 });
 
 async function deleteProduct(id, name) {
@@ -197,13 +224,115 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   payload.reorder_level = parseInt(payload.reorder_level || 0);
   try {
     const product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
-    toast('Product added — add a photo and datasheets on its page');
+    if (dsStart) {
+      toast('Product added — attaching the photo and datasheet…');
+      try { await dsAttach(product.id); flashNext('Product added from the datasheet'); }
+      catch (err) { flashNext(err.message); }
+    } else {
+      flashNext('Product added — add a photo and datasheet on this page');
+    }
     location.href = '/products/view/' + product.id;
   } catch (err) { toast(err.message, true); }
 });
 
 loadProducts();
 wireCostFields(document.getElementById('product-form'));
+
+// ---------- New product from a datasheet PDF ----------
+// The PDF is read on the server (nothing saved yet); the form fills itself;
+// on Save the product is created, then its photo and the PDF are attached.
+let dsStart = null;  // { file, read, photo }
+
+document.getElementById('from-ds-btn').addEventListener('click', () => {
+  document.getElementById('show-add-btn').click();
+  document.getElementById('add-title').textContent = 'New product from a datasheet';
+  document.getElementById('ds-start').style.display = '';
+  document.getElementById('add-note').style.display = 'none';
+  document.getElementById('ds-start-file').click();
+});
+
+function dsVersionPick(kind) {
+  const el = document.querySelector(`#ds-versions select[data-kind=${kind}]`);
+  return el ? el.value : '';
+}
+
+// Name and spec lines follow the chosen version
+function dsApplyVersion() {
+  if (!dsStart) return;
+  const r = dsStart.read, f = document.getElementById('product-form');
+  const watt = dsVersionPick('watt'), cct = dsVersionPick('cct'), fin = dsVersionPick('finish');
+  f.name.value = [r.model, watt, cct, fin].filter(Boolean).join(' ');
+  const rows = r.spec.map(([k, v]) => [k, v]);
+  const set = (label, value) => {
+    if (!value) return;
+    const row = rows.find(x => x[0] === label);
+    if (row) row[1] = value; else rows.push([label, value]);
+  };
+  set('Wattage', watt);
+  set('CCT', cct);
+  set('Finish', fin ? fin.charAt(0) + fin.slice(1).toLowerCase() : '');
+  if (r.model && !rows.find(x => x[0] === 'Model')) rows.unshift(['Model', r.model]);
+  f.spec_summary.value = rows.map(([k, v]) => `${k}: ${v}`).join('\n');
+}
+
+document.getElementById('ds-start-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('ds-start-name').textContent = 'Reading ' + file.name + '…';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/products/from-datasheet', { method: 'POST', body: fd, headers: authHeaders() });
+    if (res.status === 413) throw new Error('That PDF is too large for the server upload limit');
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Could not read the PDF'); }
+    const r = await res.json();
+    dsStart = { file, read: r };
+    const f = document.getElementById('product-form');
+    f.brand.value = r.brand ? r.brand : f.brand.value;
+    if (r.brand && !f.supplier.value && !r.halo) f.supplier.value = r.brand;
+    fillCategorySelect(f.category, PRODUCT_CATEGORIES.includes(r.category) ? r.category : '');
+    const labels = { watt: 'Wattage', cct: 'Colour temp.', finish: 'Finish' };
+    document.getElementById('ds-versions').innerHTML = ['watt', 'cct', 'finish'].map(k => {
+      const opts = r.options[k] || [];
+      if (!opts.length) return '';
+      return `<label class="ds-ver"><span>${labels[k]}</span><select data-kind="${k}">${opts.map(o => `<option>${escHtml(o)}</option>`).join('')}</select></label>`;
+    }).join('') || '<span class="muted">No wattage / colour versions found in the PDF</span>';
+    document.querySelectorAll('#ds-versions select').forEach(s => s.addEventListener('change', dsApplyVersion));
+    document.querySelectorAll('input[name=ds-start-kind]').forEach(x => { x.checked = x.value === (r.halo ? 'halo' : 'supplier'); });
+    const img = document.getElementById('ds-start-photo');
+    img.src = r.photo || ''; img.style.display = r.photo ? '' : 'none';
+    document.getElementById('ds-start-found').style.display = '';
+    document.getElementById('ds-start-name').textContent = file.name + ' — check the form, then Save product';
+    dsApplyVersion();
+  } catch (err) {
+    document.getElementById('ds-start-name').textContent = err.message;
+    toast(err.message, true);
+  } finally { e.target.value = ''; }
+});
+
+// After the product is saved: its photo (from the PDF) and the PDF itself
+async function dsAttach(productId) {
+  if (!dsStart) return;
+  if (dsStart.read.photo) {
+    try {
+      const blob = await (await fetch(dsStart.read.photo)).blob();
+      const fd = new FormData();
+      fd.append('file', new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+      await fetch(`/products/${productId}/image`, { method: 'POST', body: fd, headers: authHeaders() });
+    } catch (e) { /* photo is optional */ }
+  }
+  const kind = (document.querySelector('input[name=ds-start-kind]:checked') || {}).value || 'supplier';
+  const f = document.getElementById('product-form');
+  const fd = new FormData();
+  fd.append('kind', kind);
+  fd.append('title', f.name.value.toUpperCase());
+  if (f.brand.value) fd.append('brand', f.brand.value);
+  if (f.category.value) fd.append('category', f.category.value);
+  fd.append('product_id', productId);
+  fd.append('file', dsStart.file);
+  const res = await fetch('/datasheets/', { method: 'POST', body: fd, headers: authHeaders() });
+  if (!res.ok) throw new Error('Product saved, but the datasheet upload failed - add it on the product page');
+}
 
 // Under the AED cost in the list: the supplier price and landed %, if not plain AED
 function costSub(p) {

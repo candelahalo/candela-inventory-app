@@ -111,6 +111,23 @@ def set_datasheet_mode(product_id: int, mode: str, db: Session = Depends(get_db)
     return {"datasheet_mode": product.datasheet_mode}
 
 
+@router.post("/from-datasheet")
+def read_datasheet(file: UploadFile = File(...)):
+    """Read a datasheet PDF to fill the new-product form: model, brand,
+    category, spec rows, the versions it lists and its main photo. Nothing is
+    saved here - the form is saved as usual, then the PDF attached."""
+    data = file.file.read(60 * 1024 * 1024 + 1)
+    if len(data) > 60 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="That PDF is over 60 MB")
+    if not data.lstrip()[:5].startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="That isn't a PDF file")
+    from app.datasheet_read import read
+    try:
+        return read(data, file.filename or "")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Couldn't read that PDF - fill the form by hand")
+
+
 @router.post("/bulk-delete/check")
 def bulk_delete_check(payload: schemas.IdsIn, db: Session = Depends(get_db),
                       current: models.User = Depends(auth.require_admin)):
