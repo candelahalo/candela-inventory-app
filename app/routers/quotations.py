@@ -524,23 +524,17 @@ def _quotation_pdf_response(quotation, db: Session, inline: bool = False, items_
 
 
 def _datasheet_links(quotation, db: Session):
-    """product id -> link to the datasheet that goes with it: the uploaded
-    supplier PDF, or the HALO sheet made automatically. "Not needed": none."""
+    """product id -> link to the datasheet that goes with it (see
+    app/datasheet_pick.py). "Not needed" / missing: no link."""
+    from app.datasheet_pick import latest_by_kind, pick
     products = {i.product_id: i.product for i in quotation.items if i.product_id and i.product}
+    latest = latest_by_kind(db, products)
     links = {}
-    if not products:
-        return links
-    sheets = (db.query(models.Datasheet)
-              .filter(models.Datasheet.product_id.in_(list(products)))
-              .order_by(models.Datasheet.uploaded_at.desc()).all())
-    latest = {}
-    for s in sheets:
-        latest.setdefault(s.product_id, s)
     for pid, p in products.items():
-        mode = getattr(p, "datasheet_mode", None) or "halo"
-        if mode == "supplier" and pid in latest:
-            links[pid] = f"{BASE_URL}/datasheets/{latest[pid].id}/preview"
-        elif mode == "halo":
+        what, sheet = pick(p, latest)
+        if what == "file":
+            links[pid] = f"{BASE_URL}/datasheets/{sheet.id}/preview"
+        elif what == "auto":
             links[pid] = f"{BASE_URL}/datasheets/halo/{pid}"
     return links
 

@@ -534,5 +534,8 @@ class Datasheet(Base):
     file_path = Column(String(500), nullable=False)  # e.g. /static/uploads/datasheets/xyz.pdf
     original_filename = Column(String(255))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+    # "supplier": the brand's own PDF; "halo": a HALO sheet made outside the
+    # app, used instead of the automatic one
+    kind = Column(String(16), default="supplier", nullable=False)
 
     product = relationship("Product", back_populates="datasheets")

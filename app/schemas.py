@@ -274,6 +274,7 @@ class DatasheetOut(BaseModel):
     file_path: str
     original_filename: Optional[str]
     uploaded_at: datetime
+    kind: Optional[str] = "supplier"
 
 
 # ---------- Activity Log ----------

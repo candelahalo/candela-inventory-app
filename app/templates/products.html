@@ -84,6 +84,7 @@ function renderTabs() {
 
 let productsCache = [];
 let datasheetCounts = {};
+let ownHalo = {};  // products with their own uploaded HALO sheet
 
 function openLightbox(src) {
   document.getElementById('lightbox-img').src = src;
@@ -144,8 +145,11 @@ async function loadProducts() {
   const [products, datasheets] = await Promise.all([api('/products/'), api('/datasheets/')]);
   productsCache = products;
   datasheetCounts = {};
+  ownHalo = {};
   datasheets.forEach(d => {
-    if (d.product_id) datasheetCounts[d.product_id] = (datasheetCounts[d.product_id] || 0) + 1;
+    if (!d.product_id) return;
+    if (d.kind === 'halo') ownHalo[d.product_id] = true;
+    else datasheetCounts[d.product_id] = (datasheetCounts[d.product_id] || 0) + 1;
   });
   renderProducts();
 }
@@ -170,7 +174,7 @@ function renderProducts() {
       { key: 'datasheets', label: 'Datasheet', value: p => p.datasheet_mode || 'halo',
         render: p => p.datasheet_mode === 'none' ? '<span class="muted" title="Not needed">n/a</span>'
           : p.datasheet_mode === 'supplier' ? (datasheetCounts[p.id] ? '<span class="badge" title="Supplier PDF">PDF</span>' : '<span class="badge low" title="Supplier PDF not uploaded yet">PDF missing</span>')
-          : '<span class="badge" title="HALO datasheet, made automatically">HALO</span>' },
+          : (ownHalo[p.id] ? '<span class="badge" title="Own HALO datasheet uploaded">HALO PDF</span>' : '<span class="badge" title="HALO datasheet, made automatically">HALO</span>') },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },

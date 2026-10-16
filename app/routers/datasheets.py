@@ -45,10 +45,13 @@ def upload_datasheet(
     brand: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
     product_id: Optional[int] = Form(None),
+    kind: str = Form("supplier"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current: models.User = Depends(auth.get_current_user),
 ):
+    if kind not in ("supplier", "halo"):
+        raise HTTPException(status_code=400, detail="kind must be supplier or halo")
     if product_id:
         product = db.query(models.Product).get(product_id)
         if not product:
@@ -56,11 +59,12 @@ def upload_datasheet(
 
     file_path, original_filename = save_datasheet(file)
     if product_id:
-        # Uploading the supplier's PDF means that's the datasheet to use
-        product.datasheet_mode, product.no_datasheet = "supplier", False
+        # The uploaded PDF is the datasheet to use: a supplier PDF, or a HALO
+        # sheet made outside the app (used instead of the automatic one)
+        product.datasheet_mode, product.no_datasheet = kind, False
     datasheet = models.Datasheet(
         title=title, brand=brand, category=category, product_id=product_id,
-        file_path=file_path, original_filename=original_filename,
+        file_path=file_path, original_filename=original_filename, kind=kind,
     )
     db.add(datasheet)
     db.flush()
@@ -101,14 +105,23 @@ def datasheet_from_link(product_id: int, payload: LinkIn, db: Session = Depends(
 
 @public_router.get("/halo/{product_id}")
 def halo_datasheet(product_id: int, db: Session = Depends(get_db)):
-    """The product's HALO datasheet, made from its data each time it's opened.
-    Public like the uploaded datasheets: quotation PDFs link here."""
+    """The product's HALO datasheet: an uploaded HALO sheet if there is one,
+    otherwise made from its data each time it's opened. Public like the
+    uploaded datasheets: quotation PDFs link here."""
     product = db.query(models.Product).get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    own = (db.query(models.Datasheet)
+           .filter(models.Datasheet.product_id == product_id, models.Datasheet.kind == "halo")
+           .order_by(models.Datasheet.uploaded_at.desc()).first())
+    if own and os.path.exists(url_to_disk_path(own.file_path)):
+        safe = (own.original_filename or f"{product.sku}.pdf").replace('"', "")
+        return FileResponse(url_to_disk_path(own.file_path), media_type="application/pdf",
+                            headers={"Content-Disposition": f'inline; filename="{safe}"'})
     from app import halo_sheet
     pdf = halo_sheet.build(product)
-    name = re.sub(r"[^A-Za-z0-9._-]+", "-", f"HALO-{product.sku}").strip("-") + ".pdf"
+    sku = product.sku if product.sku.upper().startswith("HALO") else f"HALO-{product.sku}"
+    name = re.sub(r"[^A-Za-z0-9._-]+", "-", sku).strip("-") + ".pdf"
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
 
 
@@ -183,7 +196,8 @@ def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), current: 
     db.delete(datasheet)
     db.flush()
     # Last supplier PDF gone: back to the HALO sheet made automatically
-    if product and product.datasheet_mode == "supplier" and not product.datasheets:
+    if product and product.datasheet_mode == "supplier" and \
+            not any((d.kind or "supplier") == "supplier" for d in product.datasheets):
         product.datasheet_mode = "halo"
     db.commit()
     return None

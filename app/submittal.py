@@ -37,21 +37,17 @@ def _items(quotation, db):
             out.append(e)
         if it.type_code and it.type_code not in e["types"]:
             e["types"].append(it.type_code)
-    if by_product:
-        sheets = (db.query(models.Datasheet)
-                  .filter(models.Datasheet.product_id.in_(list(by_product)))
-                  .order_by(models.Datasheet.uploaded_at.desc()).all())
-        for s in sheets:
-            e = by_product[s.product_id]
-            if e["sheet"] is None:
-                e["sheet"] = s
+    from app.datasheet_pick import latest_by_kind, pick
+    latest = latest_by_kind(db, by_product)
+    for e in out:
+        e["what"], e["sheet"] = pick(e["product"], latest)
     return out
 
 
 def missing(quotation, db):
     """Products on the quote that have no datasheet yet (not counting the
     ones marked "No datasheet needed")."""
-    return [e["name"] for e in _items(quotation, db) if e["mode"] == "supplier" and e["sheet"] is None]
+    return [e["name"] for e in _items(quotation, db) if e["what"] == "missing"]
 
 
 def _pages(sheet):
@@ -96,10 +92,10 @@ def build(quotation, db, quote_pdf: bytes):
 
     entries, pages = [], []
     for e in _items(quotation, db):
-        if e["mode"] == "halo":
+        if e["what"] == "auto":
             from app import halo_sheet
             sheet_pages = list(PdfReader(io.BytesIO(halo_sheet.build(e["product"]))).pages)
-        elif e["mode"] == "supplier" and e["sheet"] is not None:
+        elif e["what"] == "file":
             sheet_pages = _pages(e["sheet"])
         else:
             continue
