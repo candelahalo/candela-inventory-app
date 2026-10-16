@@ -4,7 +4,7 @@ import re
 
 PRODUCT_CATEGORIES = [
     "Spotlight", "Downlight", "230V Track Light", "48V Track Light", "Surface Mounted",
-    "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Accessories",
+    "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
 ]
 
 # Earlier category / type names and where they belong now
@@ -18,12 +18,15 @@ _OLD_CATEGORY = {
     "led flex": "Strip Light", "surface mounted": "Surface Mounted", "accessories": "Accessories",
 }
 
-_ACCESSORY = r"\bdriver|connector|channel|end ?cap|\bkit\b|feeder|power supply|transformer|bracket|accessor"
+_DRIVER = r"\bdriver|power supply|\bpsu\b|transformer"
+_ACCESSORY = r"connector|channel|end ?cap|\bkit\b|feeder|bracket|accessor"
 
 
 def classify(text):
     """Best-guess category from a product's name / spec, or None."""
     t = (text or "").lower()
+    if re.search(_DRIVER, t):
+        return "Drivers"
     if re.search(_ACCESSORY, t):
         return "Accessories"
     if "neon" in t:
@@ -50,7 +53,10 @@ def classify(text):
 def from_old(category, product_type, text=""):
     """New category for a product saved with the earlier category / type, or
     None when there's no good match (it then shows under "Other")."""
-    if re.search(_ACCESSORY, (text or "").lower()):
+    t = (text or "").lower()
+    if re.search(_DRIVER, t):
+        return "Drivers"
+    if re.search(_ACCESSORY, t):
         return "Accessories"
     return (_OLD_TYPE.get((product_type or "").strip().lower())
             or (category if category in PRODUCT_CATEGORIES else None)
