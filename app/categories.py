@@ -4,7 +4,7 @@ import re
 
 PRODUCT_CATEGORIES = [
     "Spotlight", "Downlight", "230V Track Light", "48V Track Light", "Surface Mounted",
-    "Linear Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Accessories",
+    "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Accessories",
 ]
 
 # Earlier category / type names and where they belong now
@@ -37,7 +37,7 @@ def classify(text):
     if re.search(r"semi[ -]?recessed", t):
         return "Semi Recessed Light"
     if re.search(r"linear|profile|w/m\b", t):
-        return "Linear Light"
+        return "Custom Light"
     if re.search(r"downlight|panel", t):
         return "Downlight"
     if re.search(r"spot|adjustable", t):
