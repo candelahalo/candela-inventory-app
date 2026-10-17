@@ -69,6 +69,19 @@
         <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
         <div class="field"><label>Description <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="description" rows="4" placeholder="Short text about the product"></textarea></div>
         <div class="field"><label>Features <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="features" rows="4" placeholder="One per line"></textarea></div>
+        <details class="series-box" id="series-box">
+          <summary>Series &amp; options <span class="muted-label">(sizes picked together in a quote, e.g. CHERUB S / M / L / XL)</span></summary>
+          <div class="series-grid">
+            <div class="field"><label>Series</label><input name="series" placeholder="e.g. CHERUB" style="text-transform:uppercase"></div>
+            <div class="field"><label>Size</label><input name="variant" placeholder="e.g. S" style="text-transform:uppercase"></div>
+            <div class="field"><label>Ordering code</label><input id="opt-code" placeholder="CHB-S-{power}-{beam}-{cct}-{dimming}.{colour}"></div>
+          </div>
+          <div id="opt-groups"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addOptGroup()">+ Add option</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="copy-opt-btn" onclick="copyOptionPrices()" title="Saves this product, then gives the other sizes the same extra prices / costs">Copy extra prices to the other sizes</button>
+          <p class="muted-help">Products with the same Series show once in a quote; you then pick the Size and each option.
+            In the ordering code, <span class="mono">{power}</span> etc. becomes the chosen option's code. Extra price / cost (AED) is added to this size's price.</p>
+        </details>
       </div>
       <div class="form-actions">
         <button type="submit" class="btn">Save changes</button>
@@ -168,6 +181,12 @@ async function loadProduct() {
   form.spec_summary.value = product.spec_summary || '';
   form.description.value = product.description || '';
   form.features.value = product.features || '';
+  form.series.value = product.series || '';
+  form.variant.value = product.variant || '';
+  document.getElementById('opt-code').value = (product.options && product.options.code) || '';
+  document.getElementById('opt-groups').innerHTML = '';
+  ((product.options && product.options.groups) || []).forEach(addOptGroup);
+  document.getElementById('series-box').open = !!(product.series || product.options);
 
   const photo = document.getElementById('prod-photo');
   if (product.image_path) {
@@ -216,12 +235,67 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   const payload = costPayload(formToJSON(e.target));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
+  payload.options = collectOptions();
   try {
     await api('/products/' + productId, { method: 'PUT', body: JSON.stringify(payload) });
     flashNext('Product updated');
     backToProducts();
   } catch (err) { toast(err.message, true); }
 });
+
+// ---------- Series & options ----------
+const optKey = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20);
+function optChoiceRow(c) {
+  c = c || {};
+  const v = x => escHtml(x == null ? '' : String(x));
+  return `<tr><td><input class="oc-label" value="${v(c.label)}" placeholder="e.g. DALI"></td>
+    <td><input class="oc-code mono" value="${v(c.code)}" placeholder="4"></td>
+    <td><input class="oc-price" type="number" step="0.01" value="${c.price || ''}" placeholder="0"></td>
+    <td><input class="oc-cost" type="number" step="0.01" value="${c.cost || ''}" placeholder="0"></td>
+    <td><button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove()" title="Remove">×</button></td></tr>`;
+}
+function addOptGroup(g) {
+  g = g && g.choices ? g : { label: '', choices: [{}] };
+  const el = document.createElement('div');
+  el.className = 'opt-group';
+  el.dataset.key = g.key || '';
+  el.innerHTML = `<div class="opt-group-head"><input class="og-label" value="${escHtml(g.label || '')}" placeholder="Option, e.g. Dimming">
+      <span class="mono muted og-key"></span>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="this.closest('.opt-group').remove()">Remove option</button></div>
+    <table><thead><tr><th>Choice</th><th style="width:90px">Code</th><th style="width:110px">+ Price (AED)</th><th style="width:110px">+ Cost (AED)</th><th style="width:34px"></th></tr></thead>
+      <tbody>${g.choices.map(optChoiceRow).join('')}</tbody></table>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="this.previousElementSibling.tBodies[0].insertAdjacentHTML('beforeend', optChoiceRow())">+ Choice</button>`;
+  const label = el.querySelector('.og-label');
+  const showKey = () => { el.querySelector('.og-key').textContent = '{' + (el.dataset.key || optKey(label.value)) + '}'; };
+  label.addEventListener('input', showKey);
+  showKey();
+  document.getElementById('opt-groups').appendChild(el);
+}
+async function copyOptionPrices() {
+  const payload = costPayload(formToJSON(document.getElementById('product-form')));
+  payload.selling_price = parseFloat(payload.selling_price || 0);
+  payload.reorder_level = parseInt(payload.reorder_level || 0);
+  payload.options = collectOptions();
+  if (!payload.series) { toast('Fill in the Series first', true); return; }
+  try {
+    await api('/products/' + productId, { method: 'PUT', body: JSON.stringify(payload) });
+    const r = await api(`/products/${productId}/copy-option-prices`, { method: 'POST' });
+    toast(`Saved — extra prices copied to ${r.updated} other size${r.updated === 1 ? '' : 's'}`);
+    loadProduct();
+  } catch (err) { toast(err.message, true); }
+}
+function collectOptions() {
+  const groups = [...document.querySelectorAll('#opt-groups .opt-group')].map(el => ({
+    key: el.dataset.key || optKey(el.querySelector('.og-label').value),
+    label: el.querySelector('.og-label').value.trim(),
+    choices: [...el.querySelectorAll('tbody tr')].map(tr => ({
+      label: tr.querySelector('.oc-label').value.trim(), code: tr.querySelector('.oc-code').value.trim(),
+      price: parseFloat(tr.querySelector('.oc-price').value) || 0, cost: parseFloat(tr.querySelector('.oc-cost').value) || 0,
+    })).filter(c => c.label),
+  })).filter(g => g.label && g.choices.length);
+  const code = document.getElementById('opt-code').value.trim();
+  return groups.length || code ? { code, groups } : null;
+}
 
 // ---------- Datasheet (box under the photo) ----------
 let sheets = [];

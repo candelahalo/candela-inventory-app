@@ -222,6 +222,10 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   const payload = costPayload(formToJSON(e.target));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
+  if (dsStart && dsStart.read.series_options) {
+    // A series sheet (e.g. CHERUB S): the options are picked on the quote line
+    Object.assign(payload, { series: dsStart.read.series, variant: dsStart.read.variant, options: dsStart.read.series_options });
+  }
   try {
     const product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
     if (dsStart) {
@@ -260,6 +264,13 @@ function dsVersionPick(kind) {
 function dsApplyVersion() {
   if (!dsStart) return;
   const r = dsStart.read, f = document.getElementById('product-form');
+  if (r.series_options) {  // one product per size; versions are options on the quote line
+    f.name.value = r.model;
+    const rows = r.spec.map(([k, v]) => [k, v]);
+    if (r.model && !rows.find(x => x[0] === 'Model')) rows.unshift(['Model', r.model]);
+    f.spec_summary.value = rows.map(([k, v]) => `${k}: ${v}`).join('\n');
+    return;
+  }
   const watt = dsVersionPick('watt'), cct = dsVersionPick('cct'), fin = dsVersionPick('finish');
   f.name.value = [r.model, watt, cct, fin].filter(Boolean).join(' ');
   const rows = r.spec.map(([k, v]) => [k, v]);
@@ -292,7 +303,12 @@ document.getElementById('ds-start-file').addEventListener('change', async (e) =>
     if (r.brand && !f.supplier.value && !r.halo) f.supplier.value = r.brand;
     fillCategorySelect(f.category, PRODUCT_CATEGORIES.includes(r.category) ? r.category : '');
     const labels = { watt: 'Wattage', cct: 'Colour temp.', finish: 'Finish' };
-    document.getElementById('ds-versions').innerHTML = ['watt', 'cct', 'finish'].map(k => {
+    const so = r.series_options;
+    document.getElementById('ds-versions').innerHTML = so ? `<div class="ds-series">
+        <div><strong>Series ${escHtml(r.series)}</strong> · Size <strong>${escHtml(r.variant || '—')}</strong></div>
+        <div class="muted">Picked on the quote line: ${so.groups.map(g => escHtml(g.label) + ' (' + g.choices.map(c => escHtml(c.label)).join(', ') + ')').join(' · ')}</div>
+        <div class="muted">Code: <span class="mono">${escHtml(so.code)}</span> — add extra prices (e.g. DALI) on the product page.</div></div>`
+      : ['watt', 'cct', 'finish'].map(k => {
       const opts = r.options[k] || [];
       if (!opts.length) return '';
       return `<label class="ds-ver"><span>${labels[k]}</span><select data-kind="${k}">${opts.map(o => `<option>${escHtml(o)}</option>`).join('')}</select></label>`;

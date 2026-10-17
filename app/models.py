@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, ForeignKey, Text, Enum, Boolean
+    JSON, Column, Integer, String, Float, DateTime, ForeignKey, Text, Enum, Boolean
 )
 from sqlalchemy.orm import relationship
 
@@ -67,6 +67,12 @@ class Product(Base):
     datasheet_mode = Column(String(16), default="halo", nullable=False)
     description = Column(Text)  # HALO sheet page 2: short description
     features = Column(Text)  # HALO sheet page 2: product features
+    # A series is several products picked as one in a quote (CHERUB S / M / L / XL);
+    # variant is this one's size within it. options: what is chosen on the quote
+    # line and how the ordering code is made, see app/series.py.
+    series = Column(String(120), index=True)
+    variant = Column(String(40))
+    options = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     stock_movements = relationship("StockMovement", back_populates="product")
@@ -276,6 +282,7 @@ class QuotationItem(Base):
     discount_pct = Column(Float, default=0.0)
     # Lengths a linear / custom light is made in, as typed: "9 + 10 + 15"
     runs = Column(String(255))
+    options = Column(JSON)  # chosen options {"power": "15", "beam": "36", ...} for a series product
 
     quotation = relationship("Quotation", back_populates="items")
     product = relationship("Product")

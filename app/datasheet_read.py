@@ -109,11 +109,66 @@ def _uniq(seq):
     return out
 
 
+UNIT = {"power": "W", "watt": "W", "beam": "°"}
+
+
+def _series_options(text):
+    """Options from an ordering-code block, as on HALO sheets:
+
+        CHB-S - [power] - [beam] - [CCT] - [dimming] . [colour]
+        Power 12 / 15 (W)          Beam 19 / 25 / 36 / 50 (°)
+        CCT 27 / 30 / 35 / 40 (×100 K)
+        Dimming 1 / 2 / 3 / 4 (see options)     Colour .01 White / .02 Black
+        Dimming options  1 Non-dim  2 Phase-cut dimming  3 0-1-10V  4 DALI
+
+    Returns {"code": "CHB-S-{power}-{beam}-{cct}-{dimming}.{colour}", "groups": [...]}
+    or None when the sheet has no such block."""
+    m = re.search(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)\s*((?:\s*[-.]\s*\[[^\]]+\])+)", text)
+    if not m:
+        return None
+    keys = re.findall(r"([-.])\s*\[([^\]]+)\]", m.group(2))
+    code = m.group(1) + "".join(sep + "{" + re.sub(r"[^a-z0-9]", "", k.lower()) + "}" for sep, k in keys)
+    named = {}
+    dm = re.search(r"Dimming options\s+(.+?)(?:Suitable track|HALO ARCH|$)", text, re.S | re.I)
+    if dm:
+        named = dict(re.findall(r"^\s*(\d)\s+(.+?)\s*$", dm.group(1), re.M))
+    groups = []
+    for _, k in keys:
+        key = re.sub(r"[^a-z0-9]", "", k.lower())
+        label = k.strip()
+        label = "CCT" if key == "cct" else label[:1].upper() + label[1:]
+        line = re.search(r"(?:^|\s)" + re.escape(k) + r"\s+((?:\.?\d+[^/\n(]*?)(?:\s*/\s*\.?\d+[^/\n(]*?)*)\s*(?:\(|$)",
+                         text, re.I | re.M)
+        if not line:
+            continue
+        choices = []
+        for part in line.group(1).split("/"):
+            part = part.strip()
+            cm = re.match(r"(\.?\d+)\s*(.*)", part)
+            if not cm:
+                continue
+            c, rest = cm.group(1), cm.group(2).strip()
+            if c.startswith("."):  # colour ".01 White"
+                choices.append({"label": rest or c, "code": c[1:], "price": 0, "cost": 0})
+            elif key == "cct":
+                choices.append({"label": f"{int(c) * 100}K", "code": c, "price": 0, "cost": 0})
+            elif key in named or key.startswith("dim"):
+                choices.append({"label": named.get(c, c), "code": c, "price": 0, "cost": 0})
+            else:
+                choices.append({"label": c + UNIT.get(key, ""), "code": c, "price": 0, "cost": 0})
+        if choices:
+            groups.append({"key": key, "label": label, "choices": choices})
+    if not groups:
+        return None
+    return {"code": code, "groups": groups}
+
+
 def read(data: bytes, filename: str = "") -> dict:
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         pages = pdf.pages[:3]
         first = pages[0]
-        text = "\n".join((p.extract_text() or "") for p in pages)
+        # "‡" is how some PDFs' fonts give "≥" (CRI ≥90)
+        text = "\n".join((p.extract_text() or "") for p in pages).replace("‡", "≥")
         up = text.upper()
 
         # Model: the largest text near the top of page 1 (codes like RPH-RC kept apart)
@@ -149,7 +204,7 @@ def read(data: bytes, filename: str = "") -> dict:
                 if label.lower() in seen:
                     continue
                 seen.add(label.lower())
-                spec.append([label, pair[1][:120]])
+                spec.append([label, pair[1].replace("‡", "≥")[:120]])
         spec = spec[:18]
 
         brand = next((b for b in BRANDS if re.search(r"\b" + re.escape(b) + r"\b", up)), "")
@@ -163,9 +218,18 @@ def read(data: bytes, filename: str = "") -> dict:
         finishes = _uniq(f.replace("GRAY", "GREY") for f in FINISHES if re.search(r"\b" + f + r"\b", up))[:8]
 
         type_value = next((v for k, v in spec if k == "Type"), "")
-        category = classify(type_value) or classify(model) or classify(text[:3000]) or ""
+        # the line under the title says what it is ("CHERUB L track spotlight - track adapter")
+        subtitle = next((l for l in text.splitlines()
+                         if model and l.upper().startswith(model.upper() + " ") and len(l) > len(model) + 5), "")
+        category = (classify(type_value) or classify(model) or classify(subtitle)
+                    or classify(text[:3000]) or "")
         photo = _photo(first)
 
+    options = _series_options(text)
+    words_m = model.upper().split()
+    series = words_m[0] if options and words_m else ""
+    variant = " ".join(words_m[1:]) if options else ""
     return {"model": model.upper(), "code": code, "brand": brand, "category": category,
+            "series": series, "variant": variant, "series_options": options,
             "spec": spec, "options": {"watt": watts, "cct": ccts, "finish": finishes},
             "photo": photo, "halo": brand in ("HALO", "RUHA")}

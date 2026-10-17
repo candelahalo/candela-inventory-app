@@ -1066,3 +1066,25 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .li-prod-wrap .li-search:focus, .li-prod-wrap .li-search:not(:placeholder-shown) { flex-basis: 45%; }
 .li-prod-wrap .li-search:focus::placeholder { color: var(--muted); }
 .li-prod-wrap .li-product { flex: 1; width: 0; min-width: 0; }
+
+/* Quote line: size and options of a series product (CHERUB S / M / L / XL) */
+.li-opts-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0 12px 10px;
+  padding: 8px 10px; background: var(--bg-soft, #f7f5f0); border: 1px solid var(--line); border-radius: 6px; }
+.li-opt { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.li-opt select { min-width: 84px; padding: 4px 6px; font-size: 13px; }
+.li-opt:first-child select.li-size { font-weight: 600; }
+.li-code { margin-left: auto; align-self: center; font-size: 13px; font-weight: 600; color: var(--ink, #222);
+  background: #fff; border: 1px dashed var(--line); border-radius: 4px; padding: 4px 8px; }
+
+/* Product page: series and options editor */
+.series-box { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.series-box > summary { cursor: pointer; font-weight: 600; }
+.series-box .series-grid { display: grid; grid-template-columns: 1fr 120px 2fr; gap: 10px; margin: 10px 0; }
+.series-box .opt-group { border-top: 1px solid var(--line); padding: 8px 0; }
+.series-box .opt-group-head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.series-box .opt-group-head input { max-width: 200px; font-weight: 600; }
+.series-box table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.series-box th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11.5px; padding: 2px 4px; }
+.series-box td { padding: 2px 4px; }
+.series-box td input { width: 100%; min-width: 0; padding: 4px 6px; }
+.series-box .muted-help { color: var(--muted); font-size: 12px; margin: 4px 0 0; }

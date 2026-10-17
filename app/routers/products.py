@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app import series as series_opts
 from app import models, schemas
 from app.utils import save_product_image, log_activity
 from app import auth
@@ -23,10 +24,48 @@ def _standardise(db, data, current_id=None):
         data["sku"] = sku
     else:
         data["sku"] = data["sku"].strip().upper()
+    if "series" in data:
+        data["series"] = " ".join((data.get("series") or "").split()).upper()[:120] or None
+        data["variant"] = " ".join((data.get("variant") or "").split()).upper()[:40] or None
+        if not data["series"]:
+            data["variant"] = None
+    if "options" in data:
+        data["options"] = series_opts.clean(data.get("options"))
     return data
 
 router = APIRouter(prefix="/products", tags=["Products"],
                    dependencies=[Depends(auth.get_current_user)])
+
+
+@router.post("/{product_id}/copy-option-prices")
+def copy_option_prices(product_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """Give the other sizes of this series the same extra prices / costs
+    (matched by option and choice code, e.g. Dimming 4 = DALI +60)."""
+    src = db.query(models.Product).get(product_id)
+    if not src or not src.series or not src.options:
+        raise HTTPException(status_code=400, detail="This product has no series options to copy")
+    extras = {(g["key"], c["code"]): (c.get("price", 0), c.get("cost", 0))
+              for g in src.options.get("groups", []) for c in g.get("choices", [])}
+    changed = 0
+    for p in db.query(models.Product).filter(models.Product.series == src.series, models.Product.id != src.id).all():
+        if not p.options:
+            continue
+        opts = {"code": p.options.get("code", ""), "groups": []}
+        for g in p.options.get("groups", []):
+            choices = []
+            for c in g.get("choices", []):
+                c = dict(c)
+                if (g["key"], c["code"]) in extras:
+                    c["price"], c["cost"] = extras[(g["key"], c["code"])]
+                choices.append(c)
+            opts["groups"].append({**g, "choices": choices})
+        if opts != p.options:
+            p.options = opts  # new object, so the JSON column is saved
+            changed += 1
+    log_activity(db, current.username, "product", src.id, f"{src.sku} — {src.name}", "updated",
+                 f"option prices copied to {changed} other size(s) of {src.series}")
+    db.commit()
+    return {"updated": changed}
 
 
 @router.get("/", response_model=List[schemas.ProductOut])
@@ -78,7 +117,7 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
     clash = db.query(models.Product).filter(models.Product.sku == data["sku"], models.Product.id != product_id).first()
     if clash:
         raise HTTPException(status_code=400, detail="SKU already used by " + clash.name)
-    for key in ("product_type", "description", "features"):
+    for key in ("product_type", "description", "features", "series", "variant", "options"):
         if key not in payload.model_fields_set:
             data.pop(key)  # not sent (no longer / not on that form): keep what's stored
     for key, value in data.items():

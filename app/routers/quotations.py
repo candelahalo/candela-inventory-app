@@ -489,7 +489,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
             product_id=item.product_id, unit=item.unit, image_path=item.image_path,
             type_code=item.type_code, description=item.description,
             quantity=item.quantity, unit_price=item.unit_price, unit_cost=item.unit_cost,
-            discount_pct=item.discount_pct, runs=item.runs))
+            discount_pct=item.discount_pct, runs=item.runs, options=item.options))
     db.add(new_quote)
     db.flush()
     log_activity(db, current.username, "quotation", new_quote.id, new_quote.quote_number, "created",

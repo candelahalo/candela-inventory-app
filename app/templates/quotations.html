@@ -188,10 +188,103 @@ function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[s
 function productOptions(cat, query, keepId) {
   const q = (query || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
   const inCat = p => !cat ? true : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
-  const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '')).toUpperCase().includes(w));
-  const list = productsCache.filter(p => (inCat(p) && hit(p)) || p.id === keepId);
-  return `<option value="" data-unit="">— Custom line (not in product list) —</option>` +
-    list.map(p => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${escHtml(p.name)} · ${escHtml(p.sku)}</option>`).join('');
+  const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '') + ' ' + (p.series || '')).toUpperCase().includes(w));
+  const optHtml = (p, label) => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${label || (escHtml(p.name) + ' · ' + escHtml(p.sku))}</option>`;
+  // A series (CHERUB S / M / L / XL) is listed once; the size is picked under the line
+  const out = [], seen = new Set();
+  for (const p of productsCache) {
+    if (p.series) {
+      if (seen.has(p.series)) continue;
+      const fam = seriesOf(p);
+      if (!fam.some(x => (inCat(x) && hit(x)) || x.id === keepId)) continue;
+      seen.add(p.series);
+      const pick = fam.find(x => x.id === keepId) || fam[0];
+      out.push(optHtml(pick, `${escHtml(p.series)} · ${fam.map(x => escHtml(x.variant || '—')).join(' / ')}`));
+    } else if ((inCat(p) && hit(p)) || p.id === keepId) {
+      out.push(optHtml(p));
+    }
+  }
+  return `<option value="" data-unit="">— Custom line (not in product list) —</option>` + out.join('');
+}
+
+// ---------- Series and options on a quote line ----------
+const SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+function sizeRank(v) { const i = SIZE_ORDER.indexOf((v || '').toUpperCase()); return i < 0 ? 100 : i; }
+function seriesOf(p) {
+  if (!p || !p.series) return p ? [p] : [];
+  return productsCache.filter(x => x.series === p.series)
+    .sort((a, b) => sizeRank(a.variant) - sizeRank(b.variant) || (a.variant || '').localeCompare(b.variant || ''));
+}
+function lineProduct(block) {
+  const id = parseInt(block.querySelector('.li-product').value);
+  return productsCache.find(x => x.id === id) || null;
+}
+function lineOptionsChosen(block) {
+  const out = {};
+  block.querySelectorAll('.li-opts-row select[data-key]').forEach(s => { out[s.dataset.key] = s.value; });
+  return Object.keys(out).length ? out : null;
+}
+// Size + one dropdown per option, under the line
+function renderLineOptions(block, chosen) {
+  const row = block.querySelector('.li-opts-row');
+  const p = lineProduct(block);
+  const groups = (p && p.options && p.options.groups) || [];
+  const fam = seriesOf(p);
+  if (!p || (fam.length < 2 && !groups.length)) { row.style.display = 'none'; row.innerHTML = ''; return; }
+  chosen = chosen || {};
+  const extra = c => c.price ? ` (+${fmtNum(c.price, 0)})` : '';
+  let html = fam.length > 1 ? `<label class="li-opt"><span>Size</span><select class="li-size">${fam.map(x =>
+    `<option value="${x.id}"${x.id === p.id ? ' selected' : ''}>${escHtml(x.variant || x.name)}</option>`).join('')}</select></label>` : '';
+  html += groups.map(g => {
+    const cur = g.choices.some(c => c.code === chosen[g.key]) ? chosen[g.key] : g.choices[0].code;
+    return `<label class="li-opt"><span>${escHtml(g.label)}</span><select data-key="${escHtml(g.key)}">${g.choices.map(c =>
+      `<option value="${escHtml(c.code)}"${c.code === cur ? ' selected' : ''}>${escHtml(c.label)}${extra(c)}</option>`).join('')}</select></label>`;
+  }).join('');
+  html += `<span class="li-code mono" title="Ordering code"></span>`;
+  row.innerHTML = html;
+  row.style.display = '';
+  showLineCode(block);
+}
+function lineCode(block) {
+  const p = lineProduct(block), chosen = lineOptionsChosen(block) || {};
+  const pattern = (p && p.options && p.options.code) || '';
+  return pattern ? pattern.replace(/\{(\w+)\}/g, (m, k) => chosen[k] ?? '?') : '';
+}
+function showLineCode(block) {
+  const el = block.querySelector('.li-code');
+  if (el) el.textContent = lineCode(block);
+}
+// Which spec line an option fills in
+const OPTION_SPEC = { power: /^(wattage|power|system power|watt)/i, watt: /^(wattage|power|watt)/i, beam: /^beam/i,
+  cct: /^(cct|colou?r temp)/i, dimming: /^(control|dimming)/i, colour: /^(finish|colou?r)\b/i, finish: /^(finish|colou?r)\b/i };
+// Price, cost and description follow the chosen options
+function applyLineOptions(block) {
+  const p = lineProduct(block);
+  if (!p) return;
+  const chosen = lineOptionsChosen(block) || {};
+  const groups = (p.options && p.options.groups) || [];
+  let price = p.selling_price || 0, cost = p.cost_price || 0;
+  let lines = block.querySelector('.li-desc').value.split('\n');
+  for (const g of groups) {
+    const c = g.choices.find(x => x.code === chosen[g.key]);
+    if (!c) continue;
+    price += c.price || 0;
+    cost += c.cost || 0;
+    const re = OPTION_SPEC[g.key] || new RegExp('^' + g.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const i = lines.findIndex(l => re.test(l.trim()) && l.includes(':'));
+    if (i >= 0) lines[i] = lines[i].slice(0, lines[i].indexOf(':') + 1) + ' ' + c.label;
+    else lines.push(`${g.label}: ${c.label}`);
+  }
+  const code = lineCode(block);
+  if (code) {
+    lines = lines.filter(l => !/^code\s*:/i.test(l.trim()));
+    lines.unshift('Code: ' + code);
+  }
+  block.querySelector('.li-desc').value = lines.join('\n').replace(/^\n+|\n+$/g, '');
+  block.querySelector('.li-price').value = Math.round(price * 100) / 100;
+  block.querySelector('.li-cost').value = Math.round(cost * 100) / 100;
+  showLineCode(block);
+  recalcMargins();
 }
 
 function lineRow(item) {
@@ -217,6 +310,7 @@ function lineRow(item) {
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
       <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();" title="Remove line">×</button>
     </div>
+    <div class="li-opts-row" style="display:none"></div>
     <div class="line-item-foot">
       <label>Description (defaults from product spec)</label>
       <span class="line-margin" data-margin>—</span>
@@ -288,6 +382,7 @@ function addLine(item) {
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
+    const before = lineOptionsChosen(block);  // keep the chosen options when the size changes
     if (opt.value) {
       priceInput.value = opt.dataset.price;
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
@@ -295,8 +390,21 @@ function addLine(item) {
       block.dataset.lineImage = '';  // show the chosen product's photo
       unitInput.value = '';
     }
+    renderLineOptions(block, before);
+    if (opt.value && block.querySelector('.li-opts-row select[data-key]')) applyLineOptions(block);
     sync();
     recalcMargins();
+  });
+  // Size switches to that size's product; an option changes code, price and description
+  block.querySelector('.li-opts-row').addEventListener('change', e => {
+    if (e.target.classList.contains('li-size')) {
+      const id = parseInt(e.target.value);
+      sel.innerHTML = productOptions(catSel.value, search.value, id);
+      sel.value = String(id);
+      sel.dispatchEvent(new Event('change'));
+    } else if (e.target.dataset.key) {
+      applyLineOptions(block);
+    }
   });
   // For a brand-new line, prefill price and spec from the preselected product.
   // When editing an existing line, keep the values that were saved on the quotation.
@@ -308,6 +416,10 @@ function addLine(item) {
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
       descArea.value = opt.dataset.spec || '';
     }
+    renderLineOptions(block, null);
+    if (block.querySelector('.li-opts-row select[data-key]')) applyLineOptions(block);
+  } else {
+    renderLineOptions(block, item.options);  // saved line: show its options, keep its price and text
   }
   block.querySelectorAll('.li-qty, .li-price, .li-cost, .li-disc').forEach(el => {
     el.addEventListener('input', recalcMargins);
@@ -818,6 +930,7 @@ function collectQuotationPayload() {
   const form = document.getElementById('quote-form');
   const items = [...document.querySelectorAll('.line-item-block')].map(block => ({
     product_id: parseInt(block.querySelector('.li-product').value) || null,
+    options: lineOptionsChosen(block),
     unit: block.querySelector('.li-unit').value.trim() || null,
     image_path: block.dataset.lineImage || null,
     type_code: block.querySelector('.li-type').value || null,

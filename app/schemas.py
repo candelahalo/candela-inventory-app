@@ -28,6 +28,9 @@ class ProductBase(BaseModel):
     spec_summary: Optional[str] = None
     description: Optional[str] = None  # HALO datasheet texts
     features: Optional[str] = None
+    series: Optional[str] = None  # e.g. "CHERUB" - sizes of one series are picked together in a quote
+    variant: Optional[str] = None  # this size, e.g. "S"
+    options: Optional[dict] = None  # see app/series.py
 
 
 class ProductCreate(ProductBase):
@@ -122,6 +125,7 @@ class QuotationItemCreate(BaseModel):
     unit_cost: Optional[float] = None  # omitted on create -> snapshotted from the product
     discount_pct: float = 0.0
     runs: Optional[str] = None  # lengths a linear light is made in: "9 + 10 + 15"
+    options: Optional[dict] = None  # series product: chosen option codes {"power": "15", ...}
 
 
     @field_validator("image_path")
@@ -141,6 +145,13 @@ class QuotationItemCreate(BaseModel):
     @classmethod
     def _short_runs(cls, v):
         return (v or "").strip()[:255] or None
+
+    @field_validator("options")
+    @classmethod
+    def _small_options(cls, v):
+        if not v:
+            return None
+        return {str(k)[:20]: str(c)[:20] for k, c in list(v.items())[:10]}
 
 
 class QuotationItemOut(QuotationItemCreate):
