@@ -30,7 +30,7 @@ def _items(quotation, db):
             continue
         e = by_product.get(it.product_id)
         if e is None:
-            mode = getattr(it.product, "datasheet_mode", None) or "halo"
+            mode = getattr(it.product, "datasheet_mode", None) or "supplier"
             e = {"name": it.product.name, "types": [], "sheet": None, "mode": mode,
                  "product": it.product, "skip": mode == "none"}
             by_product[it.product_id] = e

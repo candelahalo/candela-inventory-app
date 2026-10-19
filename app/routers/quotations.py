@@ -543,7 +543,7 @@ def _datasheet_links(quotation, db: Session):
         if what == "file":
             links[pid] = f"{BASE_URL}/datasheets/{sheet.id}/preview"
         elif what == "auto":
-            links[pid] = f"{BASE_URL}/datasheets/halo/{pid}"
+            links[pid] = f"{BASE_URL}/datasheets/halo/{pid}?auto=1"
     return links
 
 

@@ -26,26 +26,23 @@
 
     <div class="ds-box">
       <h2>Datasheet</h2>
-      <label class="ds-opt"><input type="radio" name="ds-mode" value="halo">
-        <span><strong>HALO</strong> <a href="/datasheets/halo/{{ product_id }}" target="_blank" class="ds-link">Preview</a>
-        <span class="muted" id="ds-halo-hint">made automatically from the spec, photo and the texts below Spec summary</span></span></label>
-      <div id="ds-halo" class="ds-sub">
-        <div id="ds-halo-list"></div>
-        <input type="file" id="ds-halo-file" accept="application/pdf" style="display:none;">
-        <button class="btn btn-ghost btn-sm" id="ds-halo-btn" onclick="document.getElementById('ds-halo-file').click()">Upload own HALO PDF</button>
-      </div>
       <label class="ds-opt"><input type="radio" name="ds-mode" value="supplier">
-        <span><strong>Supplier PDF</strong> <span class="muted">(European brands: upload theirs)</span></span></label>
+        <span><strong>Uploaded PDF</strong> <span class="muted">(supplier's or your own HALO sheet)</span></span></label>
       <div id="ds-supplier" class="ds-sub">
         <div id="ds-list"></div>
         <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
-        <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload PDF</button>
+        <input type="file" id="ds-halo-file" accept="application/pdf" style="display:none;">
+        <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload supplier PDF</button>
+        <button class="btn btn-ghost btn-sm" id="ds-halo-btn" onclick="document.getElementById('ds-halo-file').click()">Upload HALO PDF</button>
         <div class="ds-or">or paste the brand's link</div>
         <div class="ds-link-row">
           <input type="url" id="ds-url" placeholder="https://brand.com/…/datasheet.pdf">
           <button class="btn btn-ghost btn-sm" id="ds-url-btn" type="button">Get PDF</button>
         </div>
       </div>
+      <label class="ds-opt"><input type="radio" name="ds-mode" value="halo">
+        <span><strong>Automatic HALO sheet</strong> <a href="/datasheets/halo/{{ product_id }}?auto=1" target="_blank" class="ds-link">Preview</a>
+        <span class="muted">made from the spec, photo, description and features</span></span></label>
       <label class="ds-opt"><input type="radio" name="ds-mode" value="none">
         <span><strong>Not needed</strong> <span class="muted">(e.g. accessories)</span></span></label>
       <p class="ds-note">The chosen datasheet is linked from quotations and goes into the submittal PDF.</p>
@@ -285,7 +282,7 @@ let sheets = [];
 
 function sheetItems(list) {
   return list.map((d, i) => `<div class="ds-item${i ? ' old' : ''}">
-      <span class="ds-name" title="${escHtml(d.original_filename || d.title)}">${escHtml(d.original_filename || d.title)}</span>
+      <span class="ds-name" title="${escHtml(d.original_filename || d.title)}">${d.kind === 'halo' ? '<span class="badge">HALO</span> ' : ''}${escHtml(d.original_filename || d.title)}</span>
       <span class="ds-date">${i ? 'older · ' : ''}${fmtDate(d.uploaded_at)}</span>
       <span class="ds-actions">
         <a href="/datasheets/${d.id}/preview" target="_blank">View</a>
@@ -295,21 +292,12 @@ function sheetItems(list) {
 
 async function loadDatasheets() {
   sheets = await api('/datasheets/?product_id=' + productId);
-  const mode = (product && product.datasheet_mode) || 'halo';
-  const supplier = sheets.filter(d => (d.kind || 'supplier') === 'supplier');
-  const halo = sheets.filter(d => d.kind === 'halo');
+  const mode = (product && product.datasheet_mode) || 'supplier';
   document.querySelectorAll('input[name=ds-mode]').forEach(r => { r.checked = r.value === mode; });
   document.getElementById('ds-supplier').style.display = mode === 'supplier' ? '' : 'none';
-  document.getElementById('ds-halo').style.display = mode === 'halo' ? '' : 'none';
-  document.getElementById('ds-list').innerHTML = supplier.length ? sheetItems(supplier)
+  // Newest first: that one goes out with quotations and the submittal
+  document.getElementById('ds-list').innerHTML = sheets.length ? sheetItems(sheets)
     : `<div class="ds-empty">No PDF uploaded yet</div>`;
-  document.getElementById('ds-upload-btn').textContent = supplier.length ? 'Replace PDF' : 'Upload PDF';
-  // HALO: your own uploaded sheet is used instead of the automatic one
-  document.getElementById('ds-halo-list').innerHTML = halo.length ? sheetItems(halo) : '';
-  document.getElementById('ds-halo-hint').textContent = halo.length
-    ? 'your uploaded HALO sheet is used (remove it to go back to the automatic one)'
-    : 'made automatically from the spec, photo and the texts below Spec summary';
-  document.getElementById('ds-halo-btn').textContent = halo.length ? 'Replace HALO PDF' : 'Upload own HALO PDF';
 }
 
 async function deleteDatasheet(id) {
@@ -317,7 +305,6 @@ async function deleteDatasheet(id) {
   try {
     await api('/datasheets/' + id, { method: 'DELETE' });
     toast('Datasheet removed');
-    product = await api('/products/' + productId);  // the choice may have changed back to HALO
     loadDatasheets();
   } catch (err) { toast(err.message, true); }
 }
@@ -341,7 +328,7 @@ async function uploadSheet(e, kind) {
     if (res.status === 413) throw new Error('That PDF is too large for the server upload limit');
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Upload failed'); }
     toast(kind === 'halo' ? 'HALO datasheet uploaded' : 'Datasheet uploaded');
-    product.datasheet_mode = kind;
+    product.datasheet_mode = 'supplier';
     loadDatasheets();
   } catch (err) { toast(err.message, true); }
   finally { e.target.value = ''; }
@@ -372,7 +359,7 @@ document.querySelectorAll('input[name=ds-mode]').forEach(r => r.addEventListener
   try {
     const res = await api(`/products/${productId}/datasheet-mode?mode=${r.value}`, { method: 'PUT' });
     product.datasheet_mode = res.datasheet_mode;
-    toast({ halo: 'Datasheet: HALO, made automatically', supplier: 'Datasheet: supplier PDF', none: 'Datasheet: not needed' }[res.datasheet_mode]);
+    toast({ halo: 'Datasheet: automatic HALO sheet', supplier: 'Datasheet: uploaded PDF', none: 'Datasheet: not needed' }[res.datasheet_mode]);
     loadDatasheets();
   } catch (err) { toast(err.message, true); loadDatasheets(); }
 }));

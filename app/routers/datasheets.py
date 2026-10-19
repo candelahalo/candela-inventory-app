@@ -59,9 +59,8 @@ def upload_datasheet(
 
     file_path, original_filename = save_datasheet(file)
     if product_id:
-        # The uploaded PDF is the datasheet to use: a supplier PDF, or a HALO
-        # sheet made outside the app (used instead of the automatic one)
-        product.datasheet_mode, product.no_datasheet = kind, False
+        # The uploaded PDF (a supplier's, or our own HALO sheet) is the one to use
+        product.datasheet_mode, product.no_datasheet = "supplier", False
     datasheet = models.Datasheet(
         title=title, brand=brand, category=category, product_id=product_id,
         file_path=file_path, original_filename=original_filename, kind=kind,
@@ -104,14 +103,15 @@ def datasheet_from_link(product_id: int, payload: LinkIn, db: Session = Depends(
 
 
 @public_router.get("/halo/{product_id}")
-def halo_datasheet(product_id: int, db: Session = Depends(get_db)):
-    """The product's HALO datasheet: an uploaded HALO sheet if there is one,
-    otherwise made from its data each time it's opened. Public like the
-    uploaded datasheets: quotation PDFs link here."""
+def halo_datasheet(product_id: int, auto: bool = False, db: Session = Depends(get_db)):
+    """The product's HALO datasheet made from its data each time it's opened
+    (auto=1, as linked now). Without auto - links in older quotation PDFs - an
+    uploaded HALO sheet is shown if there is one. Public like the uploaded
+    datasheets: quotation PDFs link here."""
     product = db.query(models.Product).get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    own = (db.query(models.Datasheet)
+    own = None if auto else (db.query(models.Datasheet)
            .filter(models.Datasheet.product_id == product_id, models.Datasheet.kind == "halo")
            .order_by(models.Datasheet.uploaded_at.desc()).first())
     if own and os.path.exists(url_to_disk_path(own.file_path)):
@@ -194,10 +194,5 @@ def delete_datasheet(datasheet_id: int, db: Session = Depends(get_db), current: 
     log_activity(db, current.username, "datasheet", datasheet.id, datasheet.title, "deleted")
     product = datasheet.product
     db.delete(datasheet)
-    db.flush()
-    # Last supplier PDF gone: back to the HALO sheet made automatically
-    if product and product.datasheet_mode == "supplier" and \
-            not any((d.kind or "supplier") == "supplier" for d in product.datasheets):
-        product.datasheet_mode = "halo"
     db.commit()
     return None

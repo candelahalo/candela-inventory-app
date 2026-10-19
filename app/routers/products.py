@@ -104,7 +104,7 @@ DATASHEET_MODES = ("halo", "supplier", "none")
 @router.put("/{product_id}/datasheet-mode")
 def set_datasheet_mode(product_id: int, mode: str, db: Session = Depends(get_db),
                        current: models.User = Depends(auth.get_current_user)):
-    """HALO (made automatically) / Supplier PDF / Not needed."""
+    """Uploaded PDF (supplier) / HALO made automatically (halo) / Not needed (none)."""
     if mode not in DATASHEET_MODES:
         raise HTTPException(status_code=400, detail="Choose halo, supplier or none")
     product = db.query(models.Product).get(product_id)
@@ -113,7 +113,7 @@ def set_datasheet_mode(product_id: int, mode: str, db: Session = Depends(get_db)
     product.datasheet_mode = mode
     product.no_datasheet = mode == "none"
     log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated",
-                 {"halo": "datasheet: HALO (automatic)", "supplier": "datasheet: supplier PDF",
+                 {"halo": "datasheet: HALO (automatic)", "supplier": "datasheet: uploaded PDF",
                   "none": "datasheet: not needed"}[mode])
     db.commit()
     return {"datasheet_mode": product.datasheet_mode}

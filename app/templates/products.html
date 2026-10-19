@@ -103,8 +103,7 @@ function renderTabs() {
 }
 
 let productsCache = [];
-let datasheetCounts = {};
-let ownHalo = {};  // products with their own uploaded HALO sheet
+let latestKind = {};  // product id -> kind of its newest uploaded PDF ('supplier' / 'halo')
 
 function openLightbox(src) {
   document.getElementById('lightbox-img').src = src;
@@ -171,12 +170,14 @@ async function bulkDeleteProducts(ids) {
 async function loadProducts() {
   const [products, datasheets] = await Promise.all([api('/products/'), api('/datasheets/')]);
   productsCache = products;
-  datasheetCounts = {};
-  ownHalo = {};
+  latestKind = {};
+  const newest = {};
   datasheets.forEach(d => {
     if (!d.product_id) return;
-    if (d.kind === 'halo') ownHalo[d.product_id] = true;
-    else datasheetCounts[d.product_id] = (datasheetCounts[d.product_id] || 0) + 1;
+    if (!newest[d.product_id] || d.uploaded_at > newest[d.product_id]) {
+      newest[d.product_id] = d.uploaded_at;
+      latestKind[d.product_id] = d.kind || 'supplier';
+    }
   });
   renderProducts();
 }
@@ -198,10 +199,11 @@ function renderProducts() {
       { key: 'sku', label: 'SKU', value: p => p.sku, render: p => `<a href="/products/view/${p.id}" class="mono">${p.sku}</a>` },
       { key: 'name', label: 'Name', value: p => p.name, render: p => `<a href="/products/view/${p.id}" style="display:inline-block; min-width:170px;">${p.name}</a>` },
       { key: 'category', label: 'Category', value: p => p.category || '', render: p => p.category || '—' },
-      { key: 'datasheets', label: 'Datasheet', value: p => p.datasheet_mode || 'halo',
+      { key: 'datasheets', label: 'Datasheet', value: p => p.datasheet_mode || 'supplier',
         render: p => p.datasheet_mode === 'none' ? '<span class="muted" title="Not needed">n/a</span>'
-          : p.datasheet_mode === 'supplier' ? (datasheetCounts[p.id] ? '<span class="badge" title="Supplier PDF">PDF</span>' : '<span class="badge low" title="Supplier PDF not uploaded yet">PDF missing</span>')
-          : (ownHalo[p.id] ? '<span class="badge" title="Own HALO datasheet uploaded">HALO PDF</span>' : '<span class="badge" title="HALO datasheet, made automatically">HALO</span>') },
+          : p.datasheet_mode === 'halo' ? '<span class="badge" title="HALO datasheet, made automatically">HALO auto</span>'
+          : latestKind[p.id] ? `<span class="badge" title="Uploaded PDF">${latestKind[p.id] === 'halo' ? 'HALO PDF' : 'PDF'}</span>`
+          : '<span class="badge low" title="No PDF uploaded yet">PDF missing</span>' },
       { key: 'cost_price', label: 'Cost', numeric: true, value: p => p.cost_price, render: p => fmtMoney(p.cost_price) + costSub(p) },
       { key: 'selling_price', label: 'Selling price', numeric: true, value: p => p.selling_price, render: p => fmtMoney(p.selling_price) },
       { key: 'reorder_level', label: 'Reorder level', numeric: true, value: p => p.reorder_level, render: p => p.reorder_level },

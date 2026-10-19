@@ -64,7 +64,7 @@ class Product(Base):
     # Which datasheet goes out with this product: "halo" (made automatically
     # in the HALO layout - the default), "supplier" (the uploaded PDF) or
     # "none" (e.g. accessories). no_datasheet mirrors "none".
-    datasheet_mode = Column(String(16), default="halo", nullable=False)
+    datasheet_mode = Column(String(16), default="supplier", nullable=False)
     description = Column(Text)  # HALO sheet page 2: short description
     features = Column(Text)  # HALO sheet page 2: product features
     # A series is several products picked as one in a quote (CHERUB S / M / L / XL);
