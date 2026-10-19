@@ -7,6 +7,7 @@
     <p>Your light fitting and home automation catalog.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn btn-ghost" id="import-ds-btn" style="display:none" title="Paste a list of datasheet links: the server downloads them and adds the products">Import datasheets</button>
     <button class="btn btn-ghost" id="from-ds-btn" title="Upload a datasheet PDF: the form fills itself, you check and save">+ From datasheet PDF</button>
     <button class="btn" id="show-add-btn">+ Add product</button></div>
 </div>
@@ -54,6 +55,19 @@
       Photo and datasheets are added on the product's own page after saving.
     </p>
   </form>
+</div>
+
+<div class="panel" id="import-panel" style="display:none;">
+  <h2>Import datasheets</h2>
+  <p class="muted" style="margin-top:-4px">One per line: <span class="mono">Brand | Category | link to the PDF</span>.
+    Each PDF is downloaded and attached to its product; products not in the app yet are added from the PDF (price 0 — fill in after).</p>
+  <textarea id="import-lines" rows="8" style="width:100%" placeholder="QUATTROBI | Spotlight | https://www.quattrobi.it/…/kor-s.pdf"></textarea>
+  <div class="form-actions">
+    <button class="btn" id="import-start">Start import</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('import-panel').style.display='none'">Close</button>
+    <span id="import-progress" class="muted"></span>
+  </div>
+  <div id="import-results" class="import-results"></div>
 </div>
 
 <div class="tabs" id="category-tabs" role="tablist"></div>
@@ -243,6 +257,52 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 
 loadProducts();
 wireCostFields(document.getElementById('product-form'));
+
+// ---------- Import datasheets from a list of links (admin) ----------
+// One line at a time, so a long list never times out; each line reports back.
+if (isAdminUser()) document.getElementById('import-ds-btn').style.display = '';
+document.getElementById('import-ds-btn').addEventListener('click', () => {
+  document.getElementById('import-panel').style.display = '';
+  document.getElementById('import-lines').focus();
+});
+function importLine(line) {
+  const parts = line.split(/\s*[|\t]\s*/).map(x => x.trim()).filter(Boolean);
+  const url = parts.find(x => /^https?:\/\//i.test(x));
+  if (!url) return null;
+  const rest = parts.filter(x => x !== url);
+  const category = rest.find(x => PRODUCT_CATEGORIES.some(c => c.toLowerCase() === x.toLowerCase()));
+  const brand = rest.find(x => x !== category);
+  return { url, brand: brand || null, category: category ? PRODUCT_CATEGORIES.find(c => c.toLowerCase() === category.toLowerCase()) : null };
+}
+document.getElementById('import-start').addEventListener('click', async () => {
+  const lines = document.getElementById('import-lines').value.split('\n').map(l => l.trim()).filter(Boolean);
+  const out = document.getElementById('import-results'), prog = document.getElementById('import-progress');
+  const btn = document.getElementById('import-start');
+  if (!lines.length) { toast('Paste the list first', true); return; }
+  btn.disabled = true; out.innerHTML = '';
+  let ok = 0;
+  for (let i = 0; i < lines.length; i++) {
+    prog.textContent = `${i + 1} of ${lines.length}…`;
+    const item = importLine(lines[i]);
+    const row = document.createElement('div');
+    out.appendChild(row);
+    if (!item) { row.className = 'imp-bad'; row.textContent = `✗ ${lines[i]} — no link found`; continue; }
+    try {
+      const r = await api('/datasheets/import-link', { method: 'POST', body: JSON.stringify(item) });
+      ok++;
+      row.className = 'imp-ok';
+      row.innerHTML = r.result === 'created'
+        ? `✓ <a href="/products/view/${r.product_id}" target="_blank">${escHtml(r.name)}</a> — new product added`
+        : `✓ PDF attached to ${r.count > 1 ? r.count + ' products: ' : ''}${r.names.map(escHtml).join(', ')}`;
+    } catch (err) {
+      row.className = 'imp-bad';
+      row.textContent = `✗ ${item.url} — ${err.message}`;
+    }
+  }
+  prog.textContent = `Done: ${ok} of ${lines.length}`;
+  btn.disabled = false;
+  loadProducts();
+});
 
 // ---------- New product from a datasheet PDF ----------
 // The PDF is read on the server (nothing saved yet); the form fills itself;

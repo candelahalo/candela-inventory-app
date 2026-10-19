@@ -1088,3 +1088,8 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .series-box td { padding: 2px 4px; }
 .series-box td input { width: 100%; min-width: 0; padding: 4px 6px; }
 .series-box .muted-help { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+
+/* Products: import datasheets from links */
+.import-results { margin-top: 10px; font-size: 13px; display: grid; gap: 4px; }
+.import-results .imp-ok { color: var(--green, #2e7d32); }
+.import-results .imp-bad { color: var(--red, #c62828); word-break: break-all; }

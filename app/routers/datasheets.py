@@ -102,6 +102,92 @@ def datasheet_from_link(product_id: int, payload: LinkIn, db: Session = Depends(
     return datasheet
 
 
+class ImportIn(BaseModel):
+    url: str
+    brand: Optional[str] = None
+    category: Optional[str] = None
+
+
+@router.post("/import-link")
+def import_from_link(payload: ImportIn, db: Session = Depends(get_db),
+                     current: models.User = Depends(auth.require_admin)):
+    """One line of the "Import datasheets" list: download the brand's PDF and
+    attach it to the product it is for - found by name and brand, or created
+    from the PDF (name, category, spec, photo) when it isn't in the app yet."""
+    import base64
+    import io
+    from starlette.datastructures import Headers, UploadFile as StarUpload
+    from app import naming
+    from app.categories import PRODUCT_CATEGORIES
+    from app.datasheet_read import read
+    from app.pdf_fetch import fetch_pdf
+    from app.routers.products import _standardise
+    from app.utils import save_product_image
+
+    data, fname = fetch_pdf(payload.url)
+    try:
+        r = read(data, fname)
+    except Exception:
+        r = {}
+    brand = (payload.brand or r.get("brand") or "").strip().upper() or None
+    model = (r.get("model") or "").strip()
+    if not model:
+        raise HTTPException(status_code=400, detail="Couldn't read the product name from that PDF")
+    category = payload.category if payload.category in PRODUCT_CATEGORIES else (r.get("category") or None)
+    name = naming.standard_name(model, brand, category)
+
+    # The product, or every version of it already in the app ("KOR S" -> "KOR S 17W ...", "KOR S 21W ...")
+    q = db.query(models.Product).filter((models.Product.name == name) | models.Product.name.like(name + " %"))
+    if brand:
+        q = q.filter(models.Product.brand.ilike(brand))
+    products = q.all()
+    # A light's sheet doesn't go on its connectors, end caps or drivers (and the other way round)
+    parts = ("Accessories", "Drivers")
+    if category in parts:
+        products = [p for p in products if p.category == category]
+    else:
+        products = [p for p in products if p.category not in parts]
+    result = "attached"
+    if not products:
+        spec = [["Model", model]] + [row for row in (r.get("spec") or []) if row[0] != "Model"]
+        fields = {"sku": "", "name": model, "brand": brand, "supplier": brand, "category": category,
+                  "spec_summary": "\n".join(f"{k}: {v}" for k, v in spec)}
+        if r.get("series_options"):
+            fields.update(series=r.get("series"), variant=r.get("variant"), options=r.get("series_options"))
+        fields = _standardise(db, fields)
+        product = models.Product(**fields, datasheet_mode="supplier", cost_currency="AED", cost_amount=0.0,
+                                 cost_price=0.0, selling_price=0.0)
+        db.add(product)
+        db.flush()
+        if r.get("photo"):
+            try:
+                raw = base64.b64decode(r["photo"].split(",", 1)[1])
+                up = StarUpload(file=io.BytesIO(raw), filename="photo.jpg",
+                                headers=Headers({"content-type": "image/jpeg"}))
+                product.image_path = save_product_image(up)
+            except Exception:
+                pass  # photo is optional
+        log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "created",
+                     "from datasheet link")
+        result = "created"
+        products = [product]
+
+    for product in products:  # each keeps its own copy: removing one doesn't affect the others
+        file_path, original_filename = save_datasheet_bytes(data, fname)
+        product.datasheet_mode, product.no_datasheet = "supplier", False
+        sheet = models.Datasheet(title=product.name, brand=product.brand, category=product.category,
+                                 product_id=product.id, file_path=file_path,
+                                 original_filename=original_filename, kind="supplier")
+        db.add(sheet)
+        db.flush()
+        log_activity(db, current.username, "datasheet", sheet.id, sheet.title, "created",
+                     "imported from " + payload.url[:300])
+    db.commit()
+    first = products[0]
+    return {"result": result, "product_id": first.id, "name": first.name, "sku": first.sku,
+            "count": len(products), "names": [p.name for p in products]}
+
+
 @public_router.get("/halo/{product_id}")
 def halo_datasheet(product_id: int, auto: bool = False, db: Session = Depends(get_db)):
     """The product's HALO datasheet made from its data each time it's opened

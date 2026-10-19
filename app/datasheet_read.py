@@ -188,6 +188,8 @@ def read(data: bytes, filename: str = "") -> dict:
                 t = w["text"].strip()
                 if re.match(r"^pag\.?\d*$|^page$|^\d+$", t, re.I):
                     continue
+                if re.fullmatch(r"[·•|:\-–—]+", t) or t.upper() in BRANDS:
+                    continue  # separators and the brand ("QUATTROBI · BAMBOO")
                 if re.fullmatch(r"[A-Z0-9]{2,}(?:[-.][A-Z0-9]+)+", t):
                     code = code or t
                     continue
