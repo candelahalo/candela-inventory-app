@@ -37,37 +37,6 @@ router = APIRouter(prefix="/products", tags=["Products"],
                    dependencies=[Depends(auth.get_current_user)])
 
 
-@router.post("/{product_id}/copy-option-prices")
-def copy_option_prices(product_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
-    """Give the other sizes of this series the same extra prices / costs
-    (matched by option and choice code, e.g. Dimming 4 = DALI +60)."""
-    src = db.query(models.Product).get(product_id)
-    if not src or not src.series or not src.options:
-        raise HTTPException(status_code=400, detail="This product has no series options to copy")
-    extras = {(g["key"], c["code"]): (c.get("price", 0), c.get("cost", 0))
-              for g in src.options.get("groups", []) for c in g.get("choices", [])}
-    changed = 0
-    for p in db.query(models.Product).filter(models.Product.series == src.series, models.Product.id != src.id).all():
-        if not p.options:
-            continue
-        opts = {"code": p.options.get("code", ""), "groups": []}
-        for g in p.options.get("groups", []):
-            choices = []
-            for c in g.get("choices", []):
-                c = dict(c)
-                if (g["key"], c["code"]) in extras:
-                    c["price"], c["cost"] = extras[(g["key"], c["code"])]
-                choices.append(c)
-            opts["groups"].append({**g, "choices": choices})
-        if opts != p.options:
-            p.options = opts  # new object, so the JSON column is saved
-            changed += 1
-    log_activity(db, current.username, "product", src.id, f"{src.sku} — {src.name}", "updated",
-                 f"option prices copied to {changed} other size(s) of {src.series}")
-    db.commit()
-    return {"updated": changed}
-
-
 @router.get("/", response_model=List[schemas.ProductOut])
 def list_products(
     category: Optional[str] = None,

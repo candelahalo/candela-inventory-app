@@ -238,13 +238,12 @@ function renderLineOptions(block, chosen) {
   const fam = seriesOf(p);
   if (!p || (fam.length < 2 && !groups.length)) { row.style.display = 'none'; row.innerHTML = ''; return; }
   chosen = chosen || {};
-  const extra = c => c.price ? ` (+${fmtNum(c.price, 0)})` : '';
   let html = fam.length > 1 ? `<label class="li-opt"><span>Size</span><select class="li-size">${fam.map(x =>
     `<option value="${x.id}"${x.id === p.id ? ' selected' : ''}>${escHtml(x.variant || x.name)}</option>`).join('')}</select></label>` : '';
   html += groups.map(g => {
     const cur = g.choices.some(c => c.code === chosen[g.key]) ? chosen[g.key] : g.choices[0].code;
     return `<label class="li-opt"><span>${escHtml(g.label)}</span><select data-key="${escHtml(g.key)}">${g.choices.map(c =>
-      `<option value="${escHtml(c.code)}"${c.code === cur ? ' selected' : ''}>${escHtml(c.label)}${extra(c)}</option>`).join('')}</select></label>`;
+      `<option value="${escHtml(c.code)}"${c.code === cur ? ' selected' : ''}>${escHtml(c.label)}</option>`).join('')}</select></label>`;
   }).join('');
   html += `<span class="li-code mono" title="Ordering code"></span>`;
   row.innerHTML = html;
@@ -263,19 +262,16 @@ function showLineCode(block) {
 // Which spec line an option fills in
 const OPTION_SPEC = { power: /^(wattage|power|system power|watt)/i, watt: /^(wattage|power|watt)/i, beam: /^beam/i,
   cct: /^(cct|colou?r temp)/i, dimming: /^(control|dimming)/i, colour: /^(finish|colou?r)\b/i, finish: /^(finish|colou?r)\b/i };
-// Price, cost and description follow the chosen options
+// The description follows the chosen options (the price is the size's; change it by hand, e.g. for DALI)
 function applyLineOptions(block) {
   const p = lineProduct(block);
   if (!p) return;
   const chosen = lineOptionsChosen(block) || {};
   const groups = (p.options && p.options.groups) || [];
-  let price = p.selling_price || 0, cost = p.cost_price || 0;
   let lines = block.querySelector('.li-desc').value.split('\n');
   for (const g of groups) {
     const c = g.choices.find(x => x.code === chosen[g.key]);
     if (!c) continue;
-    price += c.price || 0;
-    cost += c.cost || 0;
     const re = OPTION_SPEC[g.key] || new RegExp('^' + g.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     const i = lines.findIndex(l => re.test(l.trim()) && l.includes(':'));
     if (i >= 0) lines[i] = lines[i].slice(0, lines[i].indexOf(':') + 1) + ' ' + c.label;
@@ -287,10 +283,7 @@ function applyLineOptions(block) {
     lines.unshift('Code: ' + code);
   }
   block.querySelector('.li-desc').value = lines.join('\n').replace(/^\n+|\n+$/g, '');
-  block.querySelector('.li-price').value = Math.round(price * 100) / 100;
-  block.querySelector('.li-cost').value = Math.round(cost * 100) / 100;
   showLineCode(block);
-  recalcMargins();
 }
 
 function lineRow(item) {

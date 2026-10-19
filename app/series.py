@@ -3,26 +3,21 @@
 CHERUB comes in S, M, L and XL. Each size is its own product (own price,
 stock and datasheet) with series = "CHERUB" and variant = "S". On the quote
 line the series shows once; you pick the size, then each option (watt,
-beam, CCT, dimming, colour). The ordering code is made from the code pattern:
+beam, CCT, dimming, colour), which go in the line's description. The
+ordering code is the size's own (CHB-S); a pattern may also use the chosen
+option codes, e.g. "CHB-S-{power}":
 
-    {"code": "CHB-S-{power}-{beam}-{cct}-{dimming}.{colour}",
+    {"code": "CHB-S",
      "groups": [{"key": "power", "label": "Power",
-                 "choices": [{"label": "12W", "code": "12", "price": 0, "cost": 0}, ...]},
+                 "choices": [{"label": "12W", "code": "12"}, ...]},
                 ...]}
 
-price / cost on a choice are added to the size's price / cost (AED), e.g.
-DALI dimming +60.
+Prices are the size's own; a dearer option (e.g. DALI) is priced by hand on
+the quote line.
 """
 import re
 
 from fastapi import HTTPException
-
-
-def _num(v):
-    try:
-        return round(float(v or 0), 2)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Option extra price / cost must be a number")
 
 
 def clean(options):
@@ -40,8 +35,7 @@ def clean(options):
             cl = str(c.get("label") or "").strip()[:60]
             if not cl:
                 continue
-            choices.append({"label": cl, "code": str(c.get("code") or "").strip()[:20],
-                            "price": _num(c.get("price")), "cost": _num(c.get("cost"))})
+            choices.append({"label": cl, "code": str(c.get("code") or "").strip()[:20]})
         if not label or not choices:
             continue
         if not key or key in keys:

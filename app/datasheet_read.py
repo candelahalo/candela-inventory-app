@@ -128,10 +128,9 @@ def _series_options(text):
     if not m:
         return None
     keys = re.findall(r"([-.])\s*\[([^\]]+)\]", m.group(2))
-    # Our code leaves out beam and dimming (they're in the description) and
-    # gives the colour as letters: CHB-M-20-27-BK
-    code = m.group(1) + "".join("-{" + re.sub(r"[^a-z0-9]", "", k.lower()) + "}" for _, k in keys
-                                if not re.match(r"beam|dim|optic", k.strip(), re.I))
+    # Our code is the size only (CHB-M); watt, CCT, beam, dimming and colour
+    # go in the description
+    code = m.group(1)
     named = {}
     dm = re.search(r"Dimming options\s+(.+?)(?:Suitable track|HALO ARCH|$)", text, re.S | re.I)
     if dm:
@@ -154,14 +153,13 @@ def _series_options(text):
             c, rest = cm.group(1), cm.group(2).strip()
             if c.startswith("."):  # colour ".01 White" -> WH
                 name = (rest or "").split()[0].upper() if rest else ""
-                choices.append({"label": rest or c, "code": FINISH_CODE.get(name, name[:2] or c[1:]),
-                                "price": 0, "cost": 0})
+                choices.append({"label": rest or c, "code": FINISH_CODE.get(name, name[:2] or c[1:])})
             elif key == "cct":
-                choices.append({"label": f"{int(c) * 100}K", "code": c, "price": 0, "cost": 0})
+                choices.append({"label": f"{int(c) * 100}K", "code": c})
             elif key in named or key.startswith("dim"):
-                choices.append({"label": named.get(c, c), "code": c, "price": 0, "cost": 0})
+                choices.append({"label": named.get(c, c), "code": c})
             else:
-                choices.append({"label": c + UNIT.get(key, ""), "code": c, "price": 0, "cost": 0})
+                choices.append({"label": c + UNIT.get(key, ""), "code": c})
         if choices:
             groups.append({"key": key, "label": label, "choices": choices})
     if not groups:
