@@ -186,7 +186,7 @@ function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[s
 // Product choices for a quote line: only the chosen category, and only those
 // matching the search text. The line's current product always stays listed.
 // Spec lines left out of a quote line's description (kept on the product and its datasheet)
-const QUOTE_HIDE = /^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*)\s*:/i;
+const QUOTE_HIDE = /^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*|rated life|lifetime|life ?time)\s*:/i;
 function quoteSpec(spec) {
   return (spec || '').split('\n').filter(l => !QUOTE_HIDE.test(l)).join('\n');
 }

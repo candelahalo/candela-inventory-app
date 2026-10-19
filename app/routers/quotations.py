@@ -269,7 +269,7 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 
 # Spec lines left out of a quote line's description (kept on the product and its datasheet)
-QUOTE_HIDE = re.compile(r"^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*)\s*:", re.I)
+QUOTE_HIDE = re.compile(r"^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*|rated life|lifetime|life ?time)\s*:", re.I)
 
 
 def quote_spec(spec):
