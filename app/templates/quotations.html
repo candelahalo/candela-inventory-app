@@ -185,11 +185,17 @@ function statusBadge(st) { return `<span class="badge st-${st}">${STATUS_LABEL[s
 
 // Product choices for a quote line: only the chosen category, and only those
 // matching the search text. The line's current product always stays listed.
+// Spec lines left out of a quote line's description (kept on the product and its datasheet)
+const QUOTE_HIDE = /^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*)\s*:/i;
+function quoteSpec(spec) {
+  return (spec || '').split('\n').filter(l => !QUOTE_HIDE.test(l)).join('\n');
+}
+
 function productOptions(cat, query, keepId) {
   const q = (query || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
   const inCat = p => !cat ? true : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
   const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '') + ' ' + (p.series || '')).toUpperCase().includes(w));
-  const optHtml = (p, label) => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${(p.spec_summary||'').replace(/"/g,'&quot;')}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${label || (escHtml(p.name) + ' · ' + escHtml(p.sku))}</option>`;
+  const optHtml = (p, label) => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${escHtml(quoteSpec(p.spec_summary))}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${label || (escHtml(p.name) + ' · ' + escHtml(p.sku))}</option>`;
   // A series (CHERUB S / M / L / XL) is listed once; the size is picked under the line
   const out = [], seen = new Set();
   for (const p of productsCache) {

@@ -177,7 +177,7 @@ def _add_items(quotation, payload, db: Session):
             raise HTTPException(status_code=400, detail="A line's product no longer exists - pick another or make it a custom line.")
         item_data = item.model_dump()
         if not item_data.get("description") and prod and prod.spec_summary:
-            item_data["description"] = prod.spec_summary
+            item_data["description"] = quote_spec(prod.spec_summary)
         # Snapshot the cost at quoting time so margin stays accurate even if
         # the product's cost price changes later.
         if item_data.get("unit_cost") is None:
@@ -266,6 +266,14 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
                  f"read {len(result['items'])} lines from {result.get('original_number') or 'a PDF'} (not saved yet)")
     db.commit()
     return result
+
+
+# Spec lines left out of a quote line's description (kept on the product and its datasheet)
+QUOTE_HIDE = re.compile(r"^\s*(model|safety class|mounting( type)?|tilt( angle)?|rotation( angle)?|housing|operating temp\w*)\s*:", re.I)
+
+
+def quote_spec(spec):
+    return "\n".join(l for l in (spec or "").split("\n") if not QUOTE_HIDE.match(l))
 
 
 @router.post("/", status_code=201)
