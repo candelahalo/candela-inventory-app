@@ -14,6 +14,7 @@ import pdfplumber
 from PIL import Image
 
 from app.categories import classify
+from app.naming import FINISH_CODE
 
 BRANDS = ["QUATTROBI", "TRIDONIC", "LEDVANCE", "OSRAM", "PHILIPS", "SIGNIFY", "IGUZZINI", "FLOS", "ERCO",
           "DELTA LIGHT", "ARTEMIDE", "LINEA LIGHT", "SIMES", "BEGA", "ZUMTOBEL", "THORN", "LUCE5", "LEDS C4",
@@ -127,7 +128,10 @@ def _series_options(text):
     if not m:
         return None
     keys = re.findall(r"([-.])\s*\[([^\]]+)\]", m.group(2))
-    code = m.group(1) + "".join(sep + "{" + re.sub(r"[^a-z0-9]", "", k.lower()) + "}" for sep, k in keys)
+    # Our code leaves out beam and dimming (they're in the description) and
+    # gives the colour as letters: CHB-M-20-27-BK
+    code = m.group(1) + "".join("-{" + re.sub(r"[^a-z0-9]", "", k.lower()) + "}" for _, k in keys
+                                if not re.match(r"beam|dim|optic", k.strip(), re.I))
     named = {}
     dm = re.search(r"Dimming options\s+(.+?)(?:Suitable track|HALO ARCH|$)", text, re.S | re.I)
     if dm:
@@ -148,8 +152,10 @@ def _series_options(text):
             if not cm:
                 continue
             c, rest = cm.group(1), cm.group(2).strip()
-            if c.startswith("."):  # colour ".01 White"
-                choices.append({"label": rest or c, "code": c[1:], "price": 0, "cost": 0})
+            if c.startswith("."):  # colour ".01 White" -> WH
+                name = (rest or "").split()[0].upper() if rest else ""
+                choices.append({"label": rest or c, "code": FINISH_CODE.get(name, name[:2] or c[1:]),
+                                "price": 0, "cost": 0})
             elif key == "cct":
                 choices.append({"label": f"{int(c) * 100}K", "code": c, "price": 0, "cost": 0})
             elif key in named or key.startswith("dim"):
