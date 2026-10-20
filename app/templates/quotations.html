@@ -303,7 +303,7 @@ function addProductLine(productId) {
 // Type codes by category: SP1, SP2 … DL1 …; the same product (or series) keeps its code
 const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
   'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
-  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA' };
+  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA', 'BOH': 'BOH' };
 function nextTypeCode(p, ownBlock) {
   if (!p) return '';
   const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);

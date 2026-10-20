@@ -99,7 +99,7 @@ function renderTabs() {
   const cats = ['all', ...PRODUCT_CATEGORIES, ...(count('other') ? ['other'] : [])];
   if (!cats.includes(activeCategory)) activeCategory = 'all';
   document.getElementById('category-tabs').innerHTML = cats.map(c => `
-    <button type="button" class="tab${c === activeCategory ? ' active' : ''}" role="tab" aria-selected="${c === activeCategory}"
+    <button type="button" class="tab${c === activeCategory ? ' active' : ''}" role="tab" aria-selected="${c === activeCategory}"${c === 'BOH' ? ' title="Back of House"' : ''}
       onclick="setCategory('${c}')">${c === 'all' ? 'All' : c === 'other' ? 'Other' : c} <span class="tab-count">${count(c)}</span></button>`).join('');
 }
 
