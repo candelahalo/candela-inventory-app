@@ -185,6 +185,63 @@ def _accessories(pdf):
     return out
 
 
+def _driver(text, data):
+    """A driver sheet (Tridonic, Meanwell ...): a short name and spec -
+    code, output power, output current, dimming, voltage, dimension, warranty.
+    Named by what it powers: "ON/OFF driver for LC 10W 150-250mA"."""
+    full = text
+    try:  # technical data is often on page 3-4 (pypdf: much faster on drawing-heavy pages)
+        from pypdf import PdfReader
+        full = text + "\n" + "\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(data)).pages[:6])
+    except Exception:
+        pass
+    m = re.search(r"^\s*(?:led\s+)?driver\s+(.+)$", full[:600], re.I | re.M)
+    title = m.group(1).strip() if m else ""
+    # keep the name to the current / power part ("LC 10W 150-250mA"), not the variant letters after
+    t = re.match(r"(.*?\d+\s*(?:-\s*\d+\s*)?mA)\b", title, re.I) or re.match(r"(.*?\d+(?:\.\d+)?\s*W)\b", title, re.I)
+    short = (t.group(1) if t else title).strip()
+    if not short:
+        return None
+    low = full.lower()
+    if re.search(r"\bdali\b", title, re.I) or ("dali" in low[:1500] and "fixed output" not in low[:1500]):
+        dimming = "DALI"
+    elif re.search(r"1-10\s*v|0-10\s*v", low[:1500]):
+        dimming = "1-10V"
+    elif re.search(r"phase[- ]cut|triac|leading|trailing", low[:1500]):
+        dimming = "Phase-cut"
+    else:
+        dimming = "ON/OFF"
+    spec = []
+    code = ""
+    am = re.search(r"article number.*?\n.*?\b(\d{8})\b", full, re.I | re.S)
+    if am:
+        code = am.group(1)
+        spec.append(["Code", code])
+    lo = re.search(r"min\.?\s*output power\s+([\d.,]+)\s*W", full, re.I)
+    hi = re.search(r"max\.?\s*output power\s+([\d.,]+)\s*W", full, re.I)
+    if hi:
+        spec.append(["Output power", (lo.group(1) + "–" if lo else "up to ") + hi.group(1) + " W"])
+    cm = re.search(r"output current via dip[- ]switch\s+([\d,\sand]+)\s*mA", full.replace("\n", " "), re.I)
+    if cm:
+        vals = re.findall(r"\d+", cm.group(1))
+        spec.append(["Output current", " / ".join(vals) + " mA (DIP switch)"])
+    else:
+        om = re.search(r"output current\s+(\d+(?:\s*-\s*\d+)?)\s*mA", full, re.I)
+        if om:
+            spec.append(["Output current", om.group(1) + " mA"])
+    spec.append(["Control", dimming])
+    vm = re.search(r"rated supply voltage\s+([\d\s–-]+V)", full, re.I)
+    if vm:
+        spec.append(["Voltage", " ".join(vm.group(1).split())])
+    dm = re.search(r"dimensions?\s*(?:l\s*x\s*w\s*x\s*h)?\s+([\d.,]+\s*x\s*[\d.,]+(?:\s*x\s*[\d.,]+)?\s*mm)", full, re.I)
+    if dm:
+        spec.append(["Dimension", " ".join(dm.group(1).split())])
+    gm = re.search(r"guarantee.*?(\d+)\s*year", full, re.I)
+    if gm:
+        spec.append(["Warranty", gm.group(1) + " years"])
+    return {"name": f"{dimming} driver for {short}", "code": code, "spec": spec}
+
+
 def photo_from_pdf(data: bytes):
     """The product photo of a datasheet PDF as JPEG bytes, or None."""
     with pdfplumber.open(io.BytesIO(data)) as pdf:
@@ -358,11 +415,17 @@ def read(data: bytes, filename: str = "") -> dict:
                 not re.search(r"projector|spot|luminaire with|led light", text[:1500], re.I):
             category = "Track Accessories"
         photo = _photo(first)
-        try:
-            accessories = _accessories(pdf)
-        except Exception:
-            accessories = []
+        accessories = []
+        if re.search(r"^\s*(accessories|accessori|accessoires|zubehör)\s*$", text, re.I | re.M):
+            try:
+                accessories = _accessories(pdf)
+            except Exception:
+                accessories = []
 
+    drv = _driver(text, data) if category == "Drivers" or re.search(r"^\s*(led )?driver\b", text[:400], re.I | re.M) else None
+    if drv:
+        model, code, category = drv["name"], drv["code"], "Drivers"
+        spec, watts, ccts, finishes, accessories = drv["spec"], [], [], [], []
     options = _series_options(text)
     words_m = model.upper().split()
     series = words_m[0] if options and words_m else ""

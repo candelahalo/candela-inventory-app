@@ -425,6 +425,7 @@ function lineRow(item) {
         <button type="button" class="li-tool" onclick="moveLine(this, -1)" title="Move this line up">↑</button>
         <button type="button" class="li-tool" onclick="moveLine(this, 1)" title="Move this line down">↓</button>
         <button type="button" class="li-tool li-ins" onclick="insertBelow(this.closest('.line-item-block'))" title="The next product you add goes below this line">+ Insert below</button>
+        <button type="button" class="li-tool li-drv" onclick="addDriverFor(this.closest('.line-item-block'))" title="Adds the driver that fits this light's wattage and dimming, below it, same qty" style="display:none">+ Driver</button>
       </span>
       <span class="line-margin" data-margin>—</span>
     </div>
@@ -435,6 +436,64 @@ function lineRow(item) {
       <span class="li-runs-check"></span>
     </div>
   </div>`;
+}
+
+// ---------- + Driver: the driver that fits a light ----------
+// The smallest driver whose output power covers the light's wattage, with the
+// same dimming (ON/OFF unless the line says DALI / 1-10V / phase-cut).
+const NO_DRIVER_CATEGORIES = ['Drivers', 'Accessories', 'Track Accessories'];
+function dimmingOf(text) {
+  const t = (text || '').toUpperCase();
+  if (/DALI/.test(t)) return 'DALI';
+  if (/1-10\s*V|0-10\s*V|0-1-10/.test(t)) return '1-10V';
+  if (/PHASE|TRIAC|LEADING|TRAILING/.test(t)) return 'Phase-cut';
+  return 'ON/OFF';
+}
+function specLine(spec, re) {
+  const l = (spec || '').split('\n').find(x => re.test(x));
+  return l ? l.slice(l.indexOf(':') + 1).trim() : '';
+}
+// The light wattage a driver is for: the watt in its name ("LC 17W" is for a
+// 17 W light, though its max output is 16.8 W); else its max output power
+function driverPower(p) {
+  const w = (p.name.match(/(\d+(?:\.\d+)?)\s*W\b/gi) || []).map(x => parseFloat(x));
+  if (w.length) return Math.max(...w);
+  const out = specLine(p.spec_summary, /^\s*output power\s*:/i);
+  const nums = (out.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  return nums.length ? Math.max(...nums) : 0;
+}
+function lightWatt(block) {
+  const desc = block.querySelector('.li-desc').value;
+  const w = specLine(desc, /^\s*(wattage|power|watt)\s*:/i).match(/\d+(?:\.\d+)?/);
+  if (w) return parseFloat(w[0]);
+  const p = lineProduct(block);
+  const n = p && p.name.match(/(\d+(?:\.\d+)?)\s*W\b/i);
+  return n ? parseFloat(n[1]) : 0;
+}
+function forFamily(driver, block) {
+  const p = lineProduct(block);
+  const fam = p ? (p.series || p.name.split(' ')[0] || '').toUpperCase() : '';
+  return fam && driver.name.toUpperCase().includes(fam) ? 1 : 0;
+}
+function addDriverFor(block) {
+  const watt = lightWatt(block);
+  if (!watt) { toast("Couldn't find this light's wattage — add Wattage: … to its description", true); return; }
+  const dim = dimmingOf(specLine(block.querySelector('.li-desc').value, /^\s*(control|dimming)\s*:/i));
+  const fits = productsCache.filter(p => p.category === 'Drivers'
+      && dimmingOf(p.name + ' ' + specLine(p.spec_summary, /^\s*(control|dimming)\s*:/i)) === dim
+      && driverPower(p) >= watt)
+    // smallest that fits; one named for this light's family (DRIVER … — KOR 17W for a KOR) first
+    .sort((a, b) => driverPower(a) - driverPower(b) || forFamily(b, block) - forFamily(a, block));
+  if (!fits.length) { toast(`No ${dim} driver of ${watt} W or more in Products — add one first`, true); return; }
+  const keep = insertAfter;
+  insertAfter = block;
+  addProductLine(fits[0].id);
+  const added = insertAfter;
+  added.querySelector('.li-qty').value = block.querySelector('.li-qty').value;
+  insertAfter = keep && keep.isConnected ? keep : null;
+  showInsertPoint();
+  recalcMargins();
+  toast(`${fits[0].name} added for the ${watt} W light`);
 }
 
 // Where a new line goes: at the end, or below the line chosen with "+ Insert below"
@@ -541,6 +600,8 @@ function addLine(item) {
     const runsInput = block.querySelector('.li-runs');
     const wantsRuns = RUNS_CATEGORIES.includes(opt.dataset.category || '');
     block.querySelector('.li-runs-row').style.display = wantsRuns || runsInput.value.trim() ? '' : 'none';
+    const isLight = opt.value && !NO_DRIVER_CATEGORIES.includes(opt.dataset.category || '');
+    block.querySelector('.li-drv').style.display = isLight ? '' : 'none';
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
