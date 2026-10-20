@@ -224,6 +224,7 @@ class AccessoriesIn(BaseModel):
     brand: Optional[str] = None
     supplier: Optional[str] = None
     used_for: Optional[str] = None  # e.g. "230V ON/OFF surface / suspended track"
+    category: Optional[str] = None  # "Track Accessories" or "Accessories"
     items: List[AccessoryIn]
 
 
@@ -238,8 +239,9 @@ def add_accessories(payload: AccessoriesIn, db: Session = Depends(get_db), curre
     from app.datasheet_read import COLOUR_NAMES
     created, skipped = [], []
     brand = (payload.brand or "").strip().upper() or None
+    category = payload.category if payload.category in ("Accessories", "Track Accessories") else "Accessories"
     for it in payload.items[:80]:
-        name = naming.standard_name(it.name, brand, "Accessories")
+        name = naming.standard_name(it.name, brand, category)
         if not name:
             continue
         if db.query(models.Product).filter(models.Product.name == name,
@@ -258,7 +260,7 @@ def add_accessories(payload: AccessoriesIn, db: Session = Depends(get_db), curre
             options = {"code": code + " {colour}",
                        "groups": [{"key": "colour", "label": "Colour",
                                    "choices": [{"label": n, "code": c} for n, c in zip(names, cols)]}]}
-        data = _standardise(db, {"sku": "", "name": it.name, "brand": brand, "category": "Accessories",
+        data = _standardise(db, {"sku": "", "name": it.name, "brand": brand, "category": category,
                                  "options": options})
         product = models.Product(**data, supplier=(payload.supplier or brand), unit="pcs",
                                  spec_summary="\n".join(spec), datasheet_mode="none", no_datasheet=True,

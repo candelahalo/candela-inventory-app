@@ -1119,6 +1119,6 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .ds-acc-row img, .acc-noimg { width: 36px; height: 36px; object-fit: contain; background: #fff; }
 .ds-acc-row .acc-name { min-width: 0; padding: 4px 6px; font-size: 12.5px; }
 .ds-acc-row .acc-col { font-size: 11.5px; }
-.ds-acc-common { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 8px; font-size: 12.5px; }
+.ds-acc-common { display: grid; grid-template-columns: 1fr 1fr 170px; gap: 8px; margin: 2px 0 8px; font-size: 12.5px; }
 .ds-acc-common label { display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
-.ds-acc-common input { padding: 5px 7px; font-weight: 400; }
+.ds-acc-common input, .ds-acc-common select { padding: 5px 7px; font-weight: 400; }

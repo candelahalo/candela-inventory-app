@@ -241,7 +241,7 @@ function pickerList() {
   }
   // Lights whose name starts with what was typed first; drivers and accessories after
   const first = q[0] || '';
-  const rank = x => ((x.series || x.name).toUpperCase().startsWith(first) ? 0 : 2) + (['Drivers', 'Accessories'].includes(x.category) ? 1 : 0);
+  const rank = x => ((x.series || x.name).toUpperCase().startsWith(first) ? 0 : 2) + (['Drivers', 'Accessories', 'Track Accessories'].includes(x.category) ? 1 : 0);
   return out.sort((a, b) => rank(a) - rank(b) || (a.series || a.name).localeCompare(b.series || b.name));
 }
 function renderPicker() {
@@ -303,7 +303,7 @@ function addProductLine(productId) {
 // Type codes by category: SP1, SP2 … DL1 …; the same product (or series) keeps its code
 const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
   'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
-  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC' };
+  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA' };
 function nextTypeCode(p, ownBlock) {
   if (!p) return '';
   const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);
@@ -545,7 +545,7 @@ function addLine(item) {
 
 // Runs: "9 + 10 + 15" (or "9m, 10m", "2 x 10") -> [9, 10, 15]; null if not lengths
 // Product categories whose quote lines can list runs (lengths)
-const RUNS_CATEGORIES = ['Custom Light', 'Accessories'];
+const RUNS_CATEGORIES = ['Custom Light', 'Accessories', 'Track Accessories'];
 
 function parseRuns(text) {
   const parts = (text || '').split(/[+,;&]/).map(s => s.trim()).filter(Boolean);

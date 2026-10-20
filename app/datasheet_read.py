@@ -356,7 +356,7 @@ def read(data: bytes, filename: str = "") -> dict:
         if category in ("230V Track Light", "48V Track Light") and \
                 re.search(r"(electri\w*|conductor|power)\s+track\b|track\s+(profile|rail)", text[:1500], re.I) and \
                 not re.search(r"projector|spot|luminaire with|led light", text[:1500], re.I):
-            category = "Accessories"
+            category = "Track Accessories"
         photo = _photo(first)
         try:
             accessories = _accessories(pdf)

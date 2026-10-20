@@ -338,12 +338,14 @@ function renderAccessories(r) {
   const list = r.accessories || [];
   if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   const family = (r.model || '').toUpperCase();
+  const isTrack = /track/i.test(family) || /Track/.test(r.category || '');
   box.innerHTML = `<div class="ds-acc-head"><strong>Accessories in this PDF (${list.length})</strong>
       <span class="muted">— ticked ones are added as products too, with no datasheet of their own</span>
       <label class="ds-acc-all"><input type="checkbox" checked onchange="document.querySelectorAll('#ds-acc .acc-tick').forEach(c => c.checked = this.checked)"> all</label></div>
     <div class="ds-acc-common">
       <label>Name starts with <input id="acc-prefix" value="${escHtml(family)}" placeholder="e.g. TRACK BASIC 230V ON/OFF" style="text-transform:uppercase"></label>
       <label>For <span class="muted">(spec line)</span> <input id="acc-for" placeholder="e.g. 230V ON/OFF surface / suspended track"></label>
+      <label>Category <select id="acc-cat"><option${isTrack ? ' selected' : ''}>Track Accessories</option><option${isTrack ? '' : ' selected'}>Accessories</option></select></label>
     </div>
     <div class="ds-acc-list">${list.map((a, i) => `<div class="ds-acc-row">
       <input type="checkbox" class="acc-tick" data-i="${i}" checked>
@@ -373,7 +375,8 @@ async function addTickedAccessories() {
   const f = document.getElementById('product-form');
   const r = await api('/products/accessories', { method: 'POST', body: JSON.stringify({
     brand: f.brand.value || null, supplier: f.supplier.value || null,
-    used_for: document.getElementById('acc-for').value.trim() || null, items }) });
+    used_for: document.getElementById('acc-for').value.trim() || null,
+    category: document.getElementById('acc-cat').value, items }) });
   return r.created.length;
 }
 

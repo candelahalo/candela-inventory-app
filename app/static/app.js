@@ -115,6 +115,7 @@ async function shrinkImageForUpload(file) {
 const PRODUCT_CATEGORIES = [
   'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted',
   'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light', 'Drivers', 'Accessories',
+  'Track Accessories',
 ];
 
 // Category filter kept in the URL (#category=...), so a refresh or shared

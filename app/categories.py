@@ -5,6 +5,7 @@ import re
 PRODUCT_CATEGORIES = [
     "Spotlight", "Downlight", "230V Track Light", "48V Track Light", "Surface Mounted",
     "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
+    "Track Accessories",
 ]
 
 # Earlier category / type names and where they belong now
@@ -28,7 +29,7 @@ def classify(text):
     if re.search(_DRIVER, t):
         return "Drivers"
     if re.search(_ACCESSORY, t):
-        return "Accessories"
+        return "Track Accessories" if "track" in t else "Accessories"
     if "neon" in t:
         return "Neon Light"
     if re.search(r"strip|led flex|\btape\b", t):
