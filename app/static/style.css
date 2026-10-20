@@ -1088,3 +1088,24 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .series-box td { padding: 2px 4px; }
 .series-box td input { width: 100%; min-width: 0; padding: 4px 6px; }
 .series-box .muted-help { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+
+/* Quote: quick product picker */
+.q-more { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.q-more > summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.q-more[open] > summary { margin-bottom: 10px; }
+.qp { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 14px; background: #fff; }
+.qp #qp-search { width: 100%; font-size: 15px; padding: 10px 12px; }
+.qp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.qp-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; }
+.qp-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.qp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
+.qp-card { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 8px; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; cursor: pointer; font: inherit; }
+.qp-card:hover { border-color: var(--amber); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.qp-card img, .qp-noimg { width: 64px; height: 64px; object-fit: contain; }
+.qp-noimg { background: #f2f2f2; border-radius: 4px; }
+.qp-name { font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+.qp-sizes { display: block; font-weight: 400; color: var(--muted); }
+.qp-meta { font-size: 11.5px; color: var(--muted); }
+.qp-hint { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 6px 2px; }
+.line-item-block.just-added { box-shadow: 0 0 0 2px var(--amber); transition: box-shadow .4s; }

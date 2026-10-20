@@ -66,6 +66,10 @@
       </div>
       <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
       <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
+    </div>
+    <details class="q-more" id="q-more">
+      <summary>Terms &amp; details <span class="muted">(filled with the usual values — open only to change)</span></summary>
+      <div class="form-grid">
       <div class="field"><label>Currency</label><input name="currency" value="AED"></div>
       <div class="field"><label>Valid until</label><input name="valid_until" type="date"></div>
       <div class="field span2"><label>Scope</label><input name="scope" value="Delivered to site including all expenses"></div>
@@ -77,11 +81,17 @@
       <div class="field"><label>Prepared by (name)</label><input name="prepared_by_name" value="Johns James"></div>
       <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" value="Division Head - Projects"></div>
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
-    </div>
+      </div>
+    </details>
 
     <h2 style="margin-top:22px;">Line items</h2>
+    <div class="qp" id="qp">
+      <input id="qp-search" type="search" autocomplete="off" placeholder="Search products to add — name, SKU or brand (e.g. kor 21, cherub)">
+      <div class="qp-chips" id="qp-chips"></div>
+      <div class="qp-grid" id="qp-grid"></div>
+    </div>
     <div class="line-items" id="line-items"></div>
-    <button type="button" class="btn btn-ghost btn-sm" id="add-line">+ Add line</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="add-line" title="A line typed by hand, or picked from the full list">+ Add line by hand</button>
 
     <div class="margin-summary" id="margin-summary">
       <div class="ms-row"><span>Revenue (goods)</span><strong id="ms-revenue">—</strong></div>
@@ -211,6 +221,104 @@ function productOptions(cat, query, keepId) {
     }
   }
   return `<option value="" data-unit="">— Custom line (not in product list) —</option>` + out.join('');
+}
+
+// ---------- Quick product picker (above the lines) ----------
+// Search or tap a category, then click a product: it's added as a line with
+// its price, description, photo and the next type code; only Qty is left.
+let pickerCat = '';
+function pickerList() {
+  const q = document.getElementById('qp-search').value.trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const out = [], seen = new Set();
+  for (const p of productsCache) {
+    if (p.series) { if (seen.has(p.series)) continue; }
+    const fam = seriesOf(p);
+    const hit = fam.some(x => (!pickerCat || x.category === pickerCat) &&
+      q.every(w => (x.sku + ' ' + x.name + ' ' + (x.brand || '') + ' ' + (x.series || '')).toUpperCase().includes(w)));
+    if (!hit) continue;
+    if (p.series) seen.add(p.series);
+    out.push(fam[0]);
+  }
+  // Lights whose name starts with what was typed first; drivers and accessories after
+  const first = q[0] || '';
+  const rank = x => ((x.series || x.name).toUpperCase().startsWith(first) ? 0 : 2) + (['Drivers', 'Accessories'].includes(x.category) ? 1 : 0);
+  return out.sort((a, b) => rank(a) - rank(b) || (a.series || a.name).localeCompare(b.series || b.name));
+}
+function renderPicker() {
+  const chips = document.getElementById('qp-chips');
+  if (!chips) return;
+  const used = PRODUCT_CATEGORIES.filter(c => productsCache.some(p => p.category === c));
+  chips.innerHTML = ['', ...used].map(c => `<button type="button" class="qp-chip${c === pickerCat ? ' on' : ''}" data-cat="${escHtml(c)}">${c || 'All'}</button>`).join('');
+  const typed = document.getElementById('qp-search').value.trim();
+  const grid = document.getElementById('qp-grid');
+  if (!typed && !pickerCat) { grid.innerHTML = '<div class="qp-hint">Type a few letters or pick a category to see products.</div>'; return; }
+  const list = pickerList();
+  grid.innerHTML = list.slice(0, 40).map(p => {
+    const fam = seriesOf(p);
+    const title = p.series ? `${p.series} <span class="qp-sizes">${fam.map(x => escHtml(x.variant || '')).join(' / ')}</span>` : escHtml(p.name);
+    const price = p.series ? 'from ' + fmtNum(Math.min(...fam.map(x => x.selling_price || 0)), 0) : fmtNum(p.selling_price || 0, 0);
+    return `<button type="button" class="qp-card" data-id="${p.id}" title="${escHtml(p.name)}">
+      ${p.image_path ? `<img src="${p.image_path}" alt="">` : '<span class="qp-noimg"></span>'}
+      <span class="qp-name">${title}</span>
+      <span class="qp-meta">${escHtml(p.brand || '')} · AED ${price}</span></button>`;
+  }).join('') + (list.length > 40 ? `<div class="qp-hint">${list.length - 40} more — type more letters to narrow down.</div>` : '')
+    + (!list.length ? '<div class="qp-hint">No product matches. Use “+ Add line by hand” for something not in the list.</div>' : '');
+}
+document.getElementById('qp-search').addEventListener('input', renderPicker);
+document.getElementById('qp-search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const first = document.querySelector('#qp-grid .qp-card');
+  if (first) first.click();
+});
+document.getElementById('qp-chips').addEventListener('click', e => {
+  const b = e.target.closest('.qp-chip');
+  if (!b) return;
+  pickerCat = b.dataset.cat;
+  renderPicker();
+});
+document.getElementById('qp-grid').addEventListener('click', e => {
+  const card = e.target.closest('.qp-card');
+  if (!card) return;
+  addProductLine(parseInt(card.dataset.id));
+});
+function addProductLine(productId) {
+  addLine();
+  const blocks = document.querySelectorAll('#line-items .line-item-block');
+  const block = blocks[blocks.length - 1];
+  const p = productsCache.find(x => x.id === productId);
+  block.querySelector('.li-cat').value = PRODUCT_CATEGORIES.includes(p.category || '') ? p.category : '';
+  const sel = block.querySelector('.li-product');
+  sel.innerHTML = productOptions(block.querySelector('.li-cat').value, '', productId);
+  sel.value = String(productId);
+  block.querySelector('.li-type').value = '';
+  sel.dispatchEvent(new Event('change'));
+  block.classList.add('just-added');
+  setTimeout(() => block.classList.remove('just-added'), 1200);
+  const qty = block.querySelector('.li-qty');
+  qty.focus(); qty.select();
+  block.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// Type codes by category: SP1, SP2 … DL1 …; the same product (or series) keeps its code
+const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
+  'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
+  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC' };
+function nextTypeCode(p, ownBlock) {
+  if (!p) return '';
+  const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);
+  for (const b of blocks) {
+    const other = lineProduct(b);
+    const code = b.querySelector('.li-type').value.trim();
+    if (other && code && (other.id === p.id || (p.series && other.series === p.series))) return code;
+  }
+  const prefix = TYPE_PREFIX[p.category] || 'L';
+  let n = 0;
+  blocks.forEach(b => {
+    const m = b.querySelector('.li-type').value.trim().toUpperCase().match(new RegExp('^' + prefix + '(\\d+)$'));
+    if (m) n = Math.max(n, parseInt(m[1]));
+  });
+  return prefix + (n + 1);
 }
 
 // ---------- Series and options on a quote line ----------
@@ -391,6 +499,11 @@ function addLine(item) {
     }
     renderLineOptions(block, before);
     if (opt.value && block.querySelector('.li-opts-row select[data-key]')) applyLineOptions(block);
+    const typeInput = block.querySelector('.li-type');
+    if (opt.value && (!typeInput.value.trim() || typeInput.dataset.auto)) {
+      typeInput.value = nextTypeCode(lineProduct(block), block);
+      typeInput.dataset.auto = '1';
+    }
     sync();
     recalcMargins();
   });
@@ -420,6 +533,7 @@ function addLine(item) {
   } else {
     renderLineOptions(block, item.options);  // saved line: show its options, keep its price and text
   }
+  block.querySelector('.li-type').addEventListener('input', e => { delete e.target.dataset.auto; });
   block.querySelectorAll('.li-qty, .li-price, .li-cost, .li-disc').forEach(el => {
     el.addEventListener('input', recalcMargins);
   });
@@ -541,7 +655,7 @@ function hideAddPanel() {
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
 }
-document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); if (!document.getElementById('line-items').children.length) addLine(); });
+document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); renderPicker(); });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
 
 async function editQuotation(id) {
@@ -720,7 +834,7 @@ document.addEventListener('click', (e) => {
 async function loadFormData() {
   const [products, customers, projects] = await Promise.all([api('/products/'), api('/customers/'), api('/projects/')]);
   productsCache = products; customersCache = customers; projectsCache = projects;
-  if (!document.getElementById('line-items').children.length) addLine();
+  renderPicker();
 }
 
 async function loadQuotations() {
