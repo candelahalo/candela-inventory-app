@@ -26,6 +26,7 @@ FINISHES = ["WHITE", "BLACK", "GREY", "GRAY", "SILVER", "GOLD", "BRONZE", "BRASS
 # spec label (lower case) -> standard label used in spec summaries
 LABELS = [
     (r"^(power(?! supply)|wattage|watt\b|system power|rated power|consumption|power consumption)", "Wattage"),
+    (r"(efficacy|efficiency)", "Efficacy"),
     (r"(luminous flux|lumen|light output|flux)", "Luminous Flux"),
     (r"(colou?r temp|cct)", "CCT"),
     (r"^(cri\b|ra\b|colour rendering|color rendering)", "CRI"),
@@ -43,7 +44,7 @@ LABELS = [
 ]
 
 
-SPEC_KEEP = ["Code", "Wattage", "Luminous Flux", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
+SPEC_KEEP = ["Code", "Wattage", "Luminous Flux", "Efficacy", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
              "Voltage", "Rated life", "Dimension", "Warranty"]
 
 
@@ -226,6 +227,7 @@ def read(data: bytes, filename: str = "") -> dict:
                             last[1] = (last[1] + ("" if last[1].endswith("/") else " ") + t)[:120]
                     last = None
                     continue
+                pair = (pair[0].replace("\x00", "fi"), pair[1].replace("\x00", "fi"))  # "ef\x00ciency"
                 label = _std_label(pair[0])
                 if label.lower() in seen:
                     last = None

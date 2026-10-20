@@ -1,7 +1,6 @@
 """230V and 48V track lights: short spec summary - only code, watt, lumen,
-CCT, CRI, beam, IP, finish, dimming, voltage, rated life, dimension and warranty,
-in that order
-(the datasheet PDF keeps the rest). Quotations already made keep their text.
+efficacy, CCT, CRI, beam, IP, finish, dimming, voltage, rated life, dimension
+and warranty, in that order (the datasheet PDF keeps the rest). Quotations already made keep their text.
 
 Revision ID: d8f4b2a6c1e9
 Revises: c7e3a9f1d5b8
@@ -21,12 +20,13 @@ branch_labels = None
 depends_on = None
 
 CATEGORIES = ("230V Track Light", "48V Track Light")
-KEEP = ["Code", "Wattage", "Luminous Flux", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
+KEEP = ["Code", "Wattage", "Luminous Flux", "Efficacy", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
         "Voltage", "Rated life", "Dimension", "Warranty"]
 # label (lower case) -> standard label, as the datasheet reader names them
 LABELS = [
     (r"^code\b", "Code"),
     (r"^(power(?! supply)|wattage|watt\b|system power|rated power|consumption|power consumption)", "Wattage"),
+    (r"(efficacy|efficiency)", "Efficacy"),
     (r"(luminous flux|lumen|light output|flux)", "Luminous Flux"),
     (r"(colou?r temp|cct)", "CCT"),
     (r"^(cri\b|ra\b|colour rendering|color rendering)", "CRI"),
