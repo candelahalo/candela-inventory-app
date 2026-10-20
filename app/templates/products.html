@@ -47,8 +47,9 @@
       <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
       <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="3" placeholder="Source : LED&#10;CCT : 3000K&#10;Power : 12W&#10;IP Rating : IP65"></textarea></div>
     </div>
+    <div class="dup-warn" id="dup-warn" style="display:none"></div>
     <div class="form-actions">
-      <button type="submit" class="btn">Save product</button>
+      <button type="submit" class="btn" id="save-product-btn">Save product</button>
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
     <p id="add-note" style="color:var(--muted); font-size:12.5px; margin-top:10px;">
@@ -133,6 +134,9 @@ document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('ds-start').style.display = 'none';
   document.getElementById('ds-start-found').style.display = 'none';
   document.getElementById('add-title').textContent = 'Add a product';
+  dupChecked = false;
+  document.getElementById('dup-warn').style.display = 'none';
+  document.getElementById('save-product-btn').textContent = 'Save product';
   document.getElementById('add-note').style.display = '';
 });
 
@@ -220,8 +224,35 @@ function renderProducts() {
   });
 }
 
+// Already in Products? (same name and brand, or same supplier code) - flagged before saving
+let dupChecked = false;
+async function duplicatesOf(f) {
+  const q = new URLSearchParams({ name: f.name.value, brand: f.brand.value, category: f.category.value, spec: f.spec_summary.value });
+  try { return await api('/products/duplicates?' + q.toString()); } catch (e) { return []; }
+}
+['name', 'brand', 'spec_summary'].forEach(n => document.querySelector(`#product-form [name=${n}]`).addEventListener('input', () => {
+  dupChecked = false;
+  document.getElementById('dup-warn').style.display = 'none';
+  document.getElementById('save-product-btn').textContent = 'Save product';
+}));
+
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!dupChecked) {
+    const dups = await duplicatesOf(e.target);
+    if (dups.length) {
+      const box = document.getElementById('dup-warn');
+      box.innerHTML = `<strong>⚠ Already in Products:</strong> ` + dups.map(d =>
+        `<a href="/products/view/${d.id}" target="_blank">${escHtml(d.name)}</a> <span class="muted">(${escHtml(d.sku)} · ${escHtml(d.why)})</span>`).join(', ')
+        + `<div class="muted">Press <strong>Save anyway</strong> only if it really is a different item.</div>`;
+      box.style.display = '';
+      document.getElementById('save-product-btn').textContent = 'Save anyway';
+      dupChecked = true;
+      box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+  }
+  dupChecked = false;
   const payload = costPayload(formToJSON(e.target));
   payload.selling_price = parseFloat(payload.selling_price || 0);
   payload.reorder_level = parseInt(payload.reorder_level || 0);
@@ -371,13 +402,13 @@ async function addTickedAccessories() {
     const name = document.querySelector(`#ds-acc .acc-name[data-i="${c.dataset.i}"]`).value.trim();
     return { code: a.code, name, colours: a.colours || [], photo: a.photo || null };
   }).filter(x => x.name);
-  if (!items.length) return 0;
+  if (!items.length) return '';
   const f = document.getElementById('product-form');
   const r = await api('/products/accessories', { method: 'POST', body: JSON.stringify({
     brand: f.brand.value || null, supplier: f.supplier.value || null,
     used_for: document.getElementById('acc-for').value.trim() || null,
     category: document.getElementById('acc-cat').value, items }) });
-  return r.created.length;
+  return r.created.length + (r.skipped.length ? ` (${r.skipped.length} already in Products, not added again)` : '');
 }
 
 // After the product is saved: its photo (from the PDF) and the PDF itself

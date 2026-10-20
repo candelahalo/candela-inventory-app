@@ -1131,3 +1131,6 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .line-item-block.insert-here { box-shadow: inset 0 -3px 0 var(--amber); }
 .qp-insert { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #FFF6E5; border: 1px solid var(--amber);
   border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; font-size: 13px; }
+
+/* New product: already in Products */
+.dup-warn { background: #FFF4E5; border: 1px solid #F0B35A; border-radius: 8px; padding: 9px 12px; margin: 10px 0 0; font-size: 13px; line-height: 1.5; }

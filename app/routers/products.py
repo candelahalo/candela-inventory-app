@@ -69,6 +69,33 @@ def create_product(payload: schemas.ProductCreate, db: Session = Depends(get_db)
     return product
 
 
+@router.get("/duplicates")
+def find_duplicates(name: str = "", brand: Optional[str] = None, category: Optional[str] = None,
+                    spec: Optional[str] = None, exclude_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Products that look like the one about to be saved: the same name (as it
+    will be saved) and brand, or the same supplier code ("Code: A 714") and brand."""
+    std = naming.standard_name(name, brand, category) if name.strip() else ""
+    m = re.search(r"^\s*code\s*:\s*(.+)$", spec or "", re.I | re.M)
+    code = " ".join(m.group(1).split()).upper() if m else ""
+    b = (brand or "").strip().upper()
+    out = []
+    for p in db.query(models.Product).all():
+        if exclude_id and p.id == exclude_id:
+            continue
+        if (p.brand or "").strip().upper() != b:
+            continue
+        why = None
+        if std and p.name.upper() == std.upper():
+            why = "same name"
+        elif code:
+            pm = re.search(r"^\s*code\s*:\s*(.+)$", p.spec_summary or "", re.I | re.M)
+            if pm and " ".join(pm.group(1).split()).upper() == code:
+                why = "same code " + code
+        if why:
+            out.append({"id": p.id, "sku": p.sku, "name": p.name, "why": why})
+    return out
+
+
 @router.get("/{product_id}", response_model=schemas.ProductOut)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(models.Product).get(product_id)
