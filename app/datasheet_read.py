@@ -44,7 +44,7 @@ LABELS = [
 
 
 SPEC_KEEP = ["Code", "Wattage", "Luminous Flux", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
-             "Voltage", "Rated life"]
+             "Voltage", "Rated life", "Dimension", "Warranty"]
 
 
 def _lines(page):
