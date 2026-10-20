@@ -22,6 +22,7 @@
     <div style="margin-top:14px;">
       <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('photo-input').click()">Upload photo</button>
+      <button class="btn btn-ghost btn-sm" id="photo-from-ds" title="Use the product photo from the newest uploaded datasheet PDF">Photo from datasheet</button>
     </div>
 
     <div class="ds-box">
@@ -189,6 +190,15 @@ async function loadProduct() {
     document.getElementById('photo-empty').style.display = 'flex';
   }
 }
+
+document.getElementById('photo-from-ds').addEventListener('click', async () => {
+  try {
+    toast('Taking the photo from the datasheet…');
+    await api(`/products/${productId}/image-from-datasheet`, { method: 'POST' });
+    toast('Photo updated');
+    loadProduct();
+  } catch (err) { toast(err.message, true); }
+});
 
 document.getElementById('photo-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];

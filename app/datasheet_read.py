@@ -119,6 +119,16 @@ def _photo(page):
     return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode()
 
 
+def photo_from_pdf(data: bytes):
+    """The product photo of a datasheet PDF as JPEG bytes, or None."""
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        for page in pdf.pages[:2]:
+            url = _photo(page)
+            if url:
+                return base64.b64decode(url.split(",", 1)[1])
+    return None
+
+
 def _uniq(seq):
     out = []
     for x in seq:

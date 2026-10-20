@@ -180,6 +180,37 @@ def upload_product_image(product_id: int, file: UploadFile = File(...), db: Sess
     return product
 
 
+@router.post("/{product_id}/image-from-datasheet", response_model=schemas.ProductOut)
+def image_from_datasheet(product_id: int, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """Take the product photo (not the dimension drawing) from its newest uploaded datasheet PDF."""
+    import io
+    import os
+    from starlette.datastructures import Headers, UploadFile as StarUpload
+    from app.datasheet_read import photo_from_pdf
+    from app.utils import url_to_disk_path
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    sheet = (db.query(models.Datasheet).filter(models.Datasheet.product_id == product_id)
+             .order_by(models.Datasheet.uploaded_at.desc()).first())
+    path = url_to_disk_path(sheet.file_path) if sheet else None
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=400, detail="Upload the datasheet PDF first")
+    try:
+        raw = photo_from_pdf(open(path, "rb").read())
+    except Exception:
+        raw = None
+    if not raw:
+        raise HTTPException(status_code=400, detail="No photo found in the datasheet")
+    up = StarUpload(file=io.BytesIO(raw), filename="photo.jpg", headers=Headers({"content-type": "image/jpeg"}))
+    product.image_path = save_product_image(up)
+    log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated",
+                 "Photo taken from the datasheet")
+    db.commit()
+    db.refresh(product)
+    return product
+
+
 @router.get("/{product_id}/usage")
 def product_usage(product_id: int, db: Session = Depends(get_db)):
     """Stock by warehouse, what open jobs still need, and where it's been quoted."""
