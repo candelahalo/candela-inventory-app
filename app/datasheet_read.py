@@ -92,19 +92,30 @@ def _std_label(label):
 
 
 def _photo(page):
-    """The biggest picture on the page, as a JPEG data URL."""
+    """The main product picture on the page, as a JPEG data URL, as sharp as
+    the picture inside the PDF allows. Of the big pictures the topmost is
+    taken: the photo usually sits above the dimension drawing."""
     imgs = [i for i in page.images if (i["x1"] - i["x0"]) > 60 and (i["bottom"] - i["top"]) > 60]
     if not imgs:
         return None
-    big = max(imgs, key=lambda i: (i["x1"] - i["x0"]) * (i["bottom"] - i["top"]))
+    area = lambda i: (i["x1"] - i["x0"]) * (i["bottom"] - i["top"])  # noqa: E731
+    biggest = max(area(i) for i in imgs)
+    big = min((i for i in imgs if area(i) >= biggest * 0.5), key=lambda i: i["top"])
     box = (max(big["x0"], 0), max(big["top"], 0), min(big["x1"], page.width), min(big["bottom"], page.height))
+    # Render at the picture's own resolution (its pixels / its size on the page)
     try:
-        im = page.crop(box).to_image(resolution=170).original.convert("RGB")
+        src_w = (big.get("srcsize") or (0, 0))[0] or 0
+        dpi = src_w / ((big["x1"] - big["x0"]) / 72) if src_w else 300
+    except Exception:
+        dpi = 300
+    dpi = max(200, min(dpi, 450))
+    try:
+        im = page.crop(box).to_image(resolution=dpi).original.convert("RGB")
     except Exception:
         return None
-    im.thumbnail((1200, 1200))
+    im.thumbnail((1600, 1600))
     out = io.BytesIO()
-    im.save(out, "JPEG", quality=85)
+    im.save(out, "JPEG", quality=92)
     return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode()
 
 

@@ -14,9 +14,9 @@ PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 DATASHEET_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-CANVAS_SIZE = 800  # every product photo becomes an 800x800 square, regardless of source shape
-TARGET_IMAGE_BYTES = 50 * 1024  # aim for ~50 KB per saved product photo
-MIN_JPEG_QUALITY = 72           # never go below this, even if the target isn't met - clarity wins
+CANVAS_SIZE = 1200  # every product photo becomes a 1200x1200 square, regardless of source shape
+TARGET_IMAGE_BYTES = 160 * 1024  # aim for ~160 KB per saved product photo
+MIN_JPEG_QUALITY = 84           # never go below this, even if the target isn't met - clarity wins
 Image.MAX_IMAGE_PIXELS = 80_000_000  # big camera photos are fine; refuse absurd "pixel bomb" files
 
 
@@ -133,7 +133,7 @@ def _compress_jpeg(img: Image.Image) -> bytes:
     starts to look blocky, so a slightly bigger file is the better trade.
     """
     best = None
-    for quality in (90, 86, 82, 78, 75, MIN_JPEG_QUALITY):
+    for quality in (92, 90, 88, 86, MIN_JPEG_QUALITY):
         buf = io.BytesIO()
         img.save(buf, "JPEG", quality=quality, optimize=True, progressive=True, subsampling="4:2:0")
         best = buf.getvalue()
