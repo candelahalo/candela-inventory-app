@@ -269,7 +269,6 @@ function dsApplyVersion() {
   if (r.series_options) {  // one product per size; versions are options on the quote line
     f.name.value = r.model;
     const rows = r.spec.map(([k, v]) => [k, v]);
-    if (r.model && !rows.find(x => x[0] === 'Model')) rows.unshift(['Model', r.model]);
     f.spec_summary.value = rows.map(([k, v]) => `${k}: ${v}`).join('\n');
     return;
   }
@@ -284,7 +283,6 @@ function dsApplyVersion() {
   set('Wattage', watt);
   set('CCT', cct);
   set('Finish', fin ? fin.charAt(0) + fin.slice(1).toLowerCase() : '');
-  if (r.model && !rows.find(x => x[0] === 'Model')) rows.unshift(['Model', r.model]);
   f.spec_summary.value = rows.map(([k, v]) => `${k}: ${v}`).join('\n');
 }
 

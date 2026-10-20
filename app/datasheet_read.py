@@ -43,6 +43,10 @@ LABELS = [
 ]
 
 
+SPEC_KEEP = ["Code", "Wattage", "Luminous Flux", "CCT", "CRI", "Beam Angle", "IP Rating", "Finish", "Control",
+             "Voltage", "Rated life"]
+
+
 def _lines(page):
     """Text lines as lists of words (left to right), top to bottom."""
     words = page.extract_words(keep_blank_chars=False, use_text_flow=False, extra_attrs=["size"])
@@ -216,7 +220,10 @@ def read(data: bytes, filename: str = "") -> dict:
                     # a value wrapped onto the next line ("50Hz / 60" + "Hz")
                     t = " ".join(w["text"] for w in row)
                     if last is not None and last_x is not None and abs(row[0]["x0"] - last_x) < 6 and len(t) < 30:
-                        last[1] = (last[1] + ("" if last[1].endswith("/") else " ") + t)[:120]
+                        if re.match(r"^\.\d{2}\s+", t):  # next colour of a list: ".02 Black"
+                            last[1] = (last[1] + " / " + re.sub(r"^\.\d{2}\s+", "", t))[:120]
+                        else:
+                            last[1] = (last[1] + ("" if last[1].endswith("/") else " ") + t)[:120]
                     last = None
                     continue
                 label = _std_label(pair[0])
@@ -231,7 +238,11 @@ def read(data: bytes, filename: str = "") -> dict:
         for row in spec:
             row[0] = row[0].replace("\x00", "fi")
             row[1] = row[1].replace("\x00", "fi")
-        spec = spec[:18]
+        if code and not any(k == "Code" for k, _ in spec):
+            spec.insert(0, ["Code", code])
+        # Only what matters in a quote, in a fixed order (the PDF keeps the rest)
+        order = {k: i for i, k in enumerate(SPEC_KEEP)}
+        spec = sorted([row for row in spec if row[0] in order], key=lambda row: order[row[0]])
 
         brand = next((b for b in BRANDS if re.search(r"\b" + re.escape(b) + r"\b", up)), "")
         if not brand and filename:
@@ -258,8 +269,6 @@ def read(data: bytes, filename: str = "") -> dict:
     words_m = model.upper().split()
     series = words_m[0] if options and words_m else ""
     variant = " ".join(words_m[1:]) if options else ""
-    if code and not any(k == "Code" for k, _ in spec):
-        spec.insert(0, ["Code", code])
     return {"model": model.upper(), "code": code, "brand": brand, "category": category,
             "series": series, "variant": variant, "series_options": options,
             "spec": spec, "options": {"watt": watts, "cct": ccts, "finish": finishes},
