@@ -25,9 +25,9 @@ FINISHES = ["WHITE", "BLACK", "GREY", "GRAY", "SILVER", "GOLD", "BRONZE", "BRASS
 
 # spec label (lower case) -> standard label used in spec summaries
 LABELS = [
-    (r"^(power|wattage|system power|rated power|consumption|power consumption)", "Wattage"),
+    (r"^(power(?! supply)|wattage|watt\b|system power|rated power|consumption|power consumption)", "Wattage"),
     (r"(luminous flux|lumen|light output|flux)", "Luminous Flux"),
-    (r"(colour temp|color temp|cct)", "CCT"),
+    (r"(colou?r temp|cct)", "CCT"),
     (r"^(cri\b|ra\b|colour rendering|color rendering)", "CRI"),
     (r"(ip rating|protection|ingress|^ip$)", "IP Rating"),
     (r"(beam|optic)", "Beam Angle"),
@@ -39,6 +39,7 @@ LABELS = [
     (r"mounting|installation", "Mounting"),
     (r"warranty|guarantee", "Warranty"),
     (r"(voltage|supply)", "Voltage"),
+    (r"^(duration|lifetime|life ?time|rated life)", "Rated life"),
 ]
 
 
@@ -172,7 +173,7 @@ def read(data: bytes, filename: str = "") -> dict:
         pages = pdf.pages[:3]
         first = pages[0]
         # "‡" is how some PDFs' fonts give "≥" (CRI ≥90)
-        text = "\n".join((p.extract_text() or "") for p in pages).replace("‡", "≥")
+        text = "\n".join((p.extract_text() or "") for p in pages).replace("‡", "≥").replace("\x00", "fi")
         up = text.upper()
 
         # Model: the largest text near the top of page 1 (codes like RPH-RC kept apart)
@@ -188,27 +189,48 @@ def read(data: bytes, filename: str = "") -> dict:
                 t = w["text"].strip()
                 if re.match(r"^pag\.?\d*$|^page$|^\d+$", t, re.I):
                     continue
+                if re.fullmatch(r"[·•|:\-–—]+", t) or t.upper() in BRANDS:
+                    continue  # separators and the brand ("QUATTROBI · BAMBOO")
                 if re.fullmatch(r"[A-Z0-9]{2,}(?:[-.][A-Z0-9]+)+", t):
                     code = code or t
                     continue
                 parts.append(t)
             model = " ".join(parts)
+            if not code:
+                for line in text.splitlines()[:6]:
+                    line = line.strip()
+                    if re.fullmatch(r"[A-Z]{1,4}\d{2,5}[A-Z]?(?: [A-Z0-9]{1,5}){0,4}", line) and line != model:
+                        code = line
+                        break
 
         # Spec table rows from the first pages
         spec, seen = [], set()
         for p in pages[:2]:
+            last, last_x = None, None
             for row in _lines(p):
                 # leave out the page header (title, page no.) and footer
                 if row[0]["top"] < p.height * 0.1 or row[0]["bottom"] > p.height * 0.9:
                     continue
                 pair = _split_row(row)
                 if not pair:
+                    # a value wrapped onto the next line ("50Hz / 60" + "Hz")
+                    t = " ".join(w["text"] for w in row)
+                    if last is not None and last_x is not None and abs(row[0]["x0"] - last_x) < 6 and len(t) < 30:
+                        last[1] = (last[1] + ("" if last[1].endswith("/") else " ") + t)[:120]
+                    last = None
                     continue
                 label = _std_label(pair[0])
                 if label.lower() in seen:
+                    last = None
                     continue
                 seen.add(label.lower())
-                spec.append([label, pair[1].replace("‡", "≥")[:120]])
+                last = [label, pair[1].replace("‡", "≥")[:120]]
+                gap_at = max(range(len(row) - 1), key=lambda i: row[i + 1]["x0"] - row[i]["x1"])
+                last_x = row[gap_at + 1]["x0"]
+                spec.append(last)
+        for row in spec:
+            row[0] = row[0].replace("\x00", "fi")
+            row[1] = row[1].replace("\x00", "fi")
         spec = spec[:18]
 
         brand = next((b for b in BRANDS if re.search(r"\b" + re.escape(b) + r"\b", up)), "")
@@ -225,14 +247,19 @@ def read(data: bytes, filename: str = "") -> dict:
         # the line under the title says what it is ("CHERUB L track spotlight - track adapter")
         subtitle = next((l for l in text.splitlines()
                          if model and l.upper().startswith(model.upper() + " ") and len(l) > len(model) + 5), "")
+        body = re.sub(r"(complete |supplied |comes )?with (an? )?(integrated |electronic |remote |built-in )*(driver|power supply)"
+                      r"|driver (included|integrated|built[- ]in)"
+                      r"|power supply\s*:?\s*\d.*", "", text[:3000], flags=re.I)  # the "Power supply 230V" spec row
         category = (classify(type_value) or classify(model) or classify(subtitle)
-                    or classify(text[:3000]) or "")
+                    or classify(body) or "")
         photo = _photo(first)
 
     options = _series_options(text)
     words_m = model.upper().split()
     series = words_m[0] if options and words_m else ""
     variant = " ".join(words_m[1:]) if options else ""
+    if code and not any(k == "Code" for k, _ in spec):
+        spec.insert(0, ["Code", code])
     return {"model": model.upper(), "code": code, "brand": brand, "category": category,
             "series": series, "variant": variant, "series_options": options,
             "spec": spec, "options": {"watt": watts, "cct": ccts, "finish": finishes},
