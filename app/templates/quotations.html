@@ -85,6 +85,7 @@
     </details>
 
     <h2 style="margin-top:22px;">Line items</h2>
+    <div class="qp-insert" id="qp-insert" style="display:none"></div>
     <div class="qp" id="qp">
       <input id="qp-search" type="search" autocomplete="off" placeholder="Search products to add — name, SKU or brand (e.g. kor 21, cherub)">
       <div class="qp-chips" id="qp-chips"></div>
@@ -284,8 +285,8 @@ document.getElementById('qp-grid').addEventListener('click', e => {
 });
 function addProductLine(productId) {
   addLine();
-  const blocks = document.querySelectorAll('#line-items .line-item-block');
-  const block = blocks[blocks.length - 1];
+  const block = insertAfter && insertAfter.isConnected ? insertAfter
+    : [...document.querySelectorAll('#line-items .line-item-block')].pop();
   const p = productsCache.find(x => x.id === productId);
   block.querySelector('.li-cat').value = PRODUCT_CATEGORIES.includes(p.category || '') ? p.category : '';
   const sel = block.querySelector('.li-product');
@@ -415,11 +416,16 @@ function lineRow(item) {
       <div class="field"><label>Unit price</label><input class="li-price" type="number" step="0.01" value="${item ? item.unit_price : 0}"></div>
       <div class="field li-cost-field"><label>Unit cost</label><input class="li-cost" type="number" step="0.01" value="${item && item.unit_cost ? item.unit_cost : 0}"></div>
       <div class="field"><label>Disc %</label><input class="li-disc" type="number" step="0.1" value="${item ? item.discount_pct : 0}"></div>
-      <button type="button" class="remove-line" onclick="this.closest('.line-item-block').remove(); recalcMargins();" title="Remove line">×</button>
+      <button type="button" class="remove-line" onclick="removeLine(this.closest('.line-item-block'))" title="Remove line">×</button>
     </div>
     <div class="li-opts-row" style="display:none"></div>
     <div class="line-item-foot">
-      <label>Description (defaults from product spec)</label>
+      <label><span class="li-num"></span> Description (defaults from product spec)</label>
+      <span class="li-tools">
+        <button type="button" class="li-tool" onclick="moveLine(this, -1)" title="Move this line up">↑</button>
+        <button type="button" class="li-tool" onclick="moveLine(this, 1)" title="Move this line down">↓</button>
+        <button type="button" class="li-tool li-ins" onclick="insertBelow(this.closest('.line-item-block'))" title="The next product you add goes below this line">+ Insert below</button>
+      </span>
       <span class="line-margin" data-margin>—</span>
     </div>
     <textarea class="li-desc" rows="2">${item && item.description ? escHtml(item.description) : ''}</textarea>
@@ -429,6 +435,55 @@ function lineRow(item) {
       <span class="li-runs-check"></span>
     </div>
   </div>`;
+}
+
+// Where a new line goes: at the end, or below the line chosen with "+ Insert below"
+let insertAfter = null;
+function insertBelow(block) {
+  insertAfter = block;
+  showInsertPoint();
+  document.getElementById('qp-search').focus();
+  document.getElementById('qp').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function showInsertPoint() {
+  const el = document.getElementById('qp-insert');
+  document.querySelectorAll('.line-item-block.insert-here').forEach(b => b.classList.remove('insert-here'));
+  if (!insertAfter || !insertAfter.isConnected) { insertAfter = null; el.style.display = 'none'; return; }
+  insertAfter.classList.add('insert-here');
+  const n = [...document.querySelectorAll('#line-items .line-item-block')].indexOf(insertAfter) + 1;
+  const what = insertAfter.querySelector('.li-type').value || (insertAfter.querySelector('.li-product option:checked') || {}).textContent || '';
+  el.innerHTML = `New lines go <strong>below line ${n}</strong> ${escHtml(what ? '(' + what.trim().slice(0, 40) + ')' : '')}
+    <button type="button" class="btn btn-ghost btn-sm" onclick="insertAfter = null; showInsertPoint();">Add at the end instead</button>`;
+  el.style.display = '';
+}
+function placeNewLine(block) {
+  if (insertAfter && insertAfter.isConnected) {
+    insertAfter.after(block);
+    insertAfter = block;  // the next one goes below this one, keeping the order
+  }
+  renumberLines();
+  showInsertPoint();
+}
+function renumberLines() {
+  document.querySelectorAll('#line-items .line-item-block').forEach((b, i) => {
+    const n = b.querySelector('.li-num');
+    if (n) n.textContent = (i + 1) + '.';
+  });
+}
+function moveLine(btn, dir) {
+  const block = btn.closest('.line-item-block');
+  const other = dir < 0 ? block.previousElementSibling : block.nextElementSibling;
+  if (!other) return;
+  if (dir < 0) other.before(block); else other.after(block);
+  renumberLines();
+  showInsertPoint();
+}
+function removeLine(block) {
+  if (insertAfter === block) insertAfter = block.previousElementSibling;
+  block.remove();
+  renumberLines();
+  showInsertPoint();
+  recalcMargins();
 }
 
 function addLine(item) {
@@ -541,6 +596,7 @@ function addLine(item) {
   sync();
   checkRuns(block);
   recalcMargins();
+  if (!item) placeNewLine(block); else renumberLines();
 }
 
 // Runs: "9 + 10 + 15" (or "9m, 10m", "2 x 10") -> [9, 10, 15]; null if not lengths
@@ -646,6 +702,7 @@ function hideAddPanel() {
   document.getElementById('quote-form').reset();
   document.getElementById('editing-id').value = '';
   document.getElementById('line-items').innerHTML = '';
+  insertAfter = null; showInsertPoint();
   setCustomer(null);
   setProject(null);
   clearClassAuto();
@@ -681,6 +738,7 @@ async function editQuotation(id) {
   form.notes.value = q.notes || '';
   document.getElementById('editing-id').value = id;
   document.getElementById('line-items').innerHTML = '';
+  insertAfter = null; showInsertPoint();
   q.items.forEach(item => addLine(item));
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
@@ -963,7 +1021,7 @@ function showStatusBar(q) {
   bar.style.display = q ? 'flex' : 'none';
   const locked = !!q && q.status === 'accepted';
   lock.style.display = locked ? 'block' : 'none';
-  form.querySelectorAll('input, select, textarea, #add-line, .remove-line').forEach(el => { el.disabled = locked; });
+  form.querySelectorAll('input, select, textarea, #add-line, .remove-line, .li-tool').forEach(el => { el.disabled = locked; });
   form.querySelector('button[type=submit]').style.display = locked ? 'none' : '';
   form.querySelector('.draft-actions').style.display = locked ? 'none' : '';
   if (!q) return;
@@ -1120,6 +1178,7 @@ function openImportedQuotation(d, fileName) {
   clearClassAuto();
   fillClassFromLinks();
   document.getElementById('line-items').innerHTML = '';
+  insertAfter = null; showInsertPoint();
   d.items.forEach(i => addLine({
     product_id: i.product_id, unit: i.unit, image_path: i.image_path, type_code: i.type_code,
     description: i.description, quantity: i.quantity, unit_price: i.unit_price, unit_cost: 0,
