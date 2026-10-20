@@ -24,6 +24,7 @@
         <img id="ds-start-photo" alt="">
         <div>
           <div class="ds-versions" id="ds-versions"></div>
+          <div id="ds-acc" class="ds-acc" style="display:none;"></div>
           <div class="ds-kind"><span>This PDF is:</span>
             <label><input type="radio" name="ds-start-kind" value="supplier"> Supplier PDF</label>
             <label><input type="radio" name="ds-start-kind" value="halo"> HALO PDF</label>
@@ -232,8 +233,11 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
     const product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
     if (dsStart) {
       toast('Product added — attaching the photo and datasheet…');
-      try { await dsAttach(product.id); flashNext('Product added from the datasheet'); }
-      catch (err) { flashNext(err.message); }
+      try {
+        await dsAttach(product.id);
+        const acc = await addTickedAccessories();
+        flashNext('Product added from the datasheet' + (acc ? ` + ${acc} accessories` : ''));
+      } catch (err) { flashNext(err.message); }
     } else {
       flashNext('Product added — add a photo and datasheet on this page');
     }
@@ -317,6 +321,7 @@ document.getElementById('ds-start-file').addEventListener('change', async (e) =>
     document.querySelectorAll('input[name=ds-start-kind]').forEach(x => { x.checked = x.value === (r.halo ? 'halo' : 'supplier'); });
     const img = document.getElementById('ds-start-photo');
     img.src = r.photo || ''; img.style.display = r.photo ? '' : 'none';
+    renderAccessories(r);
     document.getElementById('ds-start-found').style.display = '';
     document.getElementById('ds-start-name').textContent = file.name + ' — check the form, then Save product';
     dsApplyVersion();
@@ -325,6 +330,38 @@ document.getElementById('ds-start-file').addEventListener('change', async (e) =>
     toast(err.message, true);
   } finally { e.target.value = ''; }
 });
+
+// Accessories listed in the PDF: each can become its own product (no datasheet;
+// colour picked on the quote line). Names start with the product's family.
+function renderAccessories(r) {
+  const box = document.getElementById('ds-acc');
+  const list = r.accessories || [];
+  if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const family = (r.model || '').toUpperCase();
+  box.innerHTML = `<div class="ds-acc-head"><strong>Accessories in this PDF (${list.length})</strong>
+      <span class="muted">— ticked ones are added as products too, with no datasheet of their own</span>
+      <label class="ds-acc-all"><input type="checkbox" checked onchange="document.querySelectorAll('#ds-acc .acc-tick').forEach(c => c.checked = this.checked)"> all</label></div>
+    <div class="ds-acc-list">${list.map((a, i) => `<div class="ds-acc-row">
+      <input type="checkbox" class="acc-tick" data-i="${i}" checked>
+      ${a.photo ? `<img src="${a.photo}" alt="">` : '<span class="acc-noimg"></span>'}
+      <span class="mono acc-code">${escHtml(a.code)}</span>
+      <input class="acc-name" data-i="${i}" value="${escHtml((family ? family + ' ' : '') + a.name.toUpperCase())}">
+      <span class="muted acc-col">${escHtml((a.colour_names || []).join(' / '))}</span></div>`).join('')}</div>`;
+  box.style.display = '';
+}
+async function addTickedAccessories() {
+  const list = (dsStart && dsStart.read.accessories) || [];
+  const items = [...document.querySelectorAll('#ds-acc .acc-tick:checked')].map(c => {
+    const a = list[parseInt(c.dataset.i)];
+    const name = document.querySelector(`#ds-acc .acc-name[data-i="${c.dataset.i}"]`).value.trim();
+    return { code: a.code, name, colours: a.colours || [], photo: a.photo || null };
+  }).filter(x => x.name);
+  if (!items.length) return 0;
+  const f = document.getElementById('product-form');
+  const r = await api('/products/accessories', { method: 'POST', body: JSON.stringify({
+    brand: f.brand.value || null, supplier: f.supplier.value || null, items }) });
+  return r.created.length;
+}
 
 // After the product is saved: its photo (from the PDF) and the PDF itself
 async function dsAttach(productId) {

@@ -1,4 +1,6 @@
 from typing import List, Optional
+import re
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -209,6 +211,69 @@ def image_from_datasheet(product_id: int, db: Session = Depends(get_db), current
     db.commit()
     db.refresh(product)
     return product
+
+
+class AccessoryIn(BaseModel):
+    code: str
+    name: str
+    colours: List[str] = []
+    photo: Optional[str] = None  # JPEG data URL, as read from the datasheet
+
+
+class AccessoriesIn(BaseModel):
+    brand: Optional[str] = None
+    supplier: Optional[str] = None
+    items: List[AccessoryIn]
+
+
+@router.post("/accessories")
+def add_accessories(payload: AccessoriesIn, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """The accessories ticked from a datasheet's list, each made a product:
+    category Accessories, no datasheet of its own, the colour picked on the
+    quote line. One already in the app (same name and brand) is left as it is."""
+    import base64
+    import io
+    from starlette.datastructures import Headers, UploadFile as StarUpload
+    from app.datasheet_read import COLOUR_NAMES
+    created, skipped = [], []
+    brand = (payload.brand or "").strip().upper() or None
+    for it in payload.items[:80]:
+        name = naming.standard_name(it.name, brand, "Accessories")
+        if not name:
+            continue
+        if db.query(models.Product).filter(models.Product.name == name,
+                                           models.Product.brand == brand).first():
+            skipped.append(name)
+            continue
+        code = " ".join(it.code.split())[:40]
+        cols = [c for c in it.colours if re.fullmatch(r"\d{2}", c)][:8]
+        spec = [f"Code: {code}"]
+        options = None
+        if cols:
+            names = [COLOUR_NAMES.get(c, "Colour " + c) for c in cols]
+            spec.append("Finish: " + " / ".join(names))
+            options = {"code": code + " {colour}",
+                       "groups": [{"key": "colour", "label": "Colour",
+                                   "choices": [{"label": n, "code": c} for n, c in zip(names, cols)]}]}
+        data = _standardise(db, {"sku": "", "name": it.name, "brand": brand, "category": "Accessories",
+                                 "options": options})
+        product = models.Product(**data, supplier=(payload.supplier or brand), unit="pcs",
+                                 spec_summary="\n".join(spec), datasheet_mode="none", no_datasheet=True,
+                                 cost_currency="AED", cost_amount=0.0, cost_price=0.0, selling_price=0.0)
+        db.add(product)
+        db.flush()
+        if it.photo and it.photo.startswith("data:image/jpeg;base64,"):
+            try:
+                raw = base64.b64decode(it.photo.split(",", 1)[1])
+                up = StarUpload(file=io.BytesIO(raw), filename="photo.jpg", headers=Headers({"content-type": "image/jpeg"}))
+                product.image_path = save_product_image(up)
+            except Exception:
+                pass  # photo is optional
+        log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "created",
+                     "accessory from datasheet")
+        created.append(product.name)
+    db.commit()
+    return {"created": created, "skipped": skipped}
 
 
 @router.get("/{product_id}/usage")

@@ -119,6 +119,72 @@ def _photo(page):
     return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode()
 
 
+ACC_CODE = re.compile(r"^[A-Z]{1,3}\s?\d{2,4}(?:\s?/\s?[0-9A-Z]{1,3})*$")
+COLOUR_NAMES = {"01": "White", "02": "Black", "03": "Grey", "04": "Silver", "05": "Gold"}
+
+
+def _small_photo(page, img, cache, foot=None):
+    """An accessory's picture, cut from the page rendered once (fast)."""
+    dpi = 220
+    if page.page_number not in cache:
+        try:
+            cache[page.page_number] = page.to_image(resolution=dpi).original.convert("RGB")
+        except Exception:
+            cache[page.page_number] = None
+    full = cache[page.page_number]
+    if full is None:
+        return None
+    k = dpi / 72
+    im = full.crop((int(max(img["x0"], 0) * k), int(max(img["top"], 0) * k),
+                    int(min(img["x1"], page.width) * k), int(min(img["bottom"], page.height, foot or page.height) * k)))
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=88)
+    return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode()
+
+
+def _accessories(pdf):
+    """The accessories a datasheet lists after an "Accessories" heading:
+    [{code, name, colours: ["01", "02"], photo}] - each a code line, its
+    description, an optional "Colour: 01 - 02" line and the picture beside it."""
+    items, started, cache = [], False, {}
+    for page in pdf.pages[:6]:
+        rows = _lines(page)
+        foot = next((r[0]["top"] for r in rows if any(w["text"] in ("©", "(c)") for w in r)), page.height * 0.95)
+        for row in rows:
+            if row[0]["top"] >= foot - 1:
+                continue  # footer
+            t = " ".join(w["text"] for w in row).strip()
+            if not started:
+                started = t.lower() in ("accessories", "accessori", "accessoires", "zubehör")
+                continue
+            if ACC_CODE.match(t):
+                img = next((i for i in page.images
+                            if i["top"] - 30 <= row[0]["top"] <= i["bottom"] and i["x1"] <= row[0]["x0"] + 2
+                            and (i["x1"] - i["x0"]) < page.width * 0.4), None)
+                items.append({"code": re.sub(r"\s*/\s*", " / ", t), "desc": [], "colours": [],
+                              "photo": _small_photo(page, img, cache, foot - 2) if img else None})
+                continue
+            if not items:
+                continue
+            m = re.match(r"^colou?rs?\s*:?\s*(.+)$", t, re.I)
+            if m:
+                items[-1]["colours"] = re.findall(r"\b\d{2}\b", m.group(1))
+            elif len(items[-1]["desc"]) < 3:
+                items[-1]["desc"].append(t)
+    out = []
+    for it in items:
+        desc = " ".join(it["desc"]).strip().rstrip(".").strip()
+        if re.fullmatch(r"[\d.,]+\s*m", desc, re.I):
+            desc = "Suspension cable " + desc  # a length only ("1,5 m")
+        desc = desc.replace(",", ".")
+        if not desc:
+            continue
+        out.append({"code": it["code"], "name": desc, "colours": it["colours"],
+                    "colour_names": [COLOUR_NAMES.get(c, "Colour " + c) for c in it["colours"]],
+                    "photo": it["photo"]})
+    return out
+
+
 def photo_from_pdf(data: bytes):
     """The product photo of a datasheet PDF as JPEG bytes, or None."""
     with pdfplumber.open(io.BytesIO(data)) as pdf:
@@ -225,7 +291,7 @@ def read(data: bytes, filename: str = "") -> dict:
             if not code:
                 for line in text.splitlines()[:6]:
                     line = line.strip()
-                    if re.fullmatch(r"[A-Z]{1,4}\d{2,5}[A-Z]?(?: [A-Z0-9]{1,5}){0,4}", line) and line != model:
+                    if re.fullmatch(r"[A-Z]{1,4} ?\d{2,5}[A-Z]?(?: [A-Z0-9]{1,5}){0,4}", line) and line != model:
                         code = line
                         break
 
@@ -286,13 +352,22 @@ def read(data: bytes, filename: str = "") -> dict:
                       r"|power supply\s*:?\s*\d.*", "", text[:3000], flags=re.I)  # the "Power supply 230V" spec row
         category = (classify(type_value) or classify(model) or classify(subtitle)
                     or classify(body) or "")
+        # The track itself (rail / profile), not a light on it: filed with the track parts
+        if category in ("230V Track Light", "48V Track Light") and \
+                re.search(r"(electri\w*|conductor|power)\s+track\b|track\s+(profile|rail)", text[:1500], re.I) and \
+                not re.search(r"projector|spot|luminaire with|led light", text[:1500], re.I):
+            category = "Accessories"
         photo = _photo(first)
+        try:
+            accessories = _accessories(pdf)
+        except Exception:
+            accessories = []
 
     options = _series_options(text)
     words_m = model.upper().split()
     series = words_m[0] if options and words_m else ""
     variant = " ".join(words_m[1:]) if options else ""
     return {"model": model.upper(), "code": code, "brand": brand, "category": category,
-            "series": series, "variant": variant, "series_options": options,
+            "series": series, "variant": variant, "series_options": options, "accessories": accessories,
             "spec": spec, "options": {"watt": watts, "cct": ccts, "finish": finishes},
             "photo": photo, "halo": brand in ("HALO", "RUHA")}

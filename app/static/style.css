@@ -1109,3 +1109,13 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .qp-meta { font-size: 11.5px; color: var(--muted); }
 .qp-hint { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 6px 2px; }
 .line-item-block.just-added { box-shadow: 0 0 0 2px var(--amber); transition: box-shadow .4s; }
+
+/* New product from a datasheet: its accessories */
+.ds-acc { margin: 8px 0 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; }
+.ds-acc-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 13px; margin-bottom: 6px; }
+.ds-acc-all { margin-left: auto; font-size: 12.5px; }
+.ds-acc-list { display: grid; gap: 4px; max-height: 320px; overflow-y: auto; }
+.ds-acc-row { display: grid; grid-template-columns: 18px 36px 92px 1fr 110px; gap: 8px; align-items: center; font-size: 12.5px; }
+.ds-acc-row img, .acc-noimg { width: 36px; height: 36px; object-fit: contain; background: #fff; }
+.ds-acc-row .acc-name { min-width: 0; padding: 4px 6px; font-size: 12.5px; }
+.ds-acc-row .acc-col { font-size: 11.5px; }
