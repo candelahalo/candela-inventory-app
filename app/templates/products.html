@@ -341,13 +341,26 @@ function renderAccessories(r) {
   box.innerHTML = `<div class="ds-acc-head"><strong>Accessories in this PDF (${list.length})</strong>
       <span class="muted">— ticked ones are added as products too, with no datasheet of their own</span>
       <label class="ds-acc-all"><input type="checkbox" checked onchange="document.querySelectorAll('#ds-acc .acc-tick').forEach(c => c.checked = this.checked)"> all</label></div>
+    <div class="ds-acc-common">
+      <label>Name starts with <input id="acc-prefix" value="${escHtml(family)}" placeholder="e.g. TRACK BASIC 230V ON/OFF" style="text-transform:uppercase"></label>
+      <label>For <span class="muted">(spec line)</span> <input id="acc-for" placeholder="e.g. 230V ON/OFF surface / suspended track"></label>
+    </div>
     <div class="ds-acc-list">${list.map((a, i) => `<div class="ds-acc-row">
       <input type="checkbox" class="acc-tick" data-i="${i}" checked>
       ${a.photo ? `<img src="${a.photo}" alt="">` : '<span class="acc-noimg"></span>'}
       <span class="mono acc-code">${escHtml(a.code)}</span>
-      <input class="acc-name" data-i="${i}" value="${escHtml((family ? family + ' ' : '') + a.name.toUpperCase())}">
+      <input class="acc-name" data-i="${i}" data-base="${escHtml(a.name.toUpperCase())}" value="${escHtml((family ? family + ' ' : '') + a.name.toUpperCase())}">
       <span class="muted acc-col">${escHtml((a.colour_names || []).join(' / '))}</span></div>`).join('')}</div>`;
   box.style.display = '';
+  // Changing the start of the names changes every name (one edited by hand keeps its own)
+  document.getElementById('acc-prefix').addEventListener('input', e => {
+    const pre = e.target.value.trim().toUpperCase();
+    box.querySelectorAll('.acc-name').forEach(inp => {
+      if (inp.dataset.edited) return;
+      inp.value = (pre ? pre + ' ' : '') + inp.dataset.base;
+    });
+  });
+  box.querySelectorAll('.acc-name').forEach(inp => inp.addEventListener('input', () => { inp.dataset.edited = '1'; }));
 }
 async function addTickedAccessories() {
   const list = (dsStart && dsStart.read.accessories) || [];
@@ -359,7 +372,8 @@ async function addTickedAccessories() {
   if (!items.length) return 0;
   const f = document.getElementById('product-form');
   const r = await api('/products/accessories', { method: 'POST', body: JSON.stringify({
-    brand: f.brand.value || null, supplier: f.supplier.value || null, items }) });
+    brand: f.brand.value || null, supplier: f.supplier.value || null,
+    used_for: document.getElementById('acc-for').value.trim() || null, items }) });
   return r.created.length;
 }
 

@@ -223,6 +223,7 @@ class AccessoryIn(BaseModel):
 class AccessoriesIn(BaseModel):
     brand: Optional[str] = None
     supplier: Optional[str] = None
+    used_for: Optional[str] = None  # e.g. "230V ON/OFF surface / suspended track"
     items: List[AccessoryIn]
 
 
@@ -248,6 +249,8 @@ def add_accessories(payload: AccessoriesIn, db: Session = Depends(get_db), curre
         code = " ".join(it.code.split())[:40]
         cols = [c for c in it.colours if re.fullmatch(r"\d{2}", c)][:8]
         spec = [f"Code: {code}"]
+        if payload.used_for:
+            spec.append("For: " + " ".join(payload.used_for.split())[:120])
         options = None
         if cols:
             names = [COLOUR_NAMES.get(c, "Colour " + c) for c in cols]
