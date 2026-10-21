@@ -1196,3 +1196,16 @@ label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font
 .mx-grid tr.mx-gtotal td { background: #FCEBD0; font-weight: 700; padding: 6px 4px; }
 .line-item-block.mx-line .li-qty { background: #FCEBD0; }
 .mx-cols[hidden] { display: none; }
+
+/* Quote: proposal photos */
+.pp-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.pp-sizes { display: inline-flex; gap: 10px; align-items: center; font-size: 13px; }
+.pp-sizes label { display: inline-flex; gap: 4px; align-items: center; font-weight: 400; margin: 0; }
+.pp-note { font-size: 12px; margin-bottom: 6px; }
+.pp-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.pp-card { width: 150px; border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fff; display: flex; flex-direction: column; gap: 4px; }
+.pp-card img { width: 100%; height: 100px; object-fit: contain; background: #fff; }
+.pp-card .pp-cap { font-size: 12px; padding: 4px 6px; }
+.pp-tools { display: flex; gap: 3px; align-items: center; }
+.pp-tools .remove-line { margin-left: auto; }
+.pp-group { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }

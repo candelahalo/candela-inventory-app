@@ -91,6 +91,7 @@ def build_context(q):
             if b.upper() not in [x.upper() for x in brands]:
                 brands.append(b)
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order),
+            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(),
             "milestones": milestones(q.milestones, q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or "").splitlines() if l.strip()],
             "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or "").splitlines() if l.strip()]}
@@ -161,3 +162,32 @@ def room_matrix(q, order=None):
             out.append({"name": fl["name"] + (f" ({pi + 1}/{len(parts)})" if len(parts) > 1 else ""),
                         "cols": pc, "rooms": rooms, "totals": [fl["totals"][i] for i in idx]})
     return out
+
+
+def default_photos(q):
+    """The line photos, one per product, in quote order: [{path, caption, group}]."""
+    out, seen = [], set()
+    for it in q.items:
+        path = it.image_path or (it.product.image_path if it.product else None)
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        out.append({"path": path, "caption": it.product.name if it.product else _title(it), "group": it.section or ""})
+    return out
+
+
+def gallery(q):
+    """Photos page before the price summary, grouped by system: [{"group", "photos": [{src, caption}]}]."""
+    if (q.proposal_photo_size or "M").upper() == "OFF":
+        return []
+    photos = q.proposal_photos if q.proposal_photos is not None else default_photos(q)
+    groups = []
+    for ph in photos:
+        path = (ph or {}).get("path") or ""
+        if not path.startswith("/static/") or ".." in path or not os.path.exists(url_to_disk_path(path)):
+            continue
+        g = (ph.get("group") or "").strip()
+        if not groups or groups[-1]["group"] != g:
+            groups.append({"group": g, "photos": []})
+        groups[-1]["photos"].append({"src": "app" + path, "caption": (ph.get("caption") or "").strip()})
+    return groups

@@ -179,6 +179,9 @@ class Quotation(Base):
     # Rooms per floor x products: {"cols": ["12", ...product ids], "floors": [{"name": "Ground Floor",
     #   "rooms": [{"name": "Family Living", "q": {"12": 2}}]}]}; column totals are the line quantities
     room_matrix = Column(JSON)
+    # Photos page of the proposal: None = the line photos; else [{"path", "caption", "group"}]
+    proposal_photos = Column(JSON)
+    proposal_photo_size = Column(String(4), default="M", nullable=False)  # S / M / L / OFF
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

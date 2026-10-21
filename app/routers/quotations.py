@@ -188,6 +188,13 @@ def _add_items(quotation, payload, db: Session):
 MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 
+@router.post("/proposal-image")
+def proposal_image(file: UploadFile = File(...), current: models.User = Depends(auth.get_current_user)):
+    """A photo or diagram for the proposal's photos page; kept in its own shape (not squared)."""
+    from app.utils import save_proposal_image
+    return {"path": save_proposal_image(file)}
+
+
 @router.post("/read-rooms")
 async def read_rooms(file: UploadFile = File(...), current: models.User = Depends(auth.get_current_user)):
     """Room names and the floor from an architect's layout PDF, for the room matrix."""
@@ -505,7 +512,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
                    "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals",
                    "consultant", "main_contractor", "section_notes", "inclusions", "exclusions", "milestones",
-                   "proposal_prices", "room_matrix"]
+                   "proposal_prices", "room_matrix", "proposal_photos", "proposal_photo_size"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,

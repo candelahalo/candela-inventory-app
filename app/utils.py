@@ -170,3 +170,29 @@ def save_datasheet_bytes(data: bytes, original_name: str) -> tuple[str, str]:
         f.write(data)
 
     return f"/static/uploads/datasheets/{filename}", original_name
+
+
+PROPOSAL_IMAGE_DIR = UPLOAD_ROOT / "proposal"
+
+
+def save_proposal_image(file: UploadFile) -> str:
+    """Proposal photos / diagrams: any shape, white behind transparency, at most 1600 px."""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Image must be JPEG, PNG, or WebP")
+    PROPOSAL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        img = Image.open(file.file)
+        img.load()
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not process image file")
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        img = Image.alpha_composite(bg, img).convert("RGB")
+    else:
+        img = img.convert("RGB")
+    img.thumbnail((1600, 1600), Image.LANCZOS)
+    name = f"{uuid.uuid4().hex}.jpg"
+    img.save(PROPOSAL_IMAGE_DIR / name, "JPEG", quality=88, optimize=True)
+    return f"/static/uploads/proposal/{name}"

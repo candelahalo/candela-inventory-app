@@ -208,6 +208,8 @@ class QuotationCreate(BaseModel):
     milestones: Optional[str] = None
     proposal_prices: bool = True
     room_matrix: Optional[dict] = None
+    proposal_photos: Optional[List[dict]] = None
+    proposal_photo_size: str = "M"
     items: List[QuotationItemCreate]
 
 
@@ -243,6 +245,8 @@ class QuotationOut(BaseModel):
     milestones: Optional[str] = None
     proposal_prices: Optional[bool] = True
     room_matrix: Optional[dict] = None
+    proposal_photos: Optional[List[dict]] = None
+    proposal_photo_size: Optional[str] = "M"
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float

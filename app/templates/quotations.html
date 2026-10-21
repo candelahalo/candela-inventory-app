@@ -93,6 +93,20 @@
           <div class="field span2"><label>Exclusions <span class="muted">(one per line)</span></label><textarea name="exclusions" rows="5"></textarea></div>
           <div class="field span2"><label>Payment milestones <span class="muted">(one per line, e.g. "35% advance against design" — amounts are worked out)</span></label><textarea name="milestones" rows="4"></textarea></div>
           <div class="field"><label class="chk"><input type="checkbox" id="q-prop-prices" checked> Show unit prices in the proposal</label></div>
+          <div class="field span2"><label>Photos <span class="muted">(their own page, just before the price summary)</span></label>
+            <div class="pp-bar">
+              <span class="pp-sizes" id="pp-sizes">Size
+                <label><input type="radio" name="pp_size" value="S"> Small</label>
+                <label><input type="radio" name="pp_size" value="M" checked> Medium</label>
+                <label><input type="radio" name="pp_size" value="L"> Large</label>
+                <label><input type="radio" name="pp_size" value="OFF"> No photos</label></span>
+              <button type="button" class="btn btn-ghost btn-sm" id="pp-add" title="A photo or diagram of your own">+ Add image</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="pp-reset" title="Go back to the photos of the lines">Reset to line photos</button>
+              <input type="file" id="pp-file" accept="image/jpeg,image/png,image/webp" hidden>
+            </div>
+            <div class="pp-note muted" id="pp-note"></div>
+            <div class="pp-grid" id="pp-grid"></div>
+          </div>
         </div>
       </div>
     </details>
@@ -897,6 +911,7 @@ function hideAddPanel() {
   openQuote = null;
   importedMeta = null;
   mxReset(null);
+  ppReset(null, 'M');
   document.getElementById('import-note').style.display = 'none';
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
@@ -933,6 +948,7 @@ async function editQuotation(id) {
   ['consultant', 'main_contractor', 'inclusions', 'exclusions', 'milestones'].forEach(k => { form[k].value = q[k] || ''; });
   document.getElementById('q-prop-prices').checked = q.proposal_prices !== false;
   mxReset(q.room_matrix);
+  ppReset(q.proposal_photos, q.proposal_photo_size);
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1345,9 +1361,90 @@ function collectQuotationPayload() {
   });
   payload.section_notes = Object.keys(notes).length ? notes : null;
   payload.room_matrix = mxPayload();
+  payload.proposal_photos = ppPhotos;
+  payload.proposal_photo_size = (document.querySelector('input[name="pp_size"]:checked') || {}).value || 'M';
   return payload;
 }
 
+
+
+// ---------- Proposal photos: shown on their own page before the price summary ----------
+// null = the line photos (follows the lines); once anything is changed here
+// the list is kept as it is.
+var ppPhotos = null, ppTarget = null;
+function ppDefault() {
+  const out = [], seen = new Set();
+  let sec = '';
+  document.querySelectorAll('#line-items > .section-block, #line-items > .line-item-block').forEach(el => {
+    if (el.classList.contains('section-block')) { sec = el.querySelector('.sec-name').value.trim().toUpperCase(); return; }
+    const p = productsCache.find(x => String(x.id) === el.querySelector('.li-product').value) || {};
+    const path = el.dataset.lineImage || p.image_path;
+    if (!path || seen.has(path)) return;
+    seen.add(path);
+    out.push({ path, caption: p.name || (el.querySelector('.li-desc').value.split('\n')[0] || ''), group: sec });
+  });
+  return out;
+}
+function ppList() { return ppPhotos || ppDefault(); }
+function ppTouch() { if (!ppPhotos) ppPhotos = ppDefault().map(x => ({ ...x })); }
+function ppReset(photos, size) {
+  ppPhotos = photos ? photos.map(x => ({ ...x })) : null;
+  const r = document.querySelector(`input[name="pp_size"][value="${size || 'M'}"]`);
+  if (r) r.checked = true;
+  renderPP();
+}
+function renderPP() {
+  const list = ppList();
+  const off = (document.querySelector('input[name="pp_size"]:checked') || {}).value === 'OFF';
+  document.getElementById('pp-note').textContent = off ? 'No photos page in the proposal.'
+    : (ppPhotos ? `${list.length} photo${list.length === 1 ? '' : 's'}, as set here.` : `${list.length} photo${list.length === 1 ? '' : 's'} from the lines — change, replace or add below.`);
+  document.getElementById('pp-reset').style.display = ppPhotos ? '' : 'none';
+  const groups = [...new Set(ppList().map(x => x.group || ''))];
+  document.getElementById('pp-grid').innerHTML = off ? '' : list.map((ph, i) => `
+    <div class="pp-card">
+      <img src="${escHtml(ph.path)}" alt="">
+      <input class="pp-cap" data-i="${i}" value="${escHtml(ph.caption || '')}" placeholder="Caption">
+      <div class="pp-tools">
+        <button type="button" class="li-tool" onclick="ppMove(${i},-1)" title="Move left">←</button>
+        <button type="button" class="li-tool" onclick="ppMove(${i},1)" title="Move right">→</button>
+        <button type="button" class="li-tool" onclick="ppPick(${i})" title="Upload a different picture in its place">Replace</button>
+        <button type="button" class="remove-line" onclick="ppDel(${i})" title="Leave this photo out">×</button>
+      </div>
+      ${ph.group ? `<div class="pp-group muted">${escHtml(ph.group)}</div>` : ''}
+    </div>`).join('');
+}
+function ppMove(i, d) { ppTouch(); const j = i + d; if (j < 0 || j >= ppPhotos.length) return; [ppPhotos[i], ppPhotos[j]] = [ppPhotos[j], ppPhotos[i]]; renderPP(); }
+function ppDel(i) { ppTouch(); ppPhotos.splice(i, 1); renderPP(); }
+function ppPick(i) { ppTarget = i; document.getElementById('pp-file').click(); }
+document.getElementById('pp-add').addEventListener('click', () => ppPick(null));
+document.getElementById('pp-reset').addEventListener('click', () => { ppPhotos = null; renderPP(); });
+document.getElementById('pp-sizes').addEventListener('change', renderPP);
+document.getElementById('pp-grid').addEventListener('input', e => {
+  if (!e.target.classList.contains('pp-cap')) return;
+  ppTouch(); ppPhotos[e.target.dataset.i].caption = e.target.value;
+});
+document.getElementById('pp-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  let res;
+  try { res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd }); }
+  catch (err) { toast('Upload failed: ' + err.message, true); return; }
+  if (res.status === 401) { signOut(); return; }
+  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (err) {} toast(d, true); return; }
+  const { path } = await res.json();
+  ppTouch();
+  if (ppTarget === null) {
+    const last = ppPhotos[ppPhotos.length - 1];
+    ppPhotos.push({ path, caption: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '), group: last ? last.group : '' });
+  } else {
+    ppPhotos[ppTarget].path = path;
+  }
+  renderPP();
+  toast(ppTarget === null ? 'Image added — set its caption' : 'Photo replaced');
+});
+document.getElementById('q-more').addEventListener('toggle', () => { if (document.getElementById('q-more').open) renderPP(); });
 
 // ---------- Room matrix: rooms per floor x products ----------
 // Columns are the quote's product lines (lights and front-end devices by
