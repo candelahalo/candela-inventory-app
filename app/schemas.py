@@ -494,3 +494,28 @@ class DeliverIn(BaseModel):
 
 class IdsIn(BaseModel):
     ids: List[int]
+
+
+
+class ProposalTerms(BaseModel):
+    inclusions: Optional[str] = None
+    exclusions: Optional[str] = None
+    milestones: Optional[str] = None
+
+
+class ProposalSettings(BaseModel):
+    """The full automation proposal's own fields, edited on the project page."""
+    consultant: Optional[str] = None
+    main_contractor: Optional[str] = None
+    inclusions: Optional[str] = None
+    exclusions: Optional[str] = None
+    milestones: Optional[str] = None
+    proposal_prices: bool = True
+    proposal_photos: Optional[List[dict]] = None
+    proposal_photo_size: str = "M"
+
+    @field_validator("proposal_photo_size")
+    @classmethod
+    def _size(cls, v):
+        v = (v or "M").upper()
+        return v if v in ("S", "M", "L", "OFF") else "M"

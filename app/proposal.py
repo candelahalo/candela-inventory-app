@@ -59,7 +59,9 @@ def milestones(text, base):
     return out
 
 
-def build_context(q):
+def build_context(q, standard=None):
+    """standard: the Settings terms, used where the quotation's own boxes are empty."""
+    standard = standard or {}
     systems, order = {}, []
     for it in q.items:
         name = it.section or "General"
@@ -92,9 +94,9 @@ def build_context(q):
                 brands.append(b)
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order),
             "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(),
-            "milestones": milestones(q.milestones, q.grand_total),
-            "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or "").splitlines() if l.strip()],
-            "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or "").splitlines() if l.strip()]}
+            "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
+            "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
+            "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or standard.get("exclusions") or "").splitlines() if l.strip()]}
 
 
 def _short(name, n=34):

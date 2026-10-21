@@ -83,18 +83,6 @@
       <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" value="Division Head - Projects"></div>
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
       </div>
-      <div class="prop-box">
-        <div class="prop-head"><strong>Proposal by system</strong> <span class="muted">(Export → Proposal by system: cover, a page per section, price summary, terms)</span>
-          <button type="button" class="btn btn-ghost btn-sm" id="prop-defaults" title="Fills the empty boxes below with our usual automation text">Fill automation defaults</button></div>
-        <div class="form-grid">
-          <div class="field"><label>Consultant</label><input name="consultant" placeholder="e.g. Signature Engineering Consultant"></div>
-          <div class="field"><label>Main contractor</label><input name="main_contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
-          <div class="field span2"><label>Inclusions <span class="muted">(one per line)</span></label><textarea name="inclusions" rows="4"></textarea></div>
-          <div class="field span2"><label>Exclusions <span class="muted">(one per line)</span></label><textarea name="exclusions" rows="5"></textarea></div>
-          <div class="field span2"><label>Payment milestones <span class="muted">(one per line, e.g. "35% advance against design" — amounts are worked out)</span></label><textarea name="milestones" rows="4"></textarea></div>
-          <div class="field"><label class="chk"><input type="checkbox" id="q-prop-prices" checked> Show unit prices in the proposal</label></div>
-        </div>
-      </div>
     </details>
 
     <h2 style="margin-top:22px;">Line items</h2>
@@ -120,28 +108,6 @@
       </div>
       <div class="mx-cols" id="mx-cols" hidden></div>
       <div class="mx-wrap" id="mx-wrap"></div>
-    </details>
-
-    <details class="q-matrix q-photos" id="q-photos" open>
-      <summary><strong>Proposal photos</strong> <span class="muted">— a page per section, after the design matrix</span> <span class="mx-sum" id="pp-sum"></span></summary>
-      <div class="pp-bar">
-        <span class="pp-sizes" id="pp-sizes">Size
-          <label><input type="radio" name="pp_size" value="S"> Small</label>
-          <label><input type="radio" name="pp_size" value="M" checked> Medium</label>
-          <label><input type="radio" name="pp_size" value="L"> Large</label>
-          <label><input type="radio" name="pp_size" value="OFF"> No photos</label></span>
-        <button type="button" class="btn btn-ghost btn-sm" id="pp-reset" title="Undo all photo changes: back to the photos of the lines">Reset to line photos</button>
-        <input type="file" id="pp-file" accept="image/jpeg,image/png,image/webp" hidden>
-      </div>
-      <div class="pp-note muted" id="pp-note"></div>
-      <div class="pp-grid" id="pp-grid"></div>
-      <div class="pp-pick" id="pp-pick" hidden>
-        <div class="pp-pick-head"><strong id="pp-pick-title">Change photo</strong>
-          <button type="button" class="btn btn-sm" id="pp-pick-upload">Upload from computer</button>
-          <input type="search" id="pp-pick-search" placeholder="…or search a product photo (name, brand)" autocomplete="off">
-          <button type="button" class="remove-line" id="pp-pick-close" title="Close">×</button></div>
-        <div class="pp-pick-grid" id="pp-pick-grid"></div>
-      </div>
     </details>
 
     <div class="margin-summary" id="margin-summary">
@@ -818,7 +784,6 @@ async function setImportedCategory(id, sel) {
 
 function recalcMargins() {
   if (document.getElementById('q-matrix').open && typeof renderMatrix === 'function') renderMatrix(false);
-  if (document.getElementById('q-photos').open && typeof renderPP === 'function' && !ppPhotos) renderPP(true);
   if (!isAdmin) return;
   let revenue = 0, cost = 0;
   document.querySelectorAll('.line-item-block').forEach(block => {
@@ -853,28 +818,6 @@ function recalcMargins() {
 
 document.getElementById('add-line').addEventListener('click', () => addLine());
 document.getElementById('add-section').addEventListener('click', () => addSection('', true));
-// Our usual automation proposal text; only empty boxes are filled
-const PROPOSAL_DEFAULTS = {
-  inclusions: ['Supply of the items listed in this proposal.',
-    'Installation, programming, testing and commissioning of the systems listed.',
-    'Manufacturer warranty on the supplied products from the date of delivery.',
-    'Post-handover support for programming adjustments for 45 days.',
-    'As-built documentation and client training at handover.'].join('\n'),
-  exclusions: ['Any civil, electrical or fit-out works, conduiting and cable pulling unless stated.',
-    'Supply of light fittings, drivers, AC / FCU units, curtain fabrics and motors unless listed.',
-    'Door locks, magnetic locks and strikes unless listed.',
-    'TVs, monitors, iPads and other client-supplied devices unless listed.',
-    'Electrical accessories / face plates unless listed.',
-    'Any item not mentioned in this proposal; changes to the BOQ will be priced separately.',
-    'Site passes, authority permits and their fees.',
-    'VAT and other government taxes.'].join('\n'),
-  milestones: ['50% advance with LPO', '40% upon delivery of hardware to site', '10% upon testing & commissioning'].join('\n'),
-};
-document.getElementById('prop-defaults').addEventListener('click', () => {
-  const f = document.getElementById('quote-form');
-  Object.entries(PROPOSAL_DEFAULTS).forEach(([k, v]) => { if (!f[k].value.trim()) f[k].value = v; });
-  toast('Usual automation text filled in — edit as needed');
-});
 
 function showAddPanel(title) {
   document.getElementById('form-title').textContent = title;
@@ -903,7 +846,7 @@ function setHeaderButtons(q) {
     { text: 'Download PDF', onclick: `downloadDoc(${q.id}, 'pdf')` },
     { text: 'Download Excel', onclick: `downloadDoc(${q.id}, 'excel')` },
     { text: 'Submittal PDF (quote + datasheets)', onclick: `submittalPdf(${q.id})` },
-    { text: 'Proposal by system (PDF)', onclick: `proposalPdf(${q.id})` },
+    { text: 'By system + design matrix (PDF)', onclick: `proposalPdf(${q.id})` },
   ] }]);
 }
 
@@ -921,7 +864,6 @@ function hideAddPanel() {
   openQuote = null;
   importedMeta = null;
   mxReset(null);
-  ppReset(null, 'M');
   document.getElementById('import-note').style.display = 'none';
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
@@ -955,10 +897,7 @@ async function editQuotation(id) {
   insertAfter = null; showInsertPoint();
   loadLines(q.items, q.section_notes);
   document.getElementById('q-sec-sub').checked = !!q.section_subtotals;
-  ['consultant', 'main_contractor', 'inclusions', 'exclusions', 'milestones'].forEach(k => { form[k].value = q[k] || ''; });
-  document.getElementById('q-prop-prices').checked = q.proposal_prices !== false;
   mxReset(q.room_matrix);
-  ppReset(q.proposal_photos, q.proposal_photo_size);
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1282,7 +1221,8 @@ async function submittalPdf(id) {
   withDownloadToken('pdf', token => `/quotations/${id}/submittal?token=${token}`);
 }
 
-// Proposal by system: cover, a page per section, price summary, terms (opens in a new tab)
+// By system: a table per section, price summary and the design matrix (opens in a new tab).
+// The full proposal (cover, images, terms) is made from the project page.
 function proposalPdf(id) {
   return withDownloadToken('preview', token => `/quotations/${id}/proposal?token=${token}&preview=1`);
 }
@@ -1362,7 +1302,6 @@ function collectQuotationPayload() {
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
   payload.section_subtotals = document.getElementById('q-sec-sub').checked;
-  payload.proposal_prices = document.getElementById('q-prop-prices').checked;
   const notes = {};
   document.querySelectorAll('#line-items > .section-block').forEach(b => {
     const n = b.querySelector('.sec-name').value.trim().toUpperCase();
@@ -1371,161 +1310,10 @@ function collectQuotationPayload() {
   });
   payload.section_notes = Object.keys(notes).length ? notes : null;
   payload.room_matrix = mxPayload();
-  payload.proposal_photos = ppPhotos;
-  payload.proposal_photo_size = (document.querySelector('input[name="pp_size"]:checked') || {}).value || 'M';
   return payload;
 }
 
 
-
-// ---------- Proposal photos: shown after the price summary ----------
-// null = the line photos (follows the lines); once anything is changed here
-// the list is kept as it is. To change a photo: click it (upload, or pick a
-// product photo), drop an image file on it, or copy an image and press Ctrl+V
-// with the mouse over it.
-var ppPhotos = null, ppTarget = null, ppHover = null, ppSig = '';
-function ppDefault() {
-  const out = [], seen = new Set();
-  let sec = '';
-  document.querySelectorAll('#line-items > .section-block, #line-items > .line-item-block').forEach(el => {
-    if (el.classList.contains('section-block')) { sec = el.querySelector('.sec-name').value.trim().toUpperCase(); return; }
-    const p = productsCache.find(x => String(x.id) === el.querySelector('.li-product').value) || {};
-    const path = el.dataset.lineImage || p.image_path;
-    if (!path || seen.has(path)) return;
-    seen.add(path);
-    out.push({ path, caption: p.name || (el.querySelector('.li-desc').value.split('\n')[0] || ''), group: sec });
-  });
-  return out;
-}
-function ppList() { return ppPhotos || ppDefault(); }
-function ppTouch() { if (!ppPhotos) ppPhotos = ppDefault().map(x => ({ ...x })); }
-function ppSize() { return (document.querySelector('input[name="pp_size"]:checked') || {}).value || 'M'; }
-function ppReset(photos, size) {
-  ppPhotos = photos ? photos.map(x => ({ ...x })) : null;
-  const r = document.querySelector(`input[name="pp_size"][value="${size || 'M'}"]`);
-  if (r) r.checked = true;
-  document.getElementById('pp-pick').hidden = true;
-  ppSig = '';
-  renderPP();
-}
-function renderPP(onlyIfChanged) {
-  const list = ppList(), off = ppSize() === 'OFF';
-  const sig = off + '|' + JSON.stringify(list);
-  if (onlyIfChanged && sig === ppSig) return;
-  ppSig = sig;
-  document.getElementById('pp-sum').textContent = off ? 'off' : `${list.length} photo${list.length === 1 ? '' : 's'}`;
-  document.getElementById('pp-note').textContent = off ? 'No photos in the proposal.'
-    : 'Click a photo to change it (upload, or pick a product photo). Or drop an image file on it, or copy an image and press Ctrl+V with the mouse over it. A section with many photos is made smaller to fit its page.';
-  document.getElementById('pp-reset').style.display = ppPhotos ? '' : 'none';
-  document.getElementById('pp-grid').innerHTML = off ? '' : list.map((ph, i) => `
-    <div class="pp-card" data-i="${i}">
-      <div class="pp-img" onclick="ppOpen(${i})" title="Click to change · drop or paste an image"><img src="${escHtml(ph.path)}" alt=""><span class="pp-swap">Change</span></div>
-      <input class="pp-cap" data-i="${i}" value="${escHtml(ph.caption || '')}" placeholder="Caption">
-      <div class="pp-tools">
-        <button type="button" class="li-tool" onclick="ppMove(${i},-1)" title="Move left">←</button>
-        <button type="button" class="li-tool" onclick="ppMove(${i},1)" title="Move right">→</button>
-        ${ph.group ? `<span class="pp-group muted" title="${escHtml(ph.group)}">${escHtml(ph.group)}</span>` : ''}
-        <button type="button" class="remove-line" onclick="ppDel(${i})" title="Leave this photo out">×</button>
-      </div>
-    </div>`).join('') + (off ? '' : `
-    <div class="pp-card pp-new" data-i="new" onclick="ppOpen(null)" title="Add a photo or diagram: click, drop or paste">
-      <div class="pp-img"><span>+ Add image</span></div><div class="muted pp-new-hint">click, drop or paste</div>
-    </div>`);
-}
-function ppMove(i, d) { ppTouch(); const j = i + d; if (j < 0 || j >= ppPhotos.length) return; [ppPhotos[i], ppPhotos[j]] = [ppPhotos[j], ppPhotos[i]]; renderPP(); }
-function ppDel(i) { ppTouch(); ppPhotos.splice(i, 1); document.getElementById('pp-pick').hidden = true; renderPP(); }
-// The chooser: upload, or one of the product photos already in the app
-function ppOpen(i) {
-  ppTarget = i;
-  document.getElementById('pp-pick-title').textContent = i === null ? 'Add a photo' : 'Change photo ' + (i + 1);
-  document.getElementById('pp-pick').hidden = false;
-  const s = document.getElementById('pp-pick-search');
-  s.value = ''; ppPickList('');
-  document.getElementById('pp-pick').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  s.focus();
-}
-function ppPickList(qs) {
-  const words = qs.toLowerCase().split(/\s+/).filter(Boolean);
-  const inQuote = new Set([...document.querySelectorAll('#line-items .li-product')].map(x => x.value));
-  let list = productsCache.filter(p => p.image_path);
-  if (words.length) list = list.filter(p => { const t = `${p.name} ${p.brand || ''} ${p.sku || ''} ${p.category || ''}`.toLowerCase(); return words.every(w => t.includes(w)); });
-  else list = list.filter(p => inQuote.has(String(p.id)));
-  list = list.slice(0, 40);
-  document.getElementById('pp-pick-grid').innerHTML = list.length ? list.map(p => `
-    <button type="button" class="pp-opt" onclick="ppUse(${p.id})" title="${escHtml(p.name)}"><img src="${escHtml(p.image_path)}" alt=""><span>${escHtml(p.name)}</span></button>`).join('')
-    : `<div class="muted" style="padding:8px">${words.length ? 'No product photo matches.' : 'Type to search the product photos.'}</div>`;
-}
-function ppPut(path, caption) {
-  ppTouch();
-  const adding = ppTarget === null || ppTarget === undefined || !ppPhotos[ppTarget];
-  if (adding) {
-    const last = ppPhotos[ppPhotos.length - 1];
-    ppPhotos.push({ path, caption: caption || '', group: last ? last.group : '' });
-  } else {
-    ppPhotos[ppTarget].path = path;
-  }
-  document.getElementById('pp-pick').hidden = true;
-  renderPP();
-  toast(adding ? 'Photo added' : 'Photo changed');
-}
-function ppUse(id) {
-  const p = productsCache.find(x => x.id === id);
-  if (p) ppPut(p.image_path, p.name);
-}
-async function ppUpload(file, target) {
-  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { toast('Use a JPG, PNG or WebP picture', true); return; }
-  ppTarget = target;
-  toast('Uploading picture…');
-  const fd = new FormData(); fd.append('file', file, file.name || 'pasted.png');
-  let res;
-  try { res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd }); }
-  catch (err) { toast('Upload failed: ' + err.message, true); return; }
-  if (res.status === 401) { signOut(); return; }
-  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (err) {} toast(d, true); return; }
-  const { path } = await res.json();
-  ppPut(path, (file.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/^(image|pasted)$/i, ''));
-}
-document.getElementById('pp-pick-upload').addEventListener('click', () => document.getElementById('pp-file').click());
-document.getElementById('pp-pick-close').addEventListener('click', () => { document.getElementById('pp-pick').hidden = true; });
-document.getElementById('pp-pick-search').addEventListener('input', e => ppPickList(e.target.value));
-document.getElementById('pp-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) ppUpload(f, ppTarget); });
-document.getElementById('pp-reset').addEventListener('click', () => { ppPhotos = null; document.getElementById('pp-pick').hidden = true; renderPP(); });
-document.getElementById('pp-sizes').addEventListener('change', () => renderPP());
-document.getElementById('q-photos').addEventListener('toggle', () => renderPP());
-document.getElementById('pp-grid').addEventListener('input', e => {
-  if (!e.target.classList.contains('pp-cap')) return;
-  ppTouch(); ppPhotos[e.target.dataset.i].caption = e.target.value; ppSig = '';
-});
-// Drop an image file on a photo (replaces it) or on "+ Add image"
-const ppGrid = document.getElementById('pp-grid');
-function ppCardIndex(el) { const c = el && el.closest && el.closest('.pp-card'); return c ? (c.dataset.i === 'new' ? null : parseInt(c.dataset.i)) : undefined; }
-ppGrid.addEventListener('dragover', e => {
-  if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
-  e.preventDefault();
-  const c = e.target.closest('.pp-card');
-  ppGrid.querySelectorAll('.pp-drop').forEach(x => { if (x !== c) x.classList.remove('pp-drop'); });
-  if (c) c.classList.add('pp-drop');
-});
-ppGrid.addEventListener('dragleave', e => { const c = e.target.closest('.pp-card'); if (c && !c.contains(e.relatedTarget)) c.classList.remove('pp-drop'); });
-ppGrid.addEventListener('drop', e => {
-  e.preventDefault();
-  ppGrid.querySelectorAll('.pp-drop').forEach(x => x.classList.remove('pp-drop'));
-  const f = e.dataTransfer.files[0], i = ppCardIndex(e.target);
-  if (f) ppUpload(f, i === undefined ? null : i);
-});
-// Paste (Ctrl+V) a copied image: replaces the photo under the mouse, otherwise adds one
-ppGrid.addEventListener('mouseover', e => { const i = ppCardIndex(e.target); ppHover = i === undefined ? null : i; });
-document.getElementById('q-photos').addEventListener('mouseleave', () => { ppHover = 'out'; });
-document.getElementById('q-photos').addEventListener('mouseenter', () => { if (ppHover === 'out') ppHover = null; });
-document.addEventListener('paste', e => {
-  if (!document.getElementById('q-photos').open || ppHover === 'out') return;
-  if (document.getElementById('add-panel').style.display === 'none') return;
-  if (e.target.matches && e.target.matches('input, textarea')) return;
-  const item = [...((e.clipboardData || {}).items || [])].find(x => x.type.startsWith('image/'));
-  if (!item) return;
-  e.preventDefault();
-  ppUpload(item.getAsFile(), ppHover);
-});
 
 // ---------- Room matrix: rooms per floor x products ----------
 // Columns are the quote's product lines (lights and front-end devices by

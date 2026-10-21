@@ -64,6 +64,23 @@
   </form>
 </div>
 
+<div class="panel" id="terms-card">
+  <h2>Automation proposal — standard terms</h2>
+  <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px; max-width:760px;">
+    Used in every automation proposal (made from the project page) unless that project changes them. One item per line.
+    Payment milestones like "35% advance against design" — the amounts are worked out from the quote.
+  </p>
+  <form id="terms-form">
+    <div class="form-grid">
+      <div class="field span2"><label>Inclusions</label><textarea name="inclusions" rows="5"></textarea></div>
+      <div class="field span2"><label>Exclusions</label><textarea name="exclusions" rows="7"></textarea></div>
+      <div class="field span2"><label>Payment milestones</label><textarea name="milestones" rows="4"></textarea></div>
+    </div>
+    <div class="form-actions" id="terms-actions" style="display:none;"><button type="submit" class="btn">Save standard terms</button></div>
+    <div class="muted" id="terms-ro" style="font-size:12px;display:none;">Only an admin can change these.</div>
+  </form>
+</div>
+
 <div class="panel">
   <h2>Backup</h2>
   <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px; max-width:760px;">
@@ -331,6 +348,22 @@ document.getElementById('rates-form').addEventListener('submit', async (e) => {
   } catch (err) { toast(err.message, true); }
 });
 
+async function loadTerms() {
+  const t = await api('/quotations/proposal-terms');
+  const f = document.getElementById('terms-form');
+  ['inclusions', 'exclusions', 'milestones'].forEach(k => { f[k].value = t[k] || ''; f[k].readOnly = !me.is_admin; });
+  document.getElementById('terms-actions').style.display = me.is_admin ? '' : 'none';
+  document.getElementById('terms-ro').style.display = me.is_admin ? 'none' : '';
+}
+document.getElementById('terms-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    await api('/quotations/proposal-terms', { method: 'PUT', body: JSON.stringify({ inclusions: f.inclusions.value, exclusions: f.exclusions.value, milestones: f.milestones.value }) });
+    toast('Standard terms saved');
+  } catch (err) { toast(err.message, true); }
+});
+
 (async () => {
   me = await api('/auth/me');
   if (me.is_admin) {
@@ -338,6 +371,7 @@ document.getElementById('rates-form').addEventListener('submit', async (e) => {
     await loadUsers();
   }
   await loadRatesPanel();
+  await loadTerms();
   await loadBackups();
 })();
 </script>

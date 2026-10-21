@@ -39,6 +39,15 @@ h2 { font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 .systems-list li { font-size: 10.5px; padding: 1.6mm 0; border-bottom: 0.5px solid #EFE9DA; break-inside: avoid; }
 .systems-list li span { display: inline-block; width: 7mm; color: #C77D0A; font-weight: 700; }
 
+/* Quotation header (quote by system) */
+.qhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5px solid #201E1A; padding-bottom: 4mm; }
+.qh-logo img { width: 52mm; }
+.qh-right { text-align: right; }
+.qh-no { font-size: 14px; font-weight: 700; margin: 1mm 0; }
+.qh-title { font-size: 18px; font-weight: 700; margin: 6mm 0 3mm; }
+.qh-meta { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10mm; row-gap: 1.6mm; font-size: 9.4px; margin-bottom: 2mm; }
+.qh-meta .k { display: inline-block; width: 24mm; font-size: 7.4px; letter-spacing: .12em; text-transform: uppercase; color: #9A9382; }
+
 /* Letter */
 .letter p { font-size: 10px; margin: 0 0 4mm; max-width: 155mm; }
 .terms { display: grid; grid-template-columns: 34mm 1fr; row-gap: 2mm; margin: 6mm 0; font-size: 9.6px; }
@@ -137,7 +146,9 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 </style>
 </head>
 <body>
+{% set show_prices = q.proposal_prices or not full %}
 
+{% if full %}
 <!-- ===== COVER ===== -->
 <div class="cover-logo"><img src="{{ ent.logo }}"></div>
 <div class="cover-band">
@@ -176,6 +187,24 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <p>For any technical query please contact {{ q.prepared_by_name or 'us' }}{% if q.prepared_by_title %}, {{ q.prepared_by_title }}{% endif %}.</p>
   <p style="margin-top:8mm">Yours sincerely,<br><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ ent.name }}</span></p>
 </div>
+{% else %}
+<!-- ===== QUOTATION HEADER (quote by system: no cover) ===== -->
+<div class="qhead">
+  <div class="qh-logo"><img src="{{ ent.logo }}"></div>
+  <div class="qh-right"><div class="kicker">Quotation</div><div class="qh-no">{{ q.quote_number }}</div><div class="muted">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
+</div>
+<div class="qh-title">{{ q.subject or 'Home Automation' }}</div>
+<div class="qh-meta">
+  <div><span class="k">Client</span>{{ q.customer.name }}</div>
+  {% if q.attention_to %}<div><span class="k">Attention</span>{{ q.attention_to }}</div>{% endif %}
+  {% if q.project %}<div><span class="k">Project</span>{{ q.project.name }}</div>{% endif %}
+  <div><span class="k">Validity</span>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
+  {% if q.delivery_time %}<div><span class="k">Delivery</span>{{ q.delivery_time }}</div>{% endif %}
+  {% if q.payment_terms %}<div><span class="k">Payment</span>{{ q.payment_terms }}</div>{% endif %}
+  <div><span class="k">Currency</span>{{ q.currency }}, VAT excluded</div>
+  <div><span class="k">Prepared by</span>{{ q.prepared_by_name or '' }}{% if q.prepared_by_title %}, {{ q.prepared_by_title }}{% endif %}</div>
+</div>
+{% endif %}
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
 {% for s in p.systems %}
@@ -184,15 +213,15 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   {% if s.notes %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   <table class="boq">
     <thead><tr><th style="width:8mm" class="c">#</th><th style="width:30mm">Brand</th><th>Description</th><th style="width:12mm" class="c">Unit</th><th style="width:12mm" class="num">Qty</th>
-      {% if q.proposal_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
+      {% if show_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
     <tbody>
     {% for l in s.lines %}
       <tr><td class="c">{{ loop.index }}</td><td>{{ l.brand or '—' }}</td>
         <td><div class="t">{{ l.title }}</div>{% if l.detail %}<div class="d">{{ l.detail }}</div>{% endif %}</td>
         <td class="c">{{ l.unit }}</td><td class="num">{{ l.qty }}</td>
-        {% if q.proposal_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
+        {% if show_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
     {% endfor %}
-      <tr class="total"><td colspan="{{ 5 if q.proposal_prices else 3 }}">Total — {{ s.name|title }} ({{ q.currency }}, VAT excluded)</td>
+      <tr class="total"><td colspan="{{ 5 if show_prices else 3 }}">Total — {{ s.name|title }} ({{ q.currency }}, VAT excluded)</td>
         <td class="num" colspan="2">{{ "{:,.2f}".format(s.total) }}</td></tr>
     </tbody>
   </table>
@@ -235,7 +264,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 {% endfor %}
 
 <!-- ===== IMAGES: A PAGE PER SECTION ===== -->
-{% for g in p.gallery %}
+{% for g in (p.gallery if full else []) %}
 <div class="gal-page gal-{{ g.size }}">
   <div class="gal-title">{{ (g.group or 'Products')|upper }}</div>
   <div class="gal">{% for ph in g.photos %}<div class="gal-card"><div class="gal-img"><img src="{{ ph.src }}"></div>{% if ph.caption %}<div class="gal-cap">{{ ph.caption }}</div>{% endif %}</div>{% endfor %}</div>
@@ -243,6 +272,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 {% endfor %}
 
 <!-- ===== TERMS & APPROVAL ===== -->
+{% if full %}
 <div class="terms-block{% if p.matrix or p.gallery %} new-page{% endif %}">
   <div class="kicker">Agreement</div>
   <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
@@ -262,5 +292,6 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   </div>
 </div>
 
+{% endif %}
 </body>
 </html>

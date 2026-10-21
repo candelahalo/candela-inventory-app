@@ -188,6 +188,61 @@ def _add_items(quotation, payload, db: Session):
 MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 
+# Fields of the full automation proposal: edited on the project page, never by the quote form
+PROPOSAL_FIELDS = ("consultant", "main_contractor", "inclusions", "exclusions", "milestones",
+                   "proposal_prices", "proposal_photos", "proposal_photo_size")
+
+
+@router.get("/proposal-terms")
+def get_proposal_terms(db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """The standard automation proposal terms (Settings)."""
+    from app import proposal_terms
+    return proposal_terms.get(db)
+
+
+@router.put("/proposal-terms")
+def put_proposal_terms(payload: schemas.ProposalTerms, db: Session = Depends(get_db),
+                       current: models.User = Depends(auth.get_current_user)):
+    if current.role != "admin":
+        raise HTTPException(status_code=403, detail="Only an admin can change the standard terms.")
+    from app import proposal_terms
+    proposal_terms.save(db, payload.model_dump(exclude_unset=True))
+    log_activity(db, current.username, "settings", None, "Proposal terms", "updated")
+    db.commit()
+    return proposal_terms.get(db)
+
+
+@router.get("/{quotation_id}/proposal-settings")
+def get_proposal_settings(quotation_id: int, db: Session = Depends(get_db),
+                          current: models.User = Depends(auth.get_current_user)):
+    """The proposal fields of a quotation, plus the line photos and the standard terms to fall back on."""
+    from app import proposal_terms
+    from app.proposal import default_photos
+    q = db.query(models.Quotation).get(quotation_id)
+    if not q:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    return {**{k: getattr(q, k) for k in PROPOSAL_FIELDS},
+            "proposal_photo_size": q.proposal_photo_size or "M",
+            "default_photos": default_photos(q), "standard": proposal_terms.get(db),
+            "has_matrix": bool((q.room_matrix or {}).get("floors"))}
+
+
+@router.put("/{quotation_id}/proposal-settings")
+def put_proposal_settings(quotation_id: int, payload: schemas.ProposalSettings, db: Session = Depends(get_db),
+                          current: models.User = Depends(auth.get_current_user)):
+    """Saved even on an accepted quotation: these change only the presentation, not the prices."""
+    q = db.query(models.Quotation).get(quotation_id)
+    if not q:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    for k, v in payload.model_dump().items():
+        if isinstance(v, str):
+            v = v.strip() or None
+        setattr(q, k, v)
+    log_activity(db, current.username, "quotation", q.id, q.quote_number, "updated", "automation proposal")
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/proposal-image")
 def proposal_image(file: UploadFile = File(...), current: models.User = Depends(auth.get_current_user)):
     """A photo or diagram for the proposal's photos page; kept in its own shape (not squared)."""
@@ -310,7 +365,7 @@ def create_quotation(payload: schemas.QuotationCreate, db: Session = Depends(get
     project = _resolve_project(payload, customer, db, current.username)
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                       "project_name", "project_id", "quote_number", "quote_date"})
+                                       "project_name", "project_id", "quote_number", "quote_date", *PROPOSAL_FIELDS})
     if not data.get("valid_until"):
         data["valid_until"] = datetime.utcnow() + timedelta(days=VALIDITY_DAYS)
     number = (payload.quote_number or "").strip()[:64] or None
@@ -358,7 +413,7 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
     old_project_id = quotation.project_id
 
     data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                       "project_name", "project_id", "quote_number", "quote_date"})
+                                       "project_name", "project_id", "quote_number", "quote_date", *PROPOSAL_FIELDS})
     for key, value in data.items():
         setattr(quotation, key, value)
     quotation.customer_id = customer.id
@@ -397,7 +452,7 @@ def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optio
         customer = _resolve_customer(payload, db, current.username)
         project = _resolve_project(payload, customer, db, current.username)
         data = payload.model_dump(exclude={"items", "customer_name", "customer_id",
-                                           "project_name", "project_id", "quote_number", "quote_date"})
+                                           "project_name", "project_id", "quote_number", "quote_date", *PROPOSAL_FIELDS})
         if editing_id:
             quotation = db.query(models.Quotation).get(editing_id)
             if not quotation:
@@ -588,19 +643,22 @@ def _quotation_pdf_bytes(quotation, db: Session, items_only: bool = False):
 
 
 @download_router.get("/{quotation_id}/proposal")
-def quotation_proposal(quotation_id: int, token: str = Query(...), preview: bool = False, db: Session = Depends(get_db)):
-    """Proposal by system (home automation): cover, a page per section with
-    its scope notes, brands and total, price summary, terms and approval."""
+def quotation_proposal(quotation_id: int, token: str = Query(...), preview: bool = False, full: bool = False,
+                       db: Session = Depends(get_db)):
+    """By system (home automation): a table per section with its scope notes,
+    the price summary and the design matrix. With full=1 (from the project page)
+    the whole proposal: cover, letter, the above, product images, terms and approval."""
     auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
     from app.entity import for_quotation
     from app.proposal import build_context
+    from app import proposal_terms
     html_str = templates.get_template("quotation_proposal.html").render(
-        {"q": quotation, "p": build_context(quotation), "ent": for_quotation(quotation)})
+        {"q": quotation, "p": build_context(quotation, proposal_terms.get(db)), "ent": for_quotation(quotation), "full": full})
     pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
-    filename = f"Proposal-{quotation.quote_number.replace('/', '-')}.pdf"
+    filename = f"{'Proposal' if full else 'Quotation'}-{quotation.quote_number.replace('/', '-')}.pdf"
     disposition = "inline" if preview else "attachment"
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
                              headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})

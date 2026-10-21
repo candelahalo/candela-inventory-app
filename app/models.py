@@ -564,3 +564,12 @@ class Datasheet(Base):
     kind = Column(String(16), default="supplier", nullable=False)
 
     product = relationship("Product", back_populates="datasheets")
+
+
+class AppSetting(Base):
+    """Small app-wide settings, e.g. the standard automation proposal terms."""
+    __tablename__ = "app_settings"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(Text)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
