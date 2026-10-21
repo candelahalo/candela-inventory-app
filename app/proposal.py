@@ -176,7 +176,8 @@ def room_matrix(q, order=None):
     def floor_total(f, k):
         return n(f.get("fq"), k) if k in fcols else sum(n(r.get("q"), k) for r in f.get("rooms", []))
 
-    keys = list(dict.fromkeys(k for k in m["cols"] if k in first))
+    keys = list(dict.fromkeys(k for k in m["cols"] if k in first
+                              and not (first[k].product and first[k].product.category == "Testing & Commissioning")))
     keys = [k for k in keys if k not in fcols] + [k for k in keys if k in fcols]
     grand = {k: sum(floor_total(f, k) for f in m["floors"]) for k in keys}
     keys = [k for k in keys if grand[k] > 0]
