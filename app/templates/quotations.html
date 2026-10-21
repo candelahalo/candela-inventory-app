@@ -95,6 +95,14 @@
     <div class="line-items" id="line-items"></div>
     <button type="button" class="btn btn-ghost btn-sm" id="add-line" title="A line typed by hand, or picked from the full list">+ Add line by hand</button>
     <button type="button" class="btn btn-ghost btn-sm" id="add-section" title="A heading over the lines below it, e.g. FRONT END MATERIALS">+ Section</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="add-divisions" title="The standard home automation systems with their items — tick the ones this project takes">+ Automation divisions</button>
+    <div class="ad-panel" id="ad-panel" hidden>
+      <div class="ad-head"><strong>Home automation divisions</strong> <span class="muted">— tick the ones this project takes. Each comes in as a section with its usual items (qty 1, no brand); unticking one already in the quote removes it.</span></div>
+      <div class="ad-list" id="ad-list"></div>
+      <div class="ad-actions"><button type="button" class="btn btn-sm" id="ad-apply">Apply</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ad-cancel">Cancel</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ad-all">Tick all</button></div>
+    </div>
 
     <details class="q-matrix" id="q-matrix">
       <summary><strong>Rooms</strong> <span class="muted">— quantities per room; the totals become the line quantities</span> <span class="mx-sum" id="mx-sum"></span></summary>
@@ -863,6 +871,7 @@ function hideAddPanel() {
   clearClassAuto();
   openQuote = null;
   importedMeta = null;
+  document.getElementById('ad-panel').hidden = true;
   mxReset(null);
   document.getElementById('import-note').style.display = 'none';
   showStatusBar(null);
@@ -1314,6 +1323,64 @@ function collectQuotationPayload() {
 }
 
 
+
+
+// ---------- Home automation divisions ----------
+// The standard systems (Lighting/Shades/AC, Centralized control, Music, CCTV,
+// Wi-Fi & IT, Intercom & access, Fees) with their usual items. Ticked ones are
+// added as sections; unticked ones already in the quote are taken out.
+let adList = null;
+function adSections() {
+  return [...document.querySelectorAll('#line-items > .section-block .sec-name')].map(x => x.value.trim().toUpperCase());
+}
+async function adOpen() {
+  try { adList = adList || await api('/quotations/automation-divisions'); } catch (err) { toast(err.message, true); return; }
+  const have = new Set(adSections());
+  const any = adList.some(d => have.has(d.section));
+  document.getElementById('ad-list').innerHTML = adList.map(d => `
+    <label class="chk"><input type="checkbox" data-key="${d.key}" data-sec="${escHtml(d.section)}"${have.has(d.section) || !any ? ' checked' : ''}>
+      ${escHtml(d.name)} <span class="muted">${d.items} item${d.items === 1 ? '' : 's'}${have.has(d.section) ? ' · in this quote' : ''}</span></label>`).join('');
+  document.getElementById('ad-panel').hidden = false;
+}
+function adRemoveSection(name) {
+  const block = [...document.querySelectorAll('#line-items > .section-block')].find(b => b.querySelector('.sec-name').value.trim().toUpperCase() === name);
+  if (!block) return;
+  let el = block.nextElementSibling;
+  while (el && el.classList.contains('line-item-block')) { const nx = el.nextElementSibling; el.remove(); el = nx; }
+  block.remove();
+}
+document.getElementById('add-divisions').addEventListener('click', () => {
+  const p = document.getElementById('ad-panel');
+  if (!p.hidden) { p.hidden = true; return; }
+  adOpen();
+});
+document.getElementById('ad-cancel').addEventListener('click', () => { document.getElementById('ad-panel').hidden = true; });
+document.getElementById('ad-all').addEventListener('click', () => document.querySelectorAll('#ad-list input').forEach(c => { c.checked = true; }));
+document.getElementById('ad-apply').addEventListener('click', async () => {
+  const have = new Set(adSections());
+  const boxes = [...document.querySelectorAll('#ad-list input')];
+  const add = boxes.filter(c => c.checked && !have.has(c.dataset.sec));
+  const drop = boxes.filter(c => !c.checked && have.has(c.dataset.sec));
+  if (drop.length && !confirm('Take out ' + drop.map(c => c.dataset.sec).join(', ') + ' and all their lines?')) return;
+  drop.forEach(c => adRemoveSection(c.dataset.sec));
+  if (add.length) {
+    let res;
+    try { res = await api('/quotations/automation-divisions', { method: 'POST', body: JSON.stringify({ keys: add.map(c => c.dataset.key) }) }); }
+    catch (err) { toast(err.message, true); return; }
+    if ((res.created || []).length) { try { productsCache = await api('/products/'); } catch (err) {} }
+    insertAfter = null;
+    loadLines(res.lines);
+    const f = document.getElementById('quote-form');
+    if (!f.division.value) { f.division.value = 'automation'; }
+    if (!f.subject.value.trim()) f.subject.value = 'Quotation for Home Automation';
+    toast(`${add.length} division${add.length === 1 ? '' : 's'} added` + ((res.created || []).length ? ` — ${res.created.length} new products in Products (no price yet: set price and cost there once)` : ''));
+  } else if (drop.length) {
+    toast(`${drop.length} division${drop.length === 1 ? '' : 's'} taken out`);
+  }
+  renumberLines(); recalcMargins(); showInsertPoint();
+  if (typeof mxApply === 'function') renderMatrix(true);
+  document.getElementById('ad-panel').hidden = true;
+});
 
 // ---------- Room matrix: rooms per floor x products ----------
 // Columns are the quote's product lines (lights and front-end devices by

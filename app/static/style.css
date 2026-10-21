@@ -1256,3 +1256,9 @@ label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font
 .q-matrix.mx-full .mx-grid th.mx-room, .q-matrix.mx-full .mx-grid td:first-child { min-width: 280px; }
 body.mx-noscroll { overflow: hidden; }
 .mx-grid input.mx-n { font-weight: 600; }
+/* Quote: home automation divisions */
+.ad-panel { margin: 10px 0; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: #FBFAF6; }
+.ad-panel[hidden] { display: none; }
+.ad-head { font-size: 13px; margin-bottom: 8px; }
+.ad-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 18px; font-size: 14px; }
+.ad-actions { display: flex; gap: 8px; margin-top: 10px; }

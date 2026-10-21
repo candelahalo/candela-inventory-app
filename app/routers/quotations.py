@@ -193,6 +193,57 @@ PROPOSAL_FIELDS = ("consultant", "main_contractor", "inclusions", "exclusions", 
                    "proposal_prices", "proposal_photos", "proposal_photo_size")
 
 
+@router.get("/automation-divisions")
+def automation_divisions(current: models.User = Depends(auth.get_current_user)):
+    """The standard home automation divisions (systems) a quote can take."""
+    from app.automation_template import listing
+    return listing()
+
+
+@router.post("/automation-divisions")
+def automation_division_lines(payload: dict, db: Session = Depends(get_db),
+                              current: models.User = Depends(auth.get_current_user)):
+    """Lines for the ticked divisions: each item is a product (added to Products
+    the first time, no brand, in its Automation category); drawings,
+    installation and fees are typed lines. Quantity 1 - the Rooms table or
+    staff set the real numbers."""
+    from app.automation_template import DIVISIONS
+    from app.naming import standard_name, standard_sku
+    keys = set(payload.get("keys") or [])
+    lines, created = [], []
+    for key, title, items in DIVISIONS:
+        if key not in keys:
+            continue
+        section = title.upper()
+        for text, category in items:
+            if category is None:
+                lines.append({"section": section, "product_id": None, "description": text, "unit": "lot",
+                              "quantity": 1, "unit_price": 0, "unit_cost": 0, "discount_pct": 0})
+                continue
+            name = standard_name(text, None, category)
+            prod = db.query(models.Product).filter(func.upper(models.Product.name) == name.upper()).first()
+            if prod is None:
+                base = re.sub(r"^ITEM-", "AUTO-", standard_sku(text, None, category) or "AUTO")
+                sku, n = base, 2
+                while db.query(models.Product).filter(models.Product.sku == sku).first():
+                    sku, n = f"{base[:60]}-{n}", n + 1
+                prod = models.Product(sku=sku, name=name, brand=None, category=category, unit="pcs",
+                                      cost_price=0.0, selling_price=0.0, reorder_level=0, is_active=True,
+                                      spec_summary=text)
+                db.add(prod)
+                db.flush()
+                log_activity(db, current.username, "product", prod.id, f"{prod.sku} — {prod.name}", "created",
+                             f"automation division: {title}")
+                created.append({"id": prod.id, "sku": prod.sku, "name": prod.name, "category": prod.category})
+            elif not prod.is_active:
+                prod.is_active = True
+            lines.append({"section": section, "product_id": prod.id, "description": prod.spec_summary or text,
+                          "unit": prod.unit or "pcs", "quantity": 1, "unit_price": prod.selling_price or 0,
+                          "unit_cost": prod.cost_price or 0, "discount_pct": 0})
+    db.commit()
+    return {"lines": lines, "created": created}
+
+
 @router.get("/proposal-terms")
 def get_proposal_terms(db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
     """The standard automation proposal terms (Settings)."""

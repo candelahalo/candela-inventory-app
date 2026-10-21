@@ -1,0 +1,86 @@
+"""Home automation divisions: the standard systems of an automation quote and
+their usual items (as in the EMKAAN 5326 villa proposal). Staff tick the
+divisions a project takes; each comes in as a section with its items.
+
+Items are products (category given here, no brand - picked per project);
+service lines (drawings, installation, commissioning, fees) are typed lines.
+"""
+S = None  # a service line, not a product
+
+DIVISIONS = [
+    ("lighting", "Lighting, Shades and AC Control System", [
+        ("Home Works QS 2-link control processor", "Lighting Control"),
+        ("2 channel DALI gateway", "Lighting Control"),
+        ("4 channel on/off control module for switching light circuits", "Lighting Control"),
+        ("Relay controller for garage door / pool pumps and custom motion sensors", "Lighting Control"),
+        ("Single column Palladiom 4 button keypad, metal with predefined engraving", "Keypads & Switches"),
+        ("Dual column Palladiom 8 button keypad, metal with predefined engraving", "Keypads & Switches"),
+        ("Palladiom thermostat, metal with predefined engraving", "AC Controls"),
+        ("VRF HVAC integration gateway", "AC Controls"),
+        ("Transformers, relays & installation accessories for HVAC interfacing", "Automation Accessories"),
+        ("Wireless plastered-in ceiling mount motion sensor (PIR/US)", "Sensors"),
+        ("HWQS link power supply", "Lighting Control"),
+        ("Lighting control panel & installation accessories", "Automation Accessories"),
+        ("Bus cables for communication, including curtain control cabling", "Automation Accessories"),
+        ("Cat6 cabling including termination", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, logic and scene programming, zone-by-zone routing plans, "
+         "load calculations, DB circuit labelling and termination, line testing, grounding requirements and final validation", S),
+    ]),
+    ("central", "Centralized Control System", [
+        ("Automation controller", "Lighting Control"),
+        ("1 year remote access subscription kit", "Automation Accessories"),
+        ("iPad 10.9\" 10th gen, supplied by client", "Audio / Video / Security"),
+        ("Wall station for iPad 10.9\" 10th gen with USB-C, black anodized / gold anodized / titanium anodized", "Keypads & Switches"),
+        ("USB-C charger & USB-C to USB-C cable", "Automation Accessories"),
+        ("Cat6 cabling including termination", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, advanced logic and centralized integration programming between all subsystems", S),
+    ]),
+    ("music", "Background Music System", [
+        ("8-inch 2-way in-ceiling speaker", "Audio / Video / Security"),
+        ("Outdoor 4.1 (4 satellites and 1 subwoofer) in-planter speakers", "Audio / Video / Security"),
+        ("Network audio streamer", "Audio / Video / Security"),
+        ("12 channel audio frequency amplifier", "Audio / Video / Security"),
+        ("Speaker cabling including termination - indoor", "Automation Accessories"),
+        ("Speaker cabling including termination - outdoor", "Automation Accessories"),
+        ("Cat6 patch cords", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, speaker calibration and tuning", S),
+    ]),
+    ("cctv", "CCTV System", [
+        ("4MP varifocal fixed bullet camera with night colour", "Audio / Video / Security"),
+        ("16 channel network video recorder", "Audio / Video / Security"),
+        ("24 port PoE network switch", "Audio / Video / Security"),
+        ("8 TB HDD", "Audio / Video / Security"),
+        ("CCTV monitor / laptop, supplied by client", "Audio / Video / Security"),
+        ("Cat6 patch cords", "Automation Accessories"),
+        ("Cat6 cabling including termination", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, camera mounting and alignment, camera configuration and rack dressing", S),
+    ]),
+    ("wifi", "Wi-Fi & IT Backend", [
+        ("Compact Wi-Fi 7 access point - indoor", "Audio / Video / Security"),
+        ("Wi-Fi 6 access point - indoor / outdoor", "Audio / Video / Security"),
+        ("Enterprise grade rack mount router / cloud gateway", "Audio / Video / Security"),
+        ("48 port PoE network switch, layer 3", "Audio / Video / Security"),
+        ("42U IT rack, shelves, tray, PDU & installation accessories", "Automation Accessories"),
+        ("Cat6a cabling including termination", "Automation Accessories"),
+        ("DB to DB, DB to rack communication Cat6a uplink cables, patch cords and patch panels for rack", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, Wi-Fi heatmaps, network subnet, SSID and threshold configuration, "
+         "rack dressing and cable management", S),
+    ]),
+    ("intercom", "Video Intercom & Access Control", [
+        ("IP video door station, keypad & RFID access, stainless steel with flush mount kit", "Intercom"),
+        ("Video answering station", "Intercom"),
+        ("EM lock and accessories, supplied by door contractor", "Intercom"),
+        ("RFID cards or key fobs, 10 pcs", "Intercom"),
+        ("Push button / exit button", "Intercom"),
+        ("Cat6 cabling including termination", "Automation Accessories"),
+        ("ELV power cables", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, integration with mortise locks and configuration", S),
+    ]),
+    ("fees", "Professional Fees", [
+        ("Project management, site mobilization and engineering services", S),
+    ]),
+]
+
+
+def listing():
+    return [{"key": k, "name": name, "section": name.upper(), "items": len(items)} for k, name, items in DIVISIONS]
