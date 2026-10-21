@@ -117,9 +117,10 @@ const PRODUCT_CATEGORIES = [
   'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light', 'Drivers', 'Accessories',
   'Track Accessories', 'BOH',
   // Automation
-  'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security',
+  'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls',
 ];
-const AUTOMATION_CATEGORIES = ['Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security'];
+const AUTOMATION_CATEGORIES = ['Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security',
+  'AC Controls'];
 // Lighting or Automation: products / stock show one at a time (no category counts as Lighting)
 const divisionOf = cat => AUTOMATION_CATEGORIES.includes(cat || '') ? 'automation' : 'lighting';
 const categoriesOf = division => PRODUCT_CATEGORIES.filter(c => divisionOf(c) === division);

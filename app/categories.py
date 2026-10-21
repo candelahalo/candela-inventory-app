@@ -7,9 +7,10 @@ PRODUCT_CATEGORIES = [
     "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
     "Track Accessories", "BOH",
     # Automation
-    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
+    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "AC Controls",
 ]
-AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security"]
+AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
+                         "AC Controls"]
 
 # Earlier category / type names and where they belong now
 _OLD_TYPE = {
@@ -31,6 +32,8 @@ def classify(text):
     t = (text or "").lower()
     if re.search(r"keypad|touch ?panel|push ?button|wall switch|scene switch|motion sensor|presence sensor|occupancy sensor", t):
         return "Keypads & Switches"
+    if re.search(r"thermostat|\bhvac\b|\bfcu\b|fan coil|\bvrf\b|\bvrv\b|a/?c (control|gateway|interface)|air[- ]?condition", t):
+        return "AC Controls"
     if re.search(r"curtain|\bblinds?\b|roller shade|shade motor|tubular motor", t):
         return "Curtains & Blinds"
     if re.search(r"intercom|speaker|amplifier|cctv|camera|door ?phone|access control", t):
