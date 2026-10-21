@@ -8,6 +8,15 @@ service lines (drawings, installation, commissioning, fees) are typed lines.
 S = None  # a service line, not a product
 
 DIVISIONS = [
+    ("central", "Centralized Control System", [
+        ("Automation controller", "Lighting Control"),
+        ("1 year remote access subscription kit", "Automation Accessories"),
+        ("iPad 10.9\" 10th gen, supplied by client", "Audio / Video / Security"),
+        ("Wall station for iPad 10.9\" 10th gen with USB-C, black anodized / gold anodized / titanium anodized", "Keypads & Switches"),
+        ("USB-C charger & USB-C to USB-C cable", "Automation Accessories"),
+        ("Cat6 cabling including termination", "Automation Accessories"),
+        ("CAD drawings, installation and commissioning, advanced logic and centralized integration programming between all subsystems", S),
+    ]),
     ("lighting", "Lighting, Shades and AC Control System", [
         ("Home Works QS 2-link control processor", "Lighting Control"),
         ("2 channel DALI gateway", "Lighting Control"),
@@ -25,15 +34,6 @@ DIVISIONS = [
         ("Cat6 cabling including termination", "Automation Accessories"),
         ("CAD drawings, installation and commissioning, logic and scene programming, zone-by-zone routing plans, "
          "load calculations, DB circuit labelling and termination, line testing, grounding requirements and final validation", S),
-    ]),
-    ("central", "Centralized Control System", [
-        ("Automation controller", "Lighting Control"),
-        ("1 year remote access subscription kit", "Automation Accessories"),
-        ("iPad 10.9\" 10th gen, supplied by client", "Audio / Video / Security"),
-        ("Wall station for iPad 10.9\" 10th gen with USB-C, black anodized / gold anodized / titanium anodized", "Keypads & Switches"),
-        ("USB-C charger & USB-C to USB-C cable", "Automation Accessories"),
-        ("Cat6 cabling including termination", "Automation Accessories"),
-        ("CAD drawings, installation and commissioning, advanced logic and centralized integration programming between all subsystems", S),
     ]),
     ("music", "Background Music System", [
         ("8-inch 2-way in-ceiling speaker", "Audio / Video / Security"),

@@ -1371,6 +1371,23 @@ async function adOpen() {
       ${escHtml(d.name)} <span class="muted">${d.items} item${d.items === 1 ? '' : 's'}${have.has(d.section) ? ' · in this quote' : ''}</span></label>`).join('');
   document.getElementById('ad-panel').hidden = false;
 }
+// The standard divisions in their usual order (Centralized control first); other sections after them
+function adOrder() {
+  const order = adList.map(d => d.section);
+  const container = document.getElementById('line-items');
+  const groups = [];
+  let cur = { name: null, els: [] };
+  [...container.children].forEach(el => {
+    if (el.classList.contains('section-block')) { groups.push(cur); cur = { name: el.querySelector('.sec-name').value.trim().toUpperCase(), els: [el] }; }
+    else cur.els.push(el);
+  });
+  groups.push(cur);
+  const rank = g => { const i = order.indexOf(g.name); return i < 0 ? order.length + 1 : i; };
+  const lead = groups[0].name === null ? groups.shift() : null;  // lines above the first heading stay on top
+  groups.sort((a, b) => rank(a) - rank(b));
+  if (lead) groups.unshift(lead);
+  groups.forEach(g => g.els.forEach(el => container.appendChild(el)));
+}
 function adRemoveSection(name) {
   const block = [...document.querySelectorAll('#line-items > .section-block')].find(b => b.querySelector('.sec-name').value.trim().toUpperCase() === name);
   if (!block) return;
@@ -1406,6 +1423,7 @@ document.getElementById('ad-apply').addEventListener('click', async () => {
   } else if (drop.length) {
     toast(`${drop.length} division${drop.length === 1 ? '' : 's'} taken out`);
   }
+  adOrder();
   renumberLines(); recalcMargins(); showInsertPoint();
   if (typeof mxApply === 'function') renderMatrix(true);
   document.getElementById('ad-panel').hidden = true;
