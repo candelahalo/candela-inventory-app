@@ -68,8 +68,22 @@ def _slug(s):
     return re.sub(r"[^A-Z0-9]+", "-", (s or "").upper()).strip("-")
 
 
+def automation_sku(name, brand=None):
+    """Automation products: AUTO-BRAND-first words, short (AUTO-CONTROL4-T4-SERIES-TOUCHSCREENS)."""
+    b = _slug((brand or "").upper().strip())
+    words = [w for w in (_slug(x) for x in _clean(name).upper().split()) if w]
+    if b:
+        if words[:1] == [b]:
+            words = words[1:]  # the brand is already the first word of the name
+    take = words[:3] if b else words[:4]
+    return "-".join(["AUTO"] + ([b] if b else []) + take)[:48].rstrip("-") or "AUTO"
+
+
 def standard_sku(name, brand=None, category=None):
     """SKU in the same order as the (standard) name: PREFIX-MODEL-WATT-CCT-FINISH."""
+    from app.categories import AUTOMATION_CATEGORIES
+    if category in AUTOMATION_CATEGORIES:
+        return automation_sku(name, brand)
     n = standard_name(name, brand, category)
     b = (brand or "").upper().strip()
     prefix = SKU_PREFIX.get(b) or (_slug(b)[:4] if b else "ITEM")

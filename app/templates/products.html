@@ -402,7 +402,7 @@ async function dsRead(file) {
     if (r.general) {
       // automation / general: name, brand, category, one line - no versions or lighting specs
       f.name.value = r.model || '';
-      f.sku.value = r.code || '';
+      f.sku.value = '';  // made on save: AUTO-BRAND-first words
       f.spec_summary.value = '';
       fillCategorySelect(f.category, AUTOMATION_CATEGORIES.includes(r.category) ? r.category : '');
       const vs = r.versions || [];
@@ -413,7 +413,7 @@ async function dsRead(file) {
         : '<span class="muted">Automation / general product — no wattage, CCT or finish versions.</span>'
           + (r.code ? ` <span class="muted">Code: <span class="mono">${escHtml(r.code)}</span></span>` : '');
       const vsel = document.getElementById('ds-gen-ver');
-      if (vsel) vsel.addEventListener('change', () => { const v = vs[parseInt(vsel.value)]; f.name.value = v.name; f.sku.value = v.code; });
+      if (vsel) vsel.addEventListener('change', () => { const v = vs[parseInt(vsel.value)]; f.name.value = v.name; });
       setFormKind('general');
       document.querySelectorAll('input[name=ds-start-kind]').forEach(x => { x.checked = x.value === 'supplier'; });
     } else {
