@@ -20,6 +20,13 @@ BRANDS = ["QUATTROBI", "TRIDONIC", "LEDVANCE", "OSRAM", "PHILIPS", "SIGNIFY", "I
           "DELTA LIGHT", "ARTEMIDE", "LINEA LIGHT", "SIMES", "BEGA", "ZUMTOBEL", "THORN", "LUCE5", "LEDS C4",
           "MEAN WELL", "LUTRON", "HELVAR", "FOSCARINI", "VIBIA", "SLV", "XAL", "ARKOSLIGHT", "OLIGO",
           "HALO", "RUHA"]
+# Automation / general brands (looked for only when reading a general datasheet)
+GENERAL_BRANDS = ["HAGER", "THINKNX", "SCHNEIDER", "ABB", "GIRA", "JUNG", "BASALTE", "CONTROL4", "CRESTRON", "SAVANT",
+                  "DOORBIRD", "HIKVISION", "DAHUA", "UBIQUITI", "SONOS", "BOSE", "BOWERS & WILKINS", "B&W", "SONANCE",
+                  "COOLAUTOMATION", "ZENNIO", "MDT", "STEINEL", "THEBEN", "BLACK NOVA", "EKINEX", "INTESIS", "LUTRON",
+                  "SIEMENS", "LEGRAND", "BTICINO", "SOMFY", "SOMFY", "DOOYA", "KNX", "AMX", "DENON", "MARANTZ", "BLUESOUND",
+                  "ANTHEM", "TP-LINK", "TPLINK", "CISCO", "ARUBA", "DALI", "HELVAR", "ESYLUX", "B.E.G.", "BEG",
+                  "INNOXEL", "HDL", "LOXONE", "FIBARO", "AQARA", "2N", "AKUVOX", "FERMAX", "COMELIT", "VIMAR"]
 FINISHES = ["WHITE", "BLACK", "GREY", "GRAY", "SILVER", "GOLD", "BRONZE", "BRASS", "CHAMPAGNE", "ANTHRACITE",
             "CHROME", "NICKEL", "COPPER", "TITANIUM", "CORTEN"]
 
@@ -434,3 +441,137 @@ def read(data: bytes, filename: str = "") -> dict:
             "series": series, "variant": variant, "series_options": options, "accessories": accessories,
             "spec": spec, "options": {"watt": watts, "cct": ccts, "finish": finishes},
             "photo": photo, "halo": brand in ("HALO", "RUHA")}
+
+
+CODE_RE = r"[A-Z0-9]{2,}(?:[-./][A-Z0-9]+){1,5}"
+
+
+def _general_photo(page):
+    """Like _photo, but pictures made of several layers (two screens side by side) are
+    taken together, and the title text printed over them is left out."""
+    imgs = [i for i in page.images if (i["x1"] - i["x0"]) > 60 and (i["bottom"] - i["top"]) > 60]
+    if not imgs:
+        return None
+    area = lambda i: (i["x1"] - i["x0"]) * (i["bottom"] - i["top"])  # noqa: E731
+    biggest = max(area(i) for i in imgs)
+    big = [i for i in imgs if area(i) >= biggest * 0.5]
+    top_img = min(big, key=lambda i: i["top"])
+    # layers that overlap the top picture belong to it
+    group = [i for i in big if i["top"] < top_img["bottom"] and i["bottom"] > top_img["top"]]
+    x0 = max(min(i["x0"] for i in group), 0); x1 = min(max(i["x1"] for i in group), page.width)
+    t0 = max(min(i["top"] for i in group), 0); b1 = min(max(i["bottom"] for i in group), page.height)
+    words = page.extract_words(extra_attrs=["size"])
+    if words:
+        size = max(w["size"] for w in words if w["top"] < page.height * 0.3) if any(w["top"] < page.height * 0.3 for w in words) else 0
+        over = [w for w in words if w["size"] >= size * 0.7 and w["bottom"] > t0 and w["top"] < b1 and w["x1"] > x0 and w["x0"] < x1]
+        if over:
+            t0 = max(t0, max(w["bottom"] for w in over) + 2)
+    if b1 - t0 < 40:
+        return _photo(page)
+    try:
+        src_w = (top_img.get("srcsize") or (0, 0))[0] or 0
+        dpi = src_w / ((top_img["x1"] - top_img["x0"]) / 72) if src_w else 300
+    except Exception:
+        dpi = 300
+    dpi = max(200, min(dpi, 400))
+    try:
+        im = page.crop((x0, t0, x1, b1)).to_image(resolution=dpi).original.convert("RGB")
+    except Exception:
+        return _photo(page)
+    im.thumbnail((1600, 1600))
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=92)
+    return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode()
+
+
+def _general_title(page):
+    """The biggest text at the top of page 1, as one line ("T5 SERIES IN-WALL TOUCHSCREENS")."""
+    words = page.extract_words(extra_attrs=["size"])
+    top = [w for w in words if w["top"] < page.height * 0.3]
+    if not top:
+        return ""
+    big = max(w["size"] for w in top)
+    sel = sorted([w for w in top if w["size"] >= big * 0.7], key=lambda w: (round(w["top"] / 4), w["x0"]))
+    return re.sub(r"\s+", " ", " ".join(w["text"] for w in sel)).strip()
+
+
+def read_general(data: bytes, filename: str = "") -> dict:
+    """An automation / general datasheet: name, brand, category, the model
+    numbers it lists (each one can be the product), one short line and the
+    photo - none of the lighting specs."""
+    from app.categories import AUTOMATION_CATEGORIES
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        first = pdf.pages[0]
+        text = "\n".join((p.extract_text() or "") for p in pdf.pages[:3]).replace("\x00", "fi")
+        title = _general_title(first)
+        photo = _general_photo(first)
+    text = text.replace("”", '"').replace("″", '"').replace("“", '"')
+    title = title.replace("”", '"').replace("“", '"')
+    up = text.upper()
+    brand = next((b for b in GENERAL_BRANDS + BRANDS
+                  if b != "KNX" and re.search(r"(?<![A-Z0-9])" + re.escape(b) + r"(?![A-Z0-9])", up)), "")
+    if not brand and filename:
+        w = re.split(r"[\s_\-.]+", filename.upper())
+        brand = next((b for b in GENERAL_BRANDS if any(x.startswith(b.replace(" ", "")) for x in w)), "")
+    # the product, not the range: "T5 SERIES IN-WALL TOUCHSCREENS" -> "T5 IN-WALL TOUCHSCREEN"
+    t = re.sub(r"\bSERIES\b|\bRANGE\b|\bFAMILY\b", " ", title.upper())
+    t = re.sub(re.escape(brand) + r"\s*", "", t) if brand else t
+    t = re.sub(r"(SCREEN|PANEL|SWITCH|KEYPAD|SENSOR|CAMERA|SPEAKER|ACTUATOR|MODULE|GATEWAY|CONTROLLER)S\b", r"\1", t)
+    t = re.sub(r"\s+", " ", t).strip(" -·|")
+    # model numbers: "11\" Midnight Black (Matte): C4-T5IW11-MB"
+    versions, seen = [], set()
+    for m in re.finditer(r"([^\n:]{2,50}?):\s*(" + CODE_RE + r")\b", text):
+        label, code = m.group(1).strip(" •-"), m.group(2)
+        label = re.sub(r"^(model|part|order|article)\s*(numbers?|codes?|no\.?)\s*", "", label, flags=re.I).strip()
+        if not re.search(r"\d", code) or code in seen or len(label) > 40:
+            continue
+        if re.search(r"(model|part|order|article|code)s?\s*(numbers?|no\.?)?$", label, re.I):
+            label = ""
+        seen.add(code)
+        versions.append({"label": re.sub(r"\s+", " ", label), "code": code})
+    if not versions:  # "8\" T5 IN-WALL TOUCHSCREEN (C4-T5IW8-MB/WH)"
+        for m in re.finditer(r"([^\n()]{3,60})\((" + CODE_RE + r")\)", text):
+            code = m.group(2)
+            if re.search(r"\d", code) and code not in seen:
+                seen.add(code)
+                versions.append({"label": m.group(1).strip(), "code": code})
+    versions = versions[:20]
+    for v in versions:
+        extra = re.sub(r"\(.*?\)", "", v["label"]).upper().strip()
+        v["name"] = re.sub(r"\s+", " ", f"{t} {extra}").strip() if extra and extra not in t else t
+    lines = [l.strip() for l in text.splitlines()]
+    # a short title ("TXA112"): add the line under it ("KNX power supply 320 mA ...")
+    if len(t.split()) <= 2:
+        for i, l in enumerate(lines):
+            if l.upper().replace("”", '"') == title.upper() and i + 1 < len(lines) and 8 < len(lines[i + 1]) <= 80:
+                t = (t + " " + re.sub("^" + re.escape(t) + r"\s*", "", lines[i + 1].upper())).strip()
+                break
+    # one line saying what it is: the first real sentence (lines joined until its full stop)
+    desc = ""
+    for i, l in enumerate(lines):
+        letters = [c for c in l if c.isalpha()]
+        if len(l.split()) >= 6 and letters and sum(c.islower() for c in letters) > len(letters) * 0.5 and not l.startswith("•"):
+            buf = l
+            for nxt in lines[i + 1:i + 4]:
+                if "." in buf or not nxt or nxt.startswith("•"):
+                    break
+                buf += " " + nxt
+            desc = buf.split(". ")[0].rstrip(".") + "."
+            break
+    cat = ""
+    for src in (t, title, desc, text[:1500]):
+        g = classify(src)
+        if g in AUTOMATION_CATEGORIES:
+            cat = g
+            break
+    first_v = versions[0] if versions else None
+    lone = ""  # "TXA112 KNX POWER SUPPLY ..." -> code TXA112
+    if not versions and t:
+        w0 = t.split()[0]
+        if re.search(r"\d", w0) and re.search(r"[A-Z]", w0) and len(w0) >= 4:
+            lone = w0
+    return {"general": True, "model": first_v["name"] if first_v else t, "title": t,
+            "code": first_v["code"] if first_v else lone, "versions": versions,
+            "brand": brand, "category": cat, "description": desc[:200], "photo": photo, "halo": False,
+            "series": "", "variant": "", "series_options": None, "accessories": [], "spec": [],
+            "options": {"watt": [], "cct": [], "finish": []}}

@@ -149,7 +149,7 @@ def set_datasheet_mode(product_id: int, mode: str, db: Session = Depends(get_db)
 
 
 @router.post("/from-datasheet")
-def read_datasheet(file: UploadFile = File(...)):
+def read_datasheet(file: UploadFile = File(...), kind: str = "light"):
     """Read a datasheet PDF to fill the new-product form: model, brand,
     category, spec rows, the versions it lists and its main photo. Nothing is
     saved here - the form is saved as usual, then the PDF attached."""
@@ -158,9 +158,10 @@ def read_datasheet(file: UploadFile = File(...)):
         raise HTTPException(status_code=413, detail="That PDF is over 60 MB")
     if not data.lstrip()[:5].startswith(b"%PDF"):
         raise HTTPException(status_code=400, detail="That isn't a PDF file")
-    from app.datasheet_read import read
+    from app.datasheet_read import read, read_general
     try:
-        return read(data, file.filename or "")
+        # kind=general: automation and other non-light products - no lighting specs
+        return read_general(data, file.filename or "") if kind == "general" else read(data, file.filename or "")
     except Exception:
         raise HTTPException(status_code=400, detail="Couldn't read that PDF - fill the form by hand")
 

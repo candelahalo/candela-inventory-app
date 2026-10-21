@@ -1262,3 +1262,6 @@ body.mx-noscroll { overflow: hidden; }
 .ad-head { font-size: 13px; margin-bottom: 8px; }
 .ad-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 18px; font-size: 14px; }
 .ad-actions { display: flex; gap: 8px; margin-top: 10px; }
+/* Products: light vs automation / general datasheet */
+.ds-ptype { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
+.ds-ptype label { display: inline-flex; gap: 5px; align-items: center; font-weight: 400; margin: 0; }
