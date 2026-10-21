@@ -211,11 +211,7 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
   <div class="tk">Validity</div><div class="tv">{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
   <div class="tk">Payment</div><div class="tv">{{ q.payment_terms }}</div>
 </div>
-{% if not full %}<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>
-<div class="approve qc-sign">
-  <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or 'Authorized Signatory' }}</strong><br><span class="muted">{{ q.prepared_by_title or '' }}</span></div></div>
-  <div><div class="lbl">Accepted by client</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature &amp; date</span></div></div>
-</div>{% endif %}
+{% if not full %}<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>{% endif %}
 <div class="page-break-after"></div>
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
