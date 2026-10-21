@@ -63,8 +63,8 @@ table.boq .c { text-align: center; }
 table.boq .t { font-weight: 600; }
 table.boq .d { color: #7A7466; font-size: 8.3px; }
 table.boq tr.total td { background: #F3EEE2; font-weight: 700; font-size: 10px; border-bottom: 0; }
-.photos { display: flex; gap: 6mm; margin-top: 7mm; justify-content: center; }
-.photos div { width: 48mm; height: 40mm; border: 0.75px solid #EEE7D6; border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 2mm; background: #fff; }
+.photos { display: flex; gap: 4mm; margin-top: 4mm; justify-content: center; }
+.photos div { width: 30mm; height: 24mm; border: 0.75px solid #EEE7D6; border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 2mm; background: #fff; }
 .photos img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 /* Room matrix */
@@ -84,9 +84,22 @@ table.mx tr:nth-child(even) td { background: #FAF8F2; }
 table.mx tr.total td { background: #F3EEE2; font-weight: 700; border-bottom: 0; }
 .mx-note { margin-top: 3mm; font-size: 8px; color: #8A8473; }
 
+/* Systems follow one another; a system never splits unless it is longer than a page */
+.sys { margin-top: 10mm; }
+.sys-head, .notes { break-after: avoid; }
+table.boq tr { break-inside: avoid; }
+table.boq tr.total { break-before: avoid; }
+.photos { break-inside: avoid; break-before: avoid; }
+.terms-block { margin-top: 12mm; }
+.summary-block { margin-top: 12mm; break-inside: avoid; }
+.tsec h3 { break-after: avoid; }
+.kicker, h2 { break-after: avoid; }
+.terms-block .tsec:first-of-type { break-before: avoid; }
+.approve { break-inside: avoid; }
+
 /* Summary */
 table.sum { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5mm; }
-table.sum td { padding: 3mm 2mm; border-bottom: 0.5px solid #E6DFCC; }
+table.sum td { padding: 2.2mm 2mm; border-bottom: 0.5px solid #E6DFCC; }
 table.sum td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 table.sum td.no { width: 10mm; color: #C77D0A; font-weight: 700; }
 table.sum tr.sub td { font-weight: 600; border-top: 1px solid #201E1A; }
@@ -101,9 +114,9 @@ table.ms { width: 100%; border-collapse: collapse; font-size: 9.6px; }
 table.ms td { padding: 2mm; border-bottom: 0.5px solid #E6DFCC; }
 table.ms td.pct { width: 16mm; font-weight: 700; color: #C77D0A; }
 table.ms td.num { text-align: right; white-space: nowrap; }
-.approve { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: 14mm; }
+.approve { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: 10mm; }
 .approve .lbl { font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; color: #9A9382; }
-.approve .line { border-top: 0.75px solid #201E1A; margin-top: 16mm; padding-top: 2mm; font-size: 9px; }
+.approve .line { border-top: 0.75px solid #201E1A; margin-top: 13mm; padding-top: 2mm; font-size: 9px; }
 </style>
 </head>
 <body>
@@ -134,7 +147,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <div class="kicker">Introduction</div>
   <h2 style="margin-bottom:6mm">Dear {{ q.attention_to or q.customer.name }},</h2>
   <p>Thank you for inviting us to propose for {{ q.project.name if q.project else 'your project' }}. We are pleased to submit our techno-commercial proposal for the supply, installation, programming, testing and commissioning of the systems listed below.</p>
-  <p>Each system is set out on its own page with its scope, the equipment considered and its price, followed by a price summary and our terms.</p>
+  <p>Each system is set out with its scope, the equipment considered and its price, followed by a price summary and our terms.</p>
   {% if p.brands %}<div class="kicker" style="margin-top:4mm">Brands proposed</div>
   <div class="brands">{% for b in p.brands %}<span>{{ b|upper }}</span>{% endfor %}</div>{% endif %}
   <div class="terms">
@@ -149,7 +162,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
 {% for s in p.systems %}
-<div class="page">
+<div class="sys">
   <div class="sys-head"><div class="sys-no">{{ '%02d' % s.no }}</div><div class="sys-name">{{ s.name }}</div></div>
   {% if s.notes %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   <table class="boq">
@@ -170,24 +183,8 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 </div>
 {% endfor %}
 
-<!-- ===== ROOM MATRIX: A PAGE PER FLOOR ===== -->
-{% for f in p.matrix %}
-<div class="mx-page">
-  <div class="mx-head"><div><div class="kicker">Device schedule by room</div><div class="sys-name">{{ f.name }}</div></div>
-    <div class="muted" style="font-size:8px">Ref = system . line in this proposal</div></div>
-  <table class="mx">
-    <thead><tr><th class="room">Room</th>
-      {% for c in f.cols %}<th>{% if c.photo %}<span class="ph"><img src="{{ c.photo }}"></span>{% endif %}<span class="ref">{{ c.ref }}</span>{{ c.title }}</th>{% endfor %}</tr></thead>
-    <tbody>
-    {% for r in f.rooms %}<tr><td class="room">{{ r.name }}</td>{% for n in r.cells %}<td{% if not n %} class="z"{% endif %}>{{ n if n else '–' }}</td>{% endfor %}</tr>{% endfor %}
-      <tr class="total"><td class="room">Total — {{ f.name }}</td>{% for n in f.totals %}<td>{{ n }}</td>{% endfor %}</tr>
-    </tbody>
-  </table>
-</div>
-{% endfor %}
-
 <!-- ===== PRICE SUMMARY ===== -->
-<div class="page">
+<div class="summary-block">
   <div class="kicker">Conclusion</div>
   <h2>Price summary</h2>
   <table class="sum">
@@ -199,14 +196,10 @@ table.ms td.num { text-align: right; white-space: nowrap; }
     <tr><td></td><td>VAT {{ "%g"|format(q.vat_percent) }}%</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</td></tr>
     <tr class="grand"><td></td><td>Total including VAT</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
   </table>
-  <div class="approve" style="margin-top:22mm">
-    <div><div class="lbl">Prepared by</div><div class="line"><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ q.prepared_by_title or '' }}</span></div></div>
-    <div><div class="lbl">For {{ ent.name }}</div><div class="line">Signature &amp; stamp</div></div>
-  </div>
 </div>
 
 <!-- ===== TERMS & APPROVAL ===== -->
-<div class="page">
+<div class="terms-block">
   <div class="kicker">Agreement</div>
   <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
   {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
@@ -220,10 +213,26 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   </div>
   {% if q.notes %}<div class="tsec"><h3>Notes</h3><div style="white-space:pre-line">{{ q.notes }}</div></div>{% endif %}
   <div class="approve">
-    <div><div class="lbl">Client approval</div><div class="line">Name, signature &amp; stamp</div></div>
-    <div><div class="lbl">Date</div><div class="line">&nbsp;</div></div>
+    <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or '' }}</strong>{% if q.prepared_by_title %} — {{ q.prepared_by_title }}{% endif %}<br><span class="muted">Signature, stamp &amp; date</span></div></div>
+    <div><div class="lbl">Client approval</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature, stamp &amp; date</span></div></div>
   </div>
 </div>
+
+<!-- ===== ROOM MATRIX: A PAGE PER FLOOR ===== -->
+{% for f in p.matrix %}
+<div class="mx-page">
+  <div class="mx-head"><div><div class="kicker">Appendix — device schedule by room</div><div class="sys-name">{{ f.name }}</div></div>
+    <div class="muted" style="font-size:8px">Ref = system . line in this proposal</div></div>
+  <table class="mx">
+    <thead><tr><th class="room">Room</th>
+      {% for c in f.cols %}<th>{% if c.photo %}<span class="ph"><img src="{{ c.photo }}"></span>{% endif %}<span class="ref">{{ c.ref }}</span>{{ c.title }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in f.rooms %}<tr><td class="room">{{ r.name }}</td>{% for n in r.cells %}<td{% if not n %} class="z"{% endif %}>{{ n if n else '–' }}</td>{% endfor %}</tr>{% endfor %}
+      <tr class="total"><td class="room">Total — {{ f.name }}</td>{% for n in f.totals %}<td>{{ n }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+</div>
+{% endfor %}
 
 </body>
 </html>
