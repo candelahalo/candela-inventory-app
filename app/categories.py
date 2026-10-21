@@ -31,15 +31,21 @@ _ACCESSORY = r"connector|channel|end ?cap|\bkit\b|feeder|bracket|accessor"
 def classify(text):
     """Best-guess category from a product's name / spec, or None."""
     t = (text or "").lower()
+    if re.search(r"installation|commissioning|testing|programming|labou?r|site coordination", t):
+        return None  # a service line, not a product category
     if re.search(r"intercom|door ?phone|door ?station|video entry|villa station", t):
         return "Intercom"
-    if re.search(r"(motion|presence|occupancy|daylight|lux|pir|leak|smoke|temperature|humidity|door|window)\s*(/\s*\w+\s*)?sensor|\bsensors?\b", t) \
+    if re.search(r"thermostat|\bhvac\b|\bfcu\b|fan coil|\bvrf\b|\bvrv\b|a/?c (control|gateway|interface|integration)"
+                 r"|for ac\b|air[- ]?condition|coolmaster|temperature control", t):
+        return "AC Controls"
+    if re.search(r"keypad|touch ?screen|touch ?panel|push ?button|wall switch|scene switch|\b\d+\s*buttons?\b", t):
+        return "Keypads & Switches"
+    if re.search(r"\bcables?\b", t):
+        return "Accessories"
+    if re.search(r"(motion|presence|occupancy|daylight|lux|pir|leak|smoke|temperature|humidity|door|window)\s*(/\s*\w+\s*)?sensor"
+                 r"|\bsensors?\b|presence detector|motion detector", t) \
             and not re.search(r"\bdriver\b|luminaire|spotlight|downlight", t):
         return "Sensors"
-    if re.search(r"keypad|touch ?panel|push ?button|wall switch|scene switch", t):
-        return "Keypads & Switches"
-    if re.search(r"thermostat|\bhvac\b|\bfcu\b|fan coil|\bvrf\b|\bvrv\b|a/?c (control|gateway|interface)|air[- ]?condition", t):
-        return "AC Controls"
     if re.search(r"curtain|\bblinds?\b|roller shade|shade motor|tubular motor", t):
         return "Curtains & Blinds"
     if re.search(r"speaker|amplifier|cctv|camera|access control", t):

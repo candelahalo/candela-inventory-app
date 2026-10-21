@@ -215,7 +215,7 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     # Every line to a product: recognised by its spec fingerprint, or created
     created, by_key = [], {}
-    for it in product_defs(result["items"]):
+    for it in product_defs(result["items"], result.get("division")):
         d = it.pop("_product")
         for k in ("_lead", "_desc", "_brandcol"):
             it.pop(k, None)
@@ -241,7 +241,7 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
             db.flush()
             log_activity(db, current.username, "product", prod.id, f"{prod.sku} — {prod.name}", "created",
                          f"from quotation PDF {result.get('original_number') or file.filename or ''}".strip())
-            created.append(f"{prod.sku} — {prod.name}")
+            created.append({"id": prod.id, "sku": prod.sku, "name": prod.name, "category": prod.category})
         else:
             if not prod.is_active:
                 prod.is_active = True

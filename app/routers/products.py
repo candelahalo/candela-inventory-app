@@ -308,6 +308,23 @@ def add_accessories(payload: AccessoriesIn, db: Session = Depends(get_db), curre
     return {"created": created, "skipped": skipped}
 
 
+@router.put("/{product_id}/category")
+def set_category(product_id: int, category: str = "", db: Session = Depends(get_db),
+                 current: models.User = Depends(auth.get_current_user)):
+    """Just the category (e.g. checking the products a quotation import added)."""
+    from app.categories import PRODUCT_CATEGORIES
+    product = db.query(models.Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if category and category not in PRODUCT_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Unknown category")
+    product.category = category or None
+    log_activity(db, current.username, "product", product.id, f"{product.sku} — {product.name}", "updated",
+                 "category: " + (category or "none"))
+    db.commit()
+    return {"category": product.category}
+
+
 @router.get("/{product_id}/usage")
 def product_usage(product_id: int, db: Session = Depends(get_db)):
     """Stock by warehouse, what open jobs still need, and where it's been quoted."""

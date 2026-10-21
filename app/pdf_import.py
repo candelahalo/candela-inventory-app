@@ -224,16 +224,27 @@ def _line_image(page, band, cols):
     return None
 
 
-def _parse_table_page(page, items, totals, warnings, want_images):
+def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None):
+    """Reads one page of the schedule; returns its columns, so a page that
+    carries on without a header row is read with the columns of the one before."""
     lines = _lines(page.extract_words())
     header = _header(lines)
-    if not header:
-        return
-    cols = _columns(header)
+    if header:
+        cols = _columns(header)
+    elif prev_cols:
+        cols = prev_cols
+        header = {"top": 0, "bottom": 0}
+    else:
+        return None
     if not all(k in cols for k in ("desc", "qty", "price", "total")):
         warnings.append(f"Page {page.page_number}: couldn't find all the item columns.")
-        return
+        return None
     body = [ln for ln in lines if ln["top"] > header["bottom"] + 1]
+    # Section headings ("FRONT END MATERIALS", "INTERCOM") start left of the
+    # item numbers: not part of any item's description
+    left = cols.get("sl", cols.get("brand", cols["desc"])) - 4
+    body = [ln for ln in body if not (ln["words"][0]["x0"] < left and not re.search(r"\d\.\d\d", ln["text"])
+                                      and ln["text"].upper() == ln["text"])]
 
     def cells(ln):
         c = {}
@@ -250,7 +261,7 @@ def _parse_table_page(page, items, totals, warnings, want_images):
         elif anchors and re.search(r"[\d,]+\.\d\d", ln["text"]):
             total_lines.append(ln)
     if not anchors:
-        return
+        return cols
 
     # The table runs to the totals, or to the foot of the page when it carries on overleaf
     table_bottom = (total_lines[0]["top"] - 1) if total_lines else page.height
@@ -315,6 +326,7 @@ def _parse_table_page(page, items, totals, warnings, want_images):
         amounts = [w["text"] for w in ln["words"] if w["x0"] >= cols["price"] - 3 and _is_num(w["text"])]
         if label.strip() and amounts:
             totals.append((_clean(label), _num(amounts[-1])))
+    return cols
 
 
 # ---------- whole document ----------
@@ -352,9 +364,16 @@ def _field(lines, name):
     return None
 
 
+COUNTRIES = r"(GERMANY|ITALY|SPAIN|FRANCE|UAE|DUBAI|CHINA|UK|USA|TURKEY|INDIA|NETHERLANDS|BELGIUM|SWITZERLAND|AUSTRIA|DENMARK|SWEDEN|POLAND|JAPAN|KOREA)"
+
+
 def _clean_brand(b):
-    # "QUATTROBI - ITALY" -> QUATTROBI, "HALO-UK" -> HALO
-    return re.split(r"\s*-\s*", (b or "").strip())[0].strip() or None
+    # "QUATTROBI - ITALY" -> QUATTROBI, "HALO-UK" -> HALO, "HAGER GERMANY" -> HAGER,
+    # "CoolAutoma tion" (wrapped in its cell) -> CoolAutomation
+    b = re.split(r"\s*-\s*", (b or "").strip())[0].strip()
+    b = re.sub(r"\s+" + COUNTRIES + r"$", "", b, flags=re.I).strip()
+    b = re.sub(r"([a-z])\s+([a-z]{1,5})$", r"\1\2", b)
+    return b or None
 
 
 def _category(text):
@@ -362,7 +381,7 @@ def _category(text):
     return classify(text), None
 
 
-def product_defs(items):
+def product_defs(items, division=None):
     """For each imported line: the product it stands for (name, brand,
     spec in the quotation's own format, SKU, a fingerprint to recognise it
     again), keyed so identical items share one product."""
@@ -372,7 +391,18 @@ def product_defs(items):
         if it.get("sl") or parent is None:
             brand = _clean_brand(it.get("_brandcol"))
             model = _field(spec, "Model")
-            model = model.split(",")[0].strip() if model else next((l for l in spec if ":" not in l), None)
+            if model:
+                model = model.split(",")[0].strip()
+            else:
+                # No "Model:" line (e.g. automation items): the description's first
+                # lines, joined while they carry on ("…SWITCH/SHUTTER" + "ACTUATOR 16A C-LOAD")
+                free = [l for l in spec if ":" not in l]
+                model = free[0] if free else None
+                for nxt in (free[1:] if division == "automation" else []):
+                    if len(model) + len(nxt) > 70:
+                        break
+                    model = model.rstrip() + " " + nxt
+                model = re.sub(r"[\s,\-/]+$", "", model) if model else None
             watt, cct, finish = _field(spec, "Wattage"), _field(spec, "CCT"), _field(spec, "Finish")
             name = " ".join(filter(None, [model, watt, cct, finish])) or (it.get("_lead") or "Item")
             prefix = SKU_PREFIX.get((brand or "").upper(), _slug(brand)[:4] or "ITEM")
@@ -380,6 +410,8 @@ def product_defs(items):
                                          (_slug(cct).replace("000K", "0K") if cct else None),
                                          FINISH_CODE.get((finish or "").lower())]))
             cat, typ = _category(" ".join([model or "", _field(spec, "Type") or "", " ".join(spec[:2])]))
+            if not cat and division == "automation":  # keypads, sensors ...: their words can be further down
+                cat, typ = _category(" ".join([model or "", it.get("_lead") or "", " ".join(spec)]))
             it["_product"] = {"key": "m|" + _norm(brand) + "|" + _norm("\n".join(spec)), "name": name[:255],
                               "brand": brand, "sku": sku[:64], "spec": "\n".join(spec) or None,
                               "category": cat, "product_type": typ}
@@ -407,7 +439,9 @@ def product_defs(items):
         cat, typ = _category(name if driver or text else label)
         it["_product"] = {"key": "s|" + _norm(brand) + "|" + _norm(ref) + "|" + _norm(text or label),
                           "name": name[:255], "brand": brand, "sku": sku[:64], "spec": name,
-                          "category": cat or "Accessories", "product_type": typ}
+                          # in an automation quote a line under an item isn't necessarily an accessory
+                          "category": cat or (None if division == "automation" else "Accessories"),
+                          "product_type": typ}
     # Different items that came out with the same name (e.g. stretch ceilings
     # of different sizes): add the dimension to tell them apart
     seen = {}
@@ -449,6 +483,7 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
             raise ValueError("The PDF has no pages.")
         _parse_cover(pdf.pages[0], out)
         title = ""
+        cols = None
         for page in pdf.pages:
             if not title:
                 # The schedule's heading, e.g. "RETAIL LIGHTING _NARS AVENTURE MALL KUWAIT"
@@ -457,7 +492,7 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
                 above = [l for l in plines if hdr and l["bottom"] < hdr["top"]]
                 if above:
                     title = above[0]["text"]
-            _parse_table_page(page, items, totals, warnings, save_image is not None)
+            cols = _parse_table_page(page, items, totals, warnings, save_image is not None, cols) or cols
         text_all = "\n".join((p.extract_text() or "") for p in pdf.pages[-2:])
 
     if not items:
@@ -511,7 +546,7 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
             pdf_totals["gross"] = amount
         elif "vat" in low and "excl" not in low and "total" not in low:
             pdf_totals["vat"] = amount
-        elif "total" in low:
+        elif "total" in low or ("amount" in low and "excl" in low):  # "Amount in AED (VAT Excluded)"
             pdf_totals.setdefault("total", amount)
 
     gross = round(sum(i["line_total"] for i in items), 2)

@@ -692,6 +692,29 @@ function checkRuns(block) {
   out.className = 'li-runs-check ' + (ok ? 'ok' : 'warn');
 }
 
+// New products from an imported quotation: check each one's category right here
+function importedProductsCheck(list) {
+  if (!list.length) return '';
+  const opts = cur => `<option value="">— not set —</option>` + ['lighting', 'automation'].map(dv =>
+    `<optgroup label="${dv === 'lighting' ? 'Lighting' : 'Automation'}">` + categoriesOf(dv).map(c =>
+      `<option${c === cur ? ' selected' : ''}>${escHtml(c)}</option>`).join('') + '</optgroup>').join('');
+  const unset = list.filter(p => !p.category).length;
+  return `<div class="imp-check"><div><strong>Check the new products' categories</strong>
+      ${unset ? `<span class="overdue-text">— ${unset} without a category</span>` : ''} <span class="muted">(saved as you change them)</span></div>
+    <table>${list.map(p => `<tr class="${p.category ? '' : 'imp-unset'}"><td class="mono">${escHtml(p.sku)}</td>
+      <td><a href="/products/view/${p.id}" target="_blank">${escHtml(p.name)}</a></td>
+      <td><select onchange="setImportedCategory(${p.id}, this)">${opts(p.category)}</select></td></tr>`).join('')}</table></div>`;
+}
+async function setImportedCategory(id, sel) {
+  try {
+    await api(`/products/${id}/category?category=${encodeURIComponent(sel.value)}`, { method: 'PUT' });
+    sel.closest('tr').classList.toggle('imp-unset', !sel.value);
+    const p = productsCache.find(x => x.id === id);
+    if (p) p.category = sel.value || null;
+    toast('Category saved');
+  } catch (err) { toast(err.message, true); }
+}
+
 function recalcMargins() {
   if (!isAdmin) return;
   let revenue = 0, cost = 0;
@@ -1258,7 +1281,7 @@ function openImportedQuotation(d, fileName) {
     'Check it, then <strong>Save quotation</strong> — it gets the next app number; the original number is kept in Notes. The quotation isn\'t saved yet.',
   ];
   const note = document.getElementById('import-note');
-  note.innerHTML = parts.map(x => `<div>${x}</div>`).join('');
+  note.innerHTML = parts.map(x => `<div>${x}</div>`).join('') + importedProductsCheck(d.created_products || []);
   note.style.display = 'block';
   recalcMargins();
   window.scrollTo({ top: 0, behavior: 'smooth' });
