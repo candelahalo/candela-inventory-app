@@ -423,8 +423,9 @@ function applyLineOptions(block) {
 function lineRow(item) {
   // The blank option is a custom line: something not in the product list
   // (its description, unit and photo live on the line itself).
-  const opts = productOptions('', '', item ? item.product_id : null);
+  // The product list follows the line's category (all products when it has none)
   const cat = item && item.product_id ? ((productsCache.find(p => p.id === item.product_id) || {}).category || '') : '';
+  const opts = productOptions(cat, '', item ? item.product_id : null);
   const catOpts = `<option value="">All</option>` + PRODUCT_CATEGORIES.map(c => `<option${c === cat ? ' selected' : ''}>${c}</option>`).join('')
     + `<option value="__other">Other</option>`;
   return `<div class="line-item-block" data-line-image="${item && item.image_path ? escHtml(item.image_path) : ''}">
