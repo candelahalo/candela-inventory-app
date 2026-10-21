@@ -128,6 +128,8 @@ class Customer(Base):
     address = Column(Text)
     trn = Column(String(64))  # UAE Tax Registration Number
     category = Column(String(20), index=True)  # "retail" or "residential"
+    # Company their quotations come from: "candelaria" (all) or "candela" (e.g. Infinia), see app/entity.py
+    quote_entity = Column(String(20), default="candelaria", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     quotations = relationship("Quotation", back_populates="customer")

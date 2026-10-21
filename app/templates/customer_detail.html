@@ -28,6 +28,12 @@
           <option value="residential">Residential</option>
         </select>
       </div>
+      <div class="field"><label>Quotations from</label>
+        <select name="quote_entity">
+          <option value="candelaria">Candelaria Light Fittings Trading LLC</option>
+          <option value="candela">Candela Lighting and Automation LLC</option>
+        </select>
+      </div>
       <div class="field"><label>Email</label><input name="email" type="email"></div>
       <div class="field"><label>Phone</label><input name="phone"></div>
       <div class="field"><label>TRN</label><input name="trn"></div>
@@ -78,6 +84,7 @@ async function load() {
   document.getElementById('contact-body').innerHTML =
     row('Company', esc(c.company) || '—') +
     row('Category', c.category ? `<span class="badge cat-${c.category}">${cap(c.category)}</span>` : '—') +
+    row('Quotations from', c.quote_entity === 'candela' ? 'Candela Lighting and Automation LLC' : 'Candelaria Light Fittings Trading LLC') +
     row('Email', c.email ? `<a class="panel-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—') +
     row('Phone', c.phone ? `<a class="panel-link" href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—') +
     row('TRN', esc(c.trn) || '—') +
@@ -118,6 +125,7 @@ async function load() {
 document.getElementById('edit-btn').addEventListener('click', () => {
   const f = document.getElementById('customer-form');
   ['name', 'company', 'email', 'phone', 'trn', 'address', 'category'].forEach(k => { f[k].value = data.customer[k] || ''; });
+  f.quote_entity.value = data.customer.quote_entity || 'candelaria';
   document.getElementById('edit-panel').style.display = 'block';
 });
 document.getElementById('edit-cancel').addEventListener('click', () => { document.getElementById('edit-panel').style.display = 'none'; });

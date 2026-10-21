@@ -18,7 +18,9 @@ def list_customers(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.CustomerOut, status_code=201)
 def create_customer(payload: schemas.CustomerCreate, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
-    customer = models.Customer(**payload.model_dump())
+    data = payload.model_dump()
+    data["quote_entity"] = data.get("quote_entity") or "candelaria"
+    customer = models.Customer(**data)
     db.add(customer)
     db.flush()
     log_activity(db, current.username, "customer", customer.id, customer.name, "created")
@@ -41,6 +43,8 @@ def update_customer(customer_id: int, payload: schemas.CustomerCreate, db: Sessi
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     for key, value in payload.model_dump().items():
+        if key == "quote_entity" and not value:
+            continue  # not on that form: keep it
         setattr(customer, key, value)
     log_activity(db, current.username, "customer", customer.id, customer.name, "updated")
     db.commit()

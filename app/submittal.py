@@ -18,7 +18,7 @@ from weasyprint import HTML
 from app import models
 from app.utils import url_to_disk_path
 
-COMPANY = "Candelaria Light Fittings Trading LLC"
+COMPANY = "Candelaria Light Fittings Trading LLC"  # default; the quotation's customer may say otherwise
 
 
 def _items(quotation, db):
@@ -63,12 +63,12 @@ def _pages(sheet):
         return []
 
 
-def _stamps(entries):
+def _stamps(entries, company=COMPANY):
     """One page per datasheet page, the same size, with only the strip on it."""
     css, body = [], []
     for i, e in enumerate(entries):
         css.append(f"@page s{i} {{ size: {e['w']:.2f}pt {e['h']:.2f}pt; margin: 0; }}")
-        text = " · ".join(filter(None, [COMPANY.upper(), e["project"],
+        text = " · ".join(filter(None, [company.upper(), e["project"],
                                         ("Type " + e["types"]) if e["types"] else None, e["name"]]))
         body.append(f'<div class="pg" style="page: s{i}"><div class="strip">{html.escape(text)}</div></div>')
     doc = f"""<html><head><meta charset="UTF-8"><style>
@@ -107,7 +107,8 @@ def build(quotation, db, quote_pdf: bytes):
                             "types": ", ".join(e["types"]), "name": e["name"]})
             pages.append(p)
     if pages:
-        for p, s in zip(pages, _stamps(entries)):
+        from app.entity import for_quotation
+        for p, s in zip(pages, _stamps(entries, for_quotation(quotation)["name"])):
             box = p.mediabox
             p.merge_transformed_page(s, Transformation().translate(float(box.left), float(box.bottom)))
             writer.add_page(p)

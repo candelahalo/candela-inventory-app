@@ -20,7 +20,7 @@
       color: #9A9382;
     }
     @top-left {
-      content: "CANDELARIA LIGHT FITTINGS TRADING LLC";
+      content: "{{ ent.name|upper }}";
       font-family: 'Inter', sans-serif;
       font-size: 8px;
       letter-spacing: 0.06em;
@@ -184,7 +184,7 @@
 
 {% if not items_only %}
 <!-- ===== COVER PAGE ===== -->
-<div class="cover-brand"><img src="app/static/candela-logo-doc.png"></div>
+<div class="cover-brand"><img src="{{ ent.logo }}"></div>
 
 <div class="cover-kicker">Commercial Proposal</div>
 <h1 class="cover-title">Quotation</h1>
@@ -212,7 +212,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
 
 <div class="signoff">
   <div class="signoff-block">
-    <div class="signoff-label">For Candelaria Light Fittings Trading LLC</div>
+    <div class="signoff-label">For {{ ent.name }}</div>
     <div class="signoff-line">
       <div class="signoff-name">{{ q.prepared_by_name or 'Authorized Signatory' }}</div>
       <div class="signoff-title">{{ q.prepared_by_title or '' }}</div>
@@ -325,7 +325,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   <div class="tc-section">
     <h3>Delivery</h3>
     <ul>
-      <li>Once delivered, goods are no longer the responsibility of Candelaria Light Fittings Trading LLC and cannot be returned or refunded.</li>
+      <li>Once delivered, goods are no longer the responsibility of {{ ent.name }} and cannot be returned or refunded.</li>
     </ul>
   </div>
   <div class="tc-section">

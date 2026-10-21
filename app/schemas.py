@@ -101,6 +101,8 @@ class CustomerBase(BaseModel):
     address: Optional[str] = None
     trn: Optional[str] = None
     category: Optional[Literal["retail", "residential"]] = None
+    # company their quotations come from (left out: unchanged / Candelaria for a new one)
+    quote_entity: Optional[Literal["candelaria", "candela"]] = None
 
 
 class CustomerCreate(CustomerBase):

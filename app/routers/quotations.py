@@ -551,8 +551,10 @@ def _quotation_pdf_bytes(quotation, db: Session, items_only: bool = False):
     # The product name in the document links straight to its datasheet
     datasheet_links = _datasheet_links(quotation, db)
 
+    from app.entity import for_quotation
     html_str = templates.get_template("quotation_pdf.html").render(
-        {"q": quotation, "request": None, "datasheet_links": datasheet_links, "items_only": items_only}
+        {"q": quotation, "request": None, "datasheet_links": datasheet_links, "items_only": items_only,
+         "ent": for_quotation(quotation)}
     )
     return HTML(string=html_str, base_url=".").write_pdf()
 
@@ -617,8 +619,11 @@ def _quotation_excel_response(quotation, db: Session):
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     thin_bottom = Border(bottom=Side(style="thin", color=INK))
 
+    from app.entity import for_quotation
+    ent = for_quotation(quotation)
+
     def add_logo(ws, cell="A1", height=40):
-        logo_path = "app/static/candela-logo-doc.png"
+        logo_path = ent["logo"]
         if os.path.exists(logo_path):
             with PILImage.open(logo_path) as im:
                 w, h = im.size
@@ -742,7 +747,7 @@ def _quotation_excel_response(quotation, db: Session):
     r += 4
 
     cover.merge_cells(f"B{r}:D{r}")
-    cover[f"B{r}"] = "FOR CANDELARIA LIGHT FITTINGS TRADING LLC"
+    cover[f"B{r}"] = "FOR " + ent["name"].upper()
     cover[f"B{r}"].font = Font(name=FONT, size=8, bold=True, color=FAINT)
     cover.merge_cells(f"E{r}:G{r}")
     cover[f"E{r}"] = "ACCEPTED BY CLIENT"
@@ -1041,7 +1046,7 @@ def _quotation_excel_response(quotation, db: Session):
             "All bank guarantees are issued per our bank's standard format.",
         ]),
         ("Delivery", [
-            "Once delivered, goods are no longer the responsibility of Candelaria Light Fittings Trading LLC and cannot be returned or refunded.",
+            f"Once delivered, goods are no longer the responsibility of {ent['name']} and cannot be returned or refunded.",
         ]),
         ("Warranty", [
             "Standard manufacturing warranty on all items is three years, unless a different term is agreed in writing.",
