@@ -161,18 +161,17 @@ def room_matrix(q, order=None):
             has_floor = any(n(f.get("fq"), c["key"]) for c in pc if c["floor"])
             if not rooms and not has_floor:
                 continue
-            if not rooms:
-                rooms = [{"name": "Whole floor", "q": {}}]
             rows = []
             for i, r in enumerate(rooms):
                 cells = []
                 for c in pc:
                     if c["floor"]:
-                        cells.append({"v": n(f.get("fq"), c["key"]), "span": len(rooms)} if i == 0 else None)
+                        cells.append({"v": 0, "floor": True})
                     else:
-                        cells.append({"v": n(r.get("q"), c["key"]), "span": 1})
+                        cells.append({"v": n(r.get("q"), c["key"]), "floor": False})
                 rows.append({"sl": i + 1, "name": r.get("name") or "", "cells": cells})
-            floors.append({"name": f.get("name") or "Floor", "rows": rows})
+            floors.append({"name": f.get("name") or "Floor", "rows": rows,
+                           "fq": {c["key"]: n(f.get("fq"), c["key"]) for c in pc if c["floor"]}})
         parts.append({"cols": pc, "floors": floors, "totals": [grand[c["key"]] for c in pc],
                       "part": f"{len(parts) + 1}/{(len(cols) + per - 1) // per}" if len(cols) > per else ""})
     return parts

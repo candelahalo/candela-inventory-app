@@ -115,6 +115,7 @@
         <input type="file" id="mx-file" accept=".pdf,application/pdf" multiple hidden>
         <button type="button" class="btn btn-ghost btn-sm" id="mx-add-floor">+ Floor</button>
         <button type="button" class="btn btn-ghost btn-sm" id="mx-cols-btn" title="Which lines of the quote get a column">Columns…</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mx-full" title="Open the table over the whole screen (Esc to close)">⤢ Full screen</button>
         <span class="muted mx-hint">Type a number, Enter goes down. Empty rooms are left out of the proposal.</span>
       </div>
       <div class="mx-cols" id="mx-cols" hidden></div>
@@ -1538,6 +1539,7 @@ var matrix = { cols: [], off: [], fcols: [], floors: [] };
 var mxSig = '';
 
 function mxReset(m) {
+  mxFull(false);
   matrix = m && m.floors ? { cols: m.cols || [], off: m.off || [], fcols: m.fcols || [], seen: m.seen || null, floors: m.floors } : { cols: [], off: [], fcols: [], floors: [] };
   mxSig = '';
   document.getElementById('q-matrix').open = matrix.floors.length > 0;
@@ -1706,6 +1708,16 @@ document.getElementById('mx-wrap').addEventListener('keydown', e => {
   if (next) { next.focus(); next.select && next.select(); }
 });
 document.getElementById('q-matrix').addEventListener('toggle', () => renderMatrix(true));
+// Full screen: the table over the whole window, bigger cells; Esc or the button closes it
+function mxFull(on) {
+  const box = document.getElementById('q-matrix');
+  box.classList.toggle('mx-full', on);
+  document.body.classList.toggle('mx-noscroll', on);
+  document.getElementById('mx-full').textContent = on ? '✕ Close full screen' : '⤢ Full screen';
+  if (on) box.open = true;
+}
+document.getElementById('mx-full').addEventListener('click', () => mxFull(!document.getElementById('q-matrix').classList.contains('mx-full')));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('q-matrix').classList.contains('mx-full')) mxFull(false); });
 document.getElementById('mx-add-floor').addEventListener('click', () => {
   const name = prompt('Floor name', ['Ground Floor', 'First Floor', 'Second Floor', 'Roof'][matrix.floors.length] || 'Floor');
   if (!name) return;

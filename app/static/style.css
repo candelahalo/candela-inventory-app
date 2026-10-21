@@ -1244,3 +1244,15 @@ label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font
 .mx-grid th.mx-room, .mx-grid td:first-child { min-width: 250px; }
 .mx-grid tr.mx-floor .mx-fhead input.mx-fname { flex: 1; min-width: 120px; }
 .mx-grid tr.mx-floor .mx-fhead .li-tool { white-space: nowrap; flex: none; }
+/* Room matrix: full screen, bigger */
+.q-matrix.mx-full { position: fixed; inset: 0; z-index: 900; margin: 0; border-radius: 0; padding: 14px 20px; overflow: hidden; display: flex; flex-direction: column; }
+.q-matrix.mx-full > summary { pointer-events: none; font-size: 16px; }
+.q-matrix.mx-full .mx-wrap { max-height: none; flex: 1; }
+.q-matrix.mx-full .mx-grid { font-size: 15px; }
+.q-matrix.mx-full .mx-grid th { width: 96px; min-width: 96px; max-width: 96px; font-size: 12px; }
+.q-matrix.mx-full .mx-grid th img { width: 44px; height: 44px; }
+.q-matrix.mx-full .mx-grid input.mx-n { width: 70px; height: 34px; font-size: 16px; font-weight: 600; }
+.q-matrix.mx-full .mx-grid input.mx-rname { font-size: 15px; }
+.q-matrix.mx-full .mx-grid th.mx-room, .q-matrix.mx-full .mx-grid td:first-child { min-width: 280px; }
+body.mx-noscroll { overflow: hidden; }
+.mx-grid input.mx-n { font-weight: 600; }
