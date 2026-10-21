@@ -42,24 +42,27 @@ h2 { font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 
 /* Cover letter (quote by system) - as the standard quotation's first page */
 .qc-brand img { width: 72mm; }
-.qc-brand { margin-bottom: 16mm; }
+.qc-brand { margin-bottom: 18mm; }
 .qc-kicker { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: #C77D0A; margin-bottom: 3mm; }
 h1.qc-title { font-size: 34px; font-weight: 600; margin: 0 0 2mm; letter-spacing: -0.01em; }
-.qc-subject { font-size: 13.5px; color: #56503F; margin-bottom: 10mm; }
-.qc-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 12mm; padding: 6mm 0; border-top: 0.75px solid #DED6C2; border-bottom: 0.75px solid #DED6C2; margin-bottom: 8mm; }
+.qc-subject { font-size: 14px; color: #56503F; margin-bottom: 10mm; }
+.qc-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 12mm; padding: 7mm 0; border-top: 0.75px solid #DED6C2; border-bottom: 0.75px solid #DED6C2; margin-bottom: 9mm; }
 .qc-meta .k, .qc-systems .k, .sum-words .k, .sum-terms .k { font-size: 8.5px; text-transform: uppercase; letter-spacing: .08em; color: #9A9382; }
-.qc-meta .v { font-size: 11.5px; font-weight: 500; margin-top: 1mm; }
-.qc-intro { font-size: 10.8px; color: #3A362C; text-align: justify; margin-bottom: 6mm; max-width: 150mm; }
-.qc-systems { margin-bottom: 7mm; }
+.qc-meta .v { font-size: 12px; font-weight: 500; margin-top: 1mm; }
+.qc-intro { font-size: 11.2px; line-height: 1.7; color: #3A362C; text-align: justify; margin-bottom: 7mm; max-width: 155mm; }
+.qc-systems { margin-bottom: 8mm; }
 .qc-systems .k { display: block; margin-bottom: 2mm; }
 .qc-systems .chip { display: inline-block; border: 0.75px solid #E1D8C2; border-radius: 3px; padding: 1mm 2.5mm; margin: 0 1.6mm 1.6mm 0; font-size: 9px; }
 .qc-systems .chip b { color: #C77D0A; margin-right: 1mm; }
-.qc-terms { display: grid; grid-template-columns: 34mm 1fr; row-gap: 2.4mm; margin-bottom: 8mm; max-width: 150mm; }
+.qc-terms { display: grid; grid-template-columns: 36mm 1fr; row-gap: 3.2mm; margin-bottom: 9mm; max-width: 155mm; }
 .qc-terms .tk { font-size: 9.5px; font-weight: 600; color: #56503F; text-transform: uppercase; letter-spacing: .03em; }
-.qc-terms .tv { font-size: 10.5px; }
-.qc-closing { font-size: 10.5px; color: #3A362C; margin-bottom: 4mm; max-width: 150mm; }
+.qc-terms .tv { font-size: 11px; }
+.qc-closing { font-size: 11px; line-height: 1.7; color: #3A362C; margin-bottom: 4mm; max-width: 155mm; }
 .qc-sign { margin-top: 4mm; }
 .page-break-after { page-break-after: always; }
+{% if full %}/* the full proposal's first page also has the consultant, contractor and brands */
+.qc-brand { margin-bottom: 12mm; } .qc-subject { margin-bottom: 7mm; } .qc-meta { padding: 5mm 0; gap: 4.5mm 12mm; margin-bottom: 7mm; }
+.qc-intro { margin-bottom: 5mm; } .qc-systems { margin-bottom: 5mm; } .qc-terms { row-gap: 2.6mm; }{% endif %}
 
 /* Submission summary: a full page */
 .summary-page { page-break-before: always; min-height: 238mm; display: flex; flex-direction: column; }
