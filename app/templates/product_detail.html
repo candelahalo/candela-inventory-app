@@ -34,9 +34,9 @@
         <input type="file" id="ds-file" accept="application/pdf" style="display:none;">
         <input type="file" id="ds-halo-file" accept="application/pdf" style="display:none;">
         <button class="btn btn-ghost btn-sm" id="ds-upload-btn" onclick="document.getElementById('ds-file').click()">Upload supplier PDF</button>
-        <button class="btn btn-ghost btn-sm" id="ds-halo-btn" onclick="document.getElementById('ds-halo-file').click()">Upload HALO PDF</button>
+        <button class="btn btn-ghost btn-sm halo-only" id="ds-halo-btn" onclick="document.getElementById('ds-halo-file').click()">Upload HALO PDF</button>
       </div>
-      <label class="ds-opt"><input type="radio" name="ds-mode" value="halo">
+      <label class="ds-opt halo-only"><input type="radio" name="ds-mode" value="halo">
         <span><strong>Automatic HALO sheet</strong> <a href="/datasheets/halo/{{ product_id }}?auto=1" target="_blank" class="ds-link">Preview</a>
         <span class="muted">made from the spec, photo, description and features</span></span></label>
       <label class="ds-opt"><input type="radio" name="ds-mode" value="none">
@@ -59,10 +59,10 @@
         <div class="field"><label>Cost price</label><div class="cost-row"><input name="cost_amount" type="number" step="0.01" min="0"><select name="cost_currency"><option>AED</option><option>USD</option><option>EUR</option></select></div><div class="cost-note"></div></div>
         <div class="field"><label>Landed cost % <span style="font-weight:400;color:var(--muted)">(freight, duty, clearing)</span></label><input name="landed_pct" type="number" step="0.1" min="0"></div>
         <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01"></div>
-        <div class="field span2"><label>Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
-        <div class="field"><label>Description <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="description" rows="4" placeholder="Short text about the product"></textarea></div>
-        <div class="field"><label>Features <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="features" rows="4" placeholder="One per line"></textarea></div>
-        <details class="series-box" id="series-box">
+        <div class="field span2"><label id="spec-label">Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="5"></textarea></div>
+        <div class="field halo-only"><label>Description <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="description" rows="4" placeholder="Short text about the product"></textarea></div>
+        <div class="field halo-only"><label>Features <span class="muted-label">(HALO datasheet, optional)</span></label><textarea name="features" rows="4" placeholder="One per line"></textarea></div>
+        <details class="series-box halo-only" id="series-box">
           <summary>Series &amp; options <span class="muted-label">(sizes picked together in a quote, e.g. CHERUB S / M / L / XL)</span></summary>
           <div class="series-grid">
             <div class="field"><label>Series</label><input name="series" placeholder="e.g. CHERUB" style="text-transform:uppercase"></div>
@@ -152,6 +152,16 @@ async function loadUsage() {
 }
 loadUsage();
 
+// Automation products: name, brand, price and the supplier PDF - none of the
+// HALO sheet, description / features or series boxes lights use
+function applyKind() {
+  const f = document.getElementById('product-form');
+  const auto = AUTOMATION_CATEGORIES.includes(f.category.value);
+  document.querySelectorAll('.halo-only').forEach(el => { el.style.display = auto ? 'none' : ''; });
+  document.getElementById('spec-label').textContent = auto ? 'Short description (one line — automation items print their name only in quotes)' : 'Spec summary (used as default quotation description)';
+  f.spec_summary.rows = auto ? 2 : 5;
+}
+document.getElementById('product-form').category.addEventListener('change', applyKind);
 async function loadProduct() {
   product = await api('/products/' + productId);
   document.getElementById('prod-name').textContent = product.name;
@@ -173,6 +183,7 @@ async function loadProduct() {
   form.spec_summary.value = product.spec_summary || '';
   form.description.value = product.description || '';
   form.features.value = product.features || '';
+  applyKind();
   form.series.value = product.series || '';
   form.variant.value = product.variant || '';
   document.getElementById('opt-code').value = (product.options && product.options.code) || '';
