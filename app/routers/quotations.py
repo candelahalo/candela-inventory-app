@@ -484,7 +484,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
 
     copy_fields = ["customer_id", "project_id", "division", "category", "notes", "attention_to", "subject", "currency", "scope",
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
-                   "vat_percent", "prepared_by_name", "prepared_by_title"]
+                   "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,
@@ -497,7 +497,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
             product_id=item.product_id, unit=item.unit, image_path=item.image_path,
             type_code=item.type_code, description=item.description,
             quantity=item.quantity, unit_price=item.unit_price, unit_cost=item.unit_cost,
-            discount_pct=item.discount_pct, runs=item.runs, options=item.options))
+            discount_pct=item.discount_pct, runs=item.runs, options=item.options, section=item.section))
     db.add(new_quote)
     db.flush()
     log_activity(db, current.username, "quotation", new_quote.id, new_quote.quote_number, "created",
@@ -820,8 +820,36 @@ def _quotation_excel_response(quotation, db: Session):
     spec_font = InlineFont(rFont=FONT, b=False, sz=8.5, color=MUTED)
 
     row = header_row + 1
+    sec_fill = PatternFill(start_color="F3EEE2", end_color="F3EEE2", fill_type="solid")
+    cur_sec, sec_start = None, None
+
+    def section_subtotal(r, name, first, last):
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+        lc = ws.cell(row=r, column=1, value=f"Subtotal — {name}")
+        lc.font = Font(name=FONT, size=9, bold=True, color=INK)
+        lc.alignment = Alignment(horizontal="right", vertical="center")
+        vc = ws.cell(row=r, column=7, value=f"=SUMPRODUCT(E{first}:E{last},F{first}:F{last})")
+        vc.font = Font(name=FONT, size=9, bold=True, color=INK)
+        vc.number_format = '#,##0.00'
+        vc.alignment = center
+
     for idx, item in enumerate(quotation.items, start=1):
         product = item.product
+        # Section heading (and the previous section's subtotal) when the section changes
+        if item.section != cur_sec:
+            if cur_sec and quotation.section_subtotals:
+                section_subtotal(row, cur_sec, sec_start, row - 1)
+                row += 1
+            cur_sec = item.section
+            if cur_sec:
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
+                hc = ws.cell(row=row, column=1, value=cur_sec.upper())
+                hc.font = Font(name=FONT, size=9.5, bold=True, color=INK)
+                hc.fill = sec_fill
+                hc.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+                ws.row_dimensions[row].height = 20
+                row += 1
+            sec_start = row
         fill = PatternFill(start_color=PAPER, end_color=PAPER, fill_type="solid") if idx % 2 == 0 else None
 
         c = ws.cell(row=row, column=1, value=idx)
@@ -893,6 +921,9 @@ def _quotation_excel_response(quotation, db: Session):
                     pass
         row += 1
 
+    if cur_sec and quotation.section_subtotals:
+        section_subtotal(row, cur_sec, sec_start, row - 1)
+        row += 1
     first_item_row = header_row + 1
     last_item_row = row - 1
 
@@ -924,7 +955,8 @@ def _quotation_excel_response(quotation, db: Session):
 
         R = rows_by_key
         if key == "items_subtotal":
-            val_cell.value = f"=SUM(G{first_item_row}:G{last_item_row})"
+            # qty x price of the item rows only (section headings / subtotals have neither)
+            val_cell.value = f"=SUMPRODUCT(E{first_item_row}:E{last_item_row},F{first_item_row}:F{last_item_row})"
         elif key == "discount":
             val_cell.value = -quotation.total_discount
         elif key == "delivery":

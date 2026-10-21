@@ -78,6 +78,7 @@
       <div class="field"><label>Freight & customs (optional)</label><input name="freight_charges" type="number" step="0.01" value="0"></div>
       <div class="field"><label>Transportation (number or text)</label><input name="transportation_charges" value="500" placeholder="500 or Included"></div>
       <div class="field"><label>VAT %</label><input name="vat_percent" type="number" step="0.1" value="5"></div>
+      <div class="field"><label>Sections</label><label class="chk"><input type="checkbox" id="q-sec-sub"> Show a subtotal after each section</label></div>
       <div class="field"><label>Prepared by (name)</label><input name="prepared_by_name" value="Johns James"></div>
       <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" value="Division Head - Projects"></div>
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
@@ -93,6 +94,7 @@
     </div>
     <div class="line-items" id="line-items"></div>
     <button type="button" class="btn btn-ghost btn-sm" id="add-line" title="A line typed by hand, or picked from the full list">+ Add line by hand</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="add-section" title="A heading over the lines below it, e.g. FRONT END MATERIALS">+ Section</button>
 
     <div class="margin-summary" id="margin-summary">
       <div class="ms-row"><span>Revenue (goods)</span><strong id="ms-revenue">—</strong></div>
@@ -511,8 +513,11 @@ function showInsertPoint() {
   if (!insertAfter || !insertAfter.isConnected) { insertAfter = null; el.style.display = 'none'; return; }
   insertAfter.classList.add('insert-here');
   const n = [...document.querySelectorAll('#line-items .line-item-block')].indexOf(insertAfter) + 1;
-  const what = insertAfter.querySelector('.li-type').value || (insertAfter.querySelector('.li-product option:checked') || {}).textContent || '';
-  el.innerHTML = `New lines go <strong>below line ${n}</strong> ${escHtml(what ? '(' + what.trim().slice(0, 40) + ')' : '')}
+  const where = insertAfter.classList.contains('section-block') ? 'below the' : `below line ${n}`;
+  const what = insertAfter.classList.contains('section-block')
+    ? 'heading ' + (insertAfter.querySelector('.sec-name').value || '')
+    : insertAfter.querySelector('.li-type').value || (insertAfter.querySelector('.li-product option:checked') || {}).textContent || '';
+  el.innerHTML = `New lines go <strong>${where}</strong> ${escHtml(what ? '(' + what.trim().slice(0, 40) + ')' : '')}
     <button type="button" class="btn btn-ghost btn-sm" onclick="insertAfter = null; showInsertPoint();">Add at the end instead</button>`;
   el.style.display = '';
 }
@@ -531,7 +536,7 @@ function renumberLines() {
   });
 }
 function moveLine(btn, dir) {
-  const block = btn.closest('.line-item-block');
+  const block = btn.closest('.line-item-block, .section-block');
   const other = dir < 0 ? block.previousElementSibling : block.nextElementSibling;
   if (!other) return;
   if (dir < 0) other.before(block); else other.after(block);
@@ -544,6 +549,46 @@ function removeLine(block) {
   renumberLines();
   showInsertPoint();
   recalcMargins();
+}
+
+// ---------- Sections: a heading over the lines below it ----------
+function sectionRow(name) {
+  return `<div class="section-block">
+    <span class="sec-label">Section</span>
+    <input class="sec-name" maxlength="120" placeholder="e.g. FRONT END MATERIALS" value="${escHtml(name || '')}" style="text-transform:uppercase">
+    <span class="li-tools">
+      <button type="button" class="li-tool" onclick="moveLine(this, -1)" title="Move up">↑</button>
+      <button type="button" class="li-tool" onclick="moveLine(this, 1)" title="Move down">↓</button>
+      <button type="button" class="li-tool" onclick="insertBelow(this.closest('.section-block'))" title="The next product you add goes below this heading">+ Insert below</button>
+    </span>
+    <button type="button" class="remove-line" onclick="removeLine(this.closest('.section-block'))" title="Remove heading (its lines stay)">×</button>
+  </div>`;
+}
+function addSection(name, focus) {
+  const container = document.getElementById('line-items');
+  container.insertAdjacentHTML('beforeend', sectionRow(name));
+  const block = container.lastElementChild;
+  const inMiddle = insertAfter && insertAfter.isConnected;
+  if (inMiddle) insertAfter.after(block);
+  // lines added next go under this heading
+  insertAfter = inMiddle ? block : null;
+  renumberLines();
+  showInsertPoint();
+  if (focus) block.querySelector('.sec-name').focus();
+  return block;
+}
+// Saved / imported lines, with a heading wherever the section changes
+function loadLines(items) {
+  let sec = null;
+  items.forEach(item => {
+    if ((item.section || null) !== sec) {
+      sec = item.section || null;
+      if (sec) addSection(sec, false);
+    }
+    addLine(item);
+  });
+  insertAfter = null;
+  showInsertPoint();
 }
 
 function addLine(item) {
@@ -601,7 +646,7 @@ function addLine(item) {
     const runsInput = block.querySelector('.li-runs');
     const wantsRuns = RUNS_CATEGORIES.includes(opt.dataset.category || '');
     block.querySelector('.li-runs-row').style.display = wantsRuns || runsInput.value.trim() ? '' : 'none';
-    const isLight = opt.value && !NO_DRIVER_CATEGORIES.includes(opt.dataset.category || '');
+    const isLight = opt.value && opt.dataset.category && !NO_DRIVER_CATEGORIES.includes(opt.dataset.category);
     block.querySelector('.li-drv').style.display = isLight ? '' : 'none';
   };
   sel.addEventListener('change', () => {
@@ -749,6 +794,7 @@ function recalcMargins() {
 }
 
 document.getElementById('add-line').addEventListener('click', () => addLine());
+document.getElementById('add-section').addEventListener('click', () => addSection('', true));
 
 function showAddPanel(title) {
   document.getElementById('form-title').textContent = title;
@@ -824,7 +870,8 @@ async function editQuotation(id) {
   document.getElementById('editing-id').value = id;
   document.getElementById('line-items').innerHTML = '';
   insertAfter = null; showInsertPoint();
-  q.items.forEach(item => addLine(item));
+  loadLines(q.items);
+  document.getElementById('q-sec-sub').checked = !!q.section_subtotals;
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1106,7 +1153,7 @@ function showStatusBar(q) {
   bar.style.display = q ? 'flex' : 'none';
   const locked = !!q && q.status === 'accepted';
   lock.style.display = locked ? 'block' : 'none';
-  form.querySelectorAll('input, select, textarea, #add-line, .remove-line, .li-tool').forEach(el => { el.disabled = locked; });
+  form.querySelectorAll('input, select, textarea, #add-line, #add-section, .remove-line, .li-tool').forEach(el => { el.disabled = locked; });
   form.querySelector('button[type=submit]').style.display = locked ? 'none' : '';
   form.querySelector('.draft-actions').style.display = locked ? 'none' : '';
   if (!q) return;
@@ -1184,7 +1231,15 @@ async function deleteQuotation(id, quoteNumber) {
 // showing why) if something required is missing.
 function collectQuotationPayload() {
   const form = document.getElementById('quote-form');
+  // Each line carries the heading above it
+  const sectionOf = new Map();
+  let cur = null;
+  document.querySelectorAll('#line-items > .section-block, #line-items > .line-item-block').forEach(el => {
+    if (el.classList.contains('section-block')) cur = el.querySelector('.sec-name').value.trim().toUpperCase() || null;
+    else sectionOf.set(el, cur);
+  });
   const items = [...document.querySelectorAll('.line-item-block')].map(block => ({
+    section: sectionOf.get(block) || null,
     product_id: parseInt(block.querySelector('.li-product').value) || null,
     options: lineOptionsChosen(block),
     unit: block.querySelector('.li-unit').value.trim() || null,
@@ -1214,6 +1269,7 @@ function collectQuotationPayload() {
   // Sent as a string so it can hold either a figure ("500") or words ("Included")
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
+  payload.section_subtotals = document.getElementById('q-sec-sub').checked;
   return payload;
 }
 
@@ -1264,11 +1320,11 @@ function openImportedQuotation(d, fileName) {
   fillClassFromLinks();
   document.getElementById('line-items').innerHTML = '';
   insertAfter = null; showInsertPoint();
-  d.items.forEach(i => addLine({
+  loadLines(d.items.map(i => ({
     product_id: i.product_id, unit: i.unit, image_path: i.image_path, type_code: i.type_code,
     description: i.description, quantity: i.quantity, unit_price: i.unit_price, unit_cost: 0,
-    discount_pct: i.discount_pct,
-  }));
+    discount_pct: i.discount_pct, section: i.section || null,
+  })));
   importedMeta = { original_number: d.original_number, date: d.date };
   const n = d.items.length, made = (d.created_products || []).length;
   const totalOk = d.pdf_total == null || Math.abs(d.pdf_total - d.imported_total) < 0.5;

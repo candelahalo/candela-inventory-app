@@ -126,6 +126,7 @@ class QuotationItemCreate(BaseModel):
     discount_pct: float = 0.0
     runs: Optional[str] = None  # lengths a linear light is made in: "9 + 10 + 15"
     options: Optional[dict] = None  # series product: chosen option codes {"power": "15", ...}
+    section: Optional[str] = None  # heading this line sits under
 
 
     @field_validator("image_path")
@@ -145,6 +146,11 @@ class QuotationItemCreate(BaseModel):
     @classmethod
     def _short_runs(cls, v):
         return (v or "").strip()[:255] or None
+
+    @field_validator("section")
+    @classmethod
+    def _short_section(cls, v):
+        return " ".join((v or "").split())[:120] or None
 
     @field_validator("options")
     @classmethod
@@ -191,6 +197,7 @@ class QuotationCreate(BaseModel):
     vat_percent: float = 5.0
     prepared_by_name: Optional[str] = "Johns James"
     prepared_by_title: Optional[str] = "Division Head - Projects"
+    section_subtotals: bool = False
     items: List[QuotationItemCreate]
 
 
@@ -217,6 +224,7 @@ class QuotationOut(BaseModel):
     vat_percent: float
     prepared_by_name: Optional[str]
     prepared_by_title: Optional[str]
+    section_subtotals: Optional[bool] = False
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float

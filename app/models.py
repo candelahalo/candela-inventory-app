@@ -165,6 +165,7 @@ class Quotation(Base):
 
     customer = relationship("Customer", back_populates="quotations")
     project = relationship("Project", back_populates="quotations")
+    section_subtotals = Column(Boolean, default=False, nullable=False)  # a subtotal after each section
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property
@@ -283,6 +284,7 @@ class QuotationItem(Base):
     # Lengths a linear / custom light is made in, as typed: "9 + 10 + 15"
     runs = Column(String(255))
     options = Column(JSON)  # chosen options {"power": "15", "beam": "36", ...} for a series product
+    section = Column(String(120))  # heading this line sits under, e.g. "FRONT END MATERIALS"
 
     quotation = relationship("Quotation", back_populates="items")
     product = relationship("Product")

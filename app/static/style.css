@@ -1149,3 +1149,12 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .imp-check td:last-child { width: 210px; }
 .imp-check select { width: 100%; padding: 3px 6px; }
 .imp-check tr.imp-unset td { background: #FFF4E5; }
+
+/* Quote: section headings */
+.section-block { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #F3EEE2; border: 1px solid #E2D8C3;
+  border-radius: 6px; margin: 10px 0 4px; }
+.section-block .sec-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.section-block .sec-name { flex: 1; font-weight: 700; padding: 5px 8px; letter-spacing: .03em; }
+.section-block .li-tools { margin-right: 0; }
+.section-block.insert-here { box-shadow: inset 0 -3px 0 var(--amber); }
+label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; }

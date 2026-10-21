@@ -224,7 +224,7 @@ def _line_image(page, band, cols):
     return None
 
 
-def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None):
+def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None, state=None):
     """Reads one page of the schedule; returns its columns, so a page that
     carries on without a header row is read with the columns of the one before."""
     lines = _lines(page.extract_words())
@@ -243,8 +243,11 @@ def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None
     # Section headings ("FRONT END MATERIALS", "INTERCOM") start left of the
     # item numbers: not part of any item's description
     left = cols.get("sl", cols.get("brand", cols["desc"])) - 4
-    body = [ln for ln in body if not (ln["words"][0]["x0"] < left and not re.search(r"\d\.\d\d", ln["text"])
-                                      and ln["text"].upper() == ln["text"])]
+    is_heading = lambda ln: (ln["words"][0]["x0"] < left and not re.search(r"\d\.\d\d", ln["text"])  # noqa: E731
+                             and ln["text"].upper() == ln["text"])
+    headings = [(ln["top"], re.sub(r"\s+([,.])", r"\1", " ".join(ln["text"].split()))) for ln in body if is_heading(ln)]
+    body = [ln for ln in body if not is_heading(ln)]
+    state = state if state is not None else {}
 
     def cells(ln):
         c = {}
@@ -287,6 +290,9 @@ def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None
                 if lc.get(k):
                     parts[k].append(lc[k])
         qty, price, total = _num(c["qty"]), _num(c["price"]), _num(c["total"].replace("AED", ""))
+        above = [h for h in headings if h[0] < ln["top"]]
+        if above:
+            state["section"] = above[-1][1]
         unit = next((t for t in (c.get("unit") or "").split() if not _is_num(t)), "").strip().lower()
         unit = {"pcs": "pcs", "pc": "pcs", "nos": "pcs", "no": "pcs", "no.": "pcs", "each": "pcs", "ea": "pcs",
                 "m": "m", "mtr": "m", "mtrs": "m", "meter": "m", "metre": "m", "lm": "m", "rm": "m"}.get(unit, unit or "pcs")
@@ -306,6 +312,7 @@ def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None
             "unit_price": round(price, 2),
             "line_total": round(total, 2),
             "discount_pct": 0.0,
+            "section": state.get("section"),
             "image": _line_image(page, band, cols) if want_images else None,
             # raw cells, used to build a product from the line
             "_lead": lead, "_desc": [" ".join(x.split()) for x in parts["desc"]], "_brandcol": brand,
@@ -321,6 +328,9 @@ def _parse_table_page(page, items, totals, warnings, want_images, prev_cols=None
             warnings.append(f"Line {item['sl'] or len(items) + 1}: quantity {qty:g} rounded to {item['quantity']} (the app keeps whole quantities).")
         items.append(item)
 
+    # A heading at the foot of the page belongs to the lines on the next one
+    if headings and headings[-1][0] > anchors[-1][0]["top"]:
+        state["section"] = headings[-1][1]
     for ln in total_lines:
         label = " ".join(w["text"] for w in ln["words"] if w["x0"] < cols.get("unit", cols["qty"]) - 3)
         amounts = [w["text"] for w in ln["words"] if w["x0"] >= cols["price"] - 3 and _is_num(w["text"])]
@@ -483,7 +493,7 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
             raise ValueError("The PDF has no pages.")
         _parse_cover(pdf.pages[0], out)
         title = ""
-        cols = None
+        cols, state = None, {"section": None}
         for page in pdf.pages:
             if not title:
                 # The schedule's heading, e.g. "RETAIL LIGHTING _NARS AVENTURE MALL KUWAIT"
@@ -492,7 +502,7 @@ def parse_quotation_pdf(data: bytes, products=(), save_image=None):
                 above = [l for l in plines if hdr and l["bottom"] < hdr["top"]]
                 if above:
                     title = above[0]["text"]
-            cols = _parse_table_page(page, items, totals, warnings, save_image is not None, cols) or cols
+            cols = _parse_table_page(page, items, totals, warnings, save_image is not None, cols, state) or cols
         text_all = "\n".join((p.extract_text() or "") for p in pdf.pages[-2:])
 
     if not items:

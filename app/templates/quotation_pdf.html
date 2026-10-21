@@ -147,6 +147,9 @@
   table.items tbody td.center { text-align: center; }
   table.items tbody tr:nth-child(even) { background: #FBF9F4; }
 
+  tr.sec-head td { background: #F3EEE2; font-weight: 700; letter-spacing: 0.04em; font-size: 8.5pt; padding: 6px 8px; text-transform: uppercase; }
+  tr.sec-sub td { font-weight: 600; font-size: 8.5pt; padding: 5px 8px; border-top: 0.75px solid #CFC5AE; text-align: right; }
+  tr.sec-sub td.num { white-space: nowrap; }
   .item-img { width: 84px; height: 84px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
   .item-img-empty { width: 84px; height: 84px; border: 0.75px dashed #DED6C2; border-radius: 3px; }
   .item-type { font-family: 'Inter', sans-serif; font-size: 8.5px; color: #C77D0A; font-weight: 600; letter-spacing: 0.02em; }
@@ -243,7 +246,16 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
     </tr>
   </thead>
   <tbody>
+    {% set ns = namespace(sec=None, sub=0) %}
     {% for item in q.items %}
+    {% if item.section != ns.sec %}
+      {% if ns.sec and q.section_subtotals %}
+      <tr class="sec-sub"><td colspan="6">Subtotal — {{ ns.sec }}</td><td class="num">{{ "{:,.2f}".format(ns.sub) }}</td></tr>
+      {% endif %}
+      {% set ns.sec = item.section %}{% set ns.sub = 0 %}
+      {% if item.section %}<tr class="sec-head"><td colspan="7">{{ item.section }}</td></tr>{% endif %}
+    {% endif %}
+    {% set ns.sub = ns.sub + item.quantity * item.unit_price %}
     <tr>
       <td class="center">{{ loop.index }}</td>
       <td class="center">
@@ -268,6 +280,9 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
       <td class="num">{{ "{:,.2f}".format(item.unit_price) }}</td>
       <td class="num">{{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
     </tr>
+    {% if loop.last and ns.sec and q.section_subtotals %}
+    <tr class="sec-sub"><td colspan="6">Subtotal — {{ ns.sec }}</td><td class="num">{{ "{:,.2f}".format(ns.sub) }}</td></tr>
+    {% endif %}
     {% endfor %}
   </tbody>
 </table>
