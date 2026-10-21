@@ -306,6 +306,15 @@ class QuotationItem(Base):
     product = relationship("Product")
 
     @property
+    def print_description(self):
+        """What the PDF / Excel print under the name. Automation items are one
+        line - their name - so their description is not printed; lights keep their spec."""
+        from app.categories import AUTOMATION_CATEGORIES
+        if self.product and self.product.category in AUTOMATION_CATEGORIES:
+            return None
+        return self.description
+
+    @property
     def runs_text(self):
         """Runs for the quotation: "9 m + 10 m + 15 m = 34 m" (or as typed)."""
         return format_runs(self.runs, self.unit or (self.product.unit if self.product else None))

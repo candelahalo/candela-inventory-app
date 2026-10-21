@@ -473,7 +473,7 @@ function lineRow(item) {
     </div>
     <div class="li-opts-row" style="display:none"></div>
     <div class="line-item-foot">
-      <label><span class="li-num"></span> Description (defaults from product spec)</label>
+      <label><span class="li-num"></span> <span class="li-desc-lbl">Description (defaults from product spec)</span></label>
       <span class="li-tools">
         <button type="button" class="li-tool" onclick="moveLine(this, -1)" title="Move this line up">↑</button>
         <button type="button" class="li-tool" onclick="moveLine(this, 1)" title="Move this line down">↓</button>
@@ -706,6 +706,10 @@ function addLine(item) {
     block.querySelector('.li-runs-row').style.display = wantsRuns || runsInput.value.trim() ? '' : 'none';
     const isLight = opt.value && opt.dataset.category && !NO_DRIVER_CATEGORIES.includes(opt.dataset.category);
     block.querySelector('.li-drv').style.display = isLight ? '' : 'none';
+    // Automation items are one line - their name - so no description box
+    const oneLine = !!opt.value && AUTOMATION_CATEGORIES.includes(opt.dataset.category || '');
+    descArea.style.display = oneLine ? 'none' : '';
+    block.querySelector('.li-desc-lbl').textContent = oneLine ? 'One line — the product name' : 'Description (defaults from product spec)';
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
@@ -713,7 +717,7 @@ function addLine(item) {
     if (opt.value) {
       priceInput.value = opt.dataset.price;
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
-      descArea.value = opt.dataset.spec || '';
+      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? '' : (opt.dataset.spec || '');
       block.dataset.lineImage = '';  // show the chosen product's photo
       unitInput.value = '';
     }
@@ -746,7 +750,7 @@ function addLine(item) {
     if (opt) {
       priceInput.value = opt.dataset.price;
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
-      descArea.value = opt.dataset.spec || '';
+      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? '' : (opt.dataset.spec || '');
     }
     renderLineOptions(block, null);
     if (block.querySelector('.li-opts-row select[data-key]')) applyLineOptions(block);

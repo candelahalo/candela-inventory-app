@@ -237,7 +237,7 @@ def automation_division_lines(payload: dict, db: Session = Depends(get_db),
                 created.append({"id": prod.id, "sku": prod.sku, "name": prod.name, "category": prod.category})
             elif not prod.is_active:
                 prod.is_active = True
-            lines.append({"section": section, "product_id": prod.id, "description": prod.spec_summary or text,
+            lines.append({"section": section, "product_id": prod.id, "description": "",  # one line: the name
                           "unit": prod.unit or "pcs", "quantity": 1, "unit_price": prod.selling_price or 0,
                           "unit_cost": prod.cost_price or 0, "discount_pct": 0})
     db.commit()
@@ -1026,8 +1026,8 @@ def _quotation_excel_response(quotation, db: Session):
             blocks.append(TextBlock(type_font, item.type_code + "\n"))
         blocks.append(TextBlock(title_font, product.name if product else ""))
         ds_url = datasheet_links.get(item.product_id)
-        if item.description:
-            blocks.append(TextBlock(spec_font, "\n" + item.description))
+        if item.print_description:
+            blocks.append(TextBlock(spec_font, "\n" + item.print_description))
         if item.runs:
             blocks.append(TextBlock(spec_font, "\nRuns: " + item.runs_text))
 
@@ -1065,7 +1065,7 @@ def _quotation_excel_response(quotation, db: Session):
         if fill: b.fill = fill
 
         # Size the row to fit the spec text so nothing gets clipped
-        spec_lines = (item.description or "").count("\n") + 1 if item.description else 0
+        spec_lines = (item.print_description or "").count("\n") + 1 if item.print_description else 0
         spec_lines += 1 if item.runs else 0
         ws.row_dimensions[row].height = max(62, 26 + spec_lines * 11)
 

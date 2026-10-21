@@ -272,7 +272,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
           {% set ds_link = datasheet_links.get(item.product_id) if datasheet_links else None %}
           {% if ds_link %}<a class="ds-link" href="{{ ds_link }}">{{ item.product.name if item.product else '' }}</a>{% else %}{{ item.product.name if item.product else '' }}{% endif %}
         </div>
-        {% if item.description %}<div class="item-spec">{{ item.description }}</div>{% endif %}
+        {% if item.print_description %}<div class="item-spec">{{ item.print_description }}</div>{% endif %}
         {% if item.runs %}<div class="item-spec item-runs">Runs: {{ item.runs_text }}</div>{% endif %}
       </td>
       <td class="num">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
