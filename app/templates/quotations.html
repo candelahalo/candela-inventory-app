@@ -305,7 +305,7 @@ function addProductLine(productId) {
 const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
   'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
   'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA', 'BOH': 'BOH',
-  'Lighting Control': 'LC', 'Keypads & Switches': 'KP', 'Curtains & Blinds': 'CB', 'Audio / Video / Security': 'AV', 'AC Controls': 'ACC' };
+  'Lighting Control': 'LC', 'Keypads & Switches': 'KP', 'Curtains & Blinds': 'CB', 'Audio / Video / Security': 'AV', 'AC Controls': 'ACC', 'Sensors': 'SN', 'Intercom': 'IC' };
 function nextTypeCode(p, ownBlock) {
   if (!p) return '';
   const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);
