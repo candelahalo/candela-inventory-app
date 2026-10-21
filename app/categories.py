@@ -6,7 +6,10 @@ PRODUCT_CATEGORIES = [
     "Spotlight", "Downlight", "230V Track Light", "48V Track Light", "Surface Mounted",
     "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
     "Track Accessories", "BOH",
+    # Automation
+    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
 ]
+AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security"]
 
 # Earlier category / type names and where they belong now
 _OLD_TYPE = {
@@ -26,6 +29,14 @@ _ACCESSORY = r"connector|channel|end ?cap|\bkit\b|feeder|bracket|accessor"
 def classify(text):
     """Best-guess category from a product's name / spec, or None."""
     t = (text or "").lower()
+    if re.search(r"keypad|touch ?panel|push ?button|wall switch|scene switch|motion sensor|presence sensor|occupancy sensor", t):
+        return "Keypads & Switches"
+    if re.search(r"curtain|\bblinds?\b|roller shade|shade motor|tubular motor", t):
+        return "Curtains & Blinds"
+    if re.search(r"intercom|speaker|amplifier|cctv|camera|door ?phone|access control", t):
+        return "Audio / Video / Security"
+    if re.search(r"\bknx\b|actuator|dimmer module|relay module|dali (gateway|controller|master)|lighting control", t):
+        return "Lighting Control"
     if re.search(_DRIVER, t):
         return "Drivers"
     if re.search(_ACCESSORY, t):

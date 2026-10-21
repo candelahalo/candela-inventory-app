@@ -58,6 +58,7 @@
   <div id="warehouses-table"></div>
 </div>
 
+<div class="div-switch" id="division-switch"></div>
 <div class="tabs" id="category-tabs" role="tablist"></div>
 
 <div class="panel">
@@ -82,10 +83,11 @@ document.getElementById('report-btns').innerHTML = exportMenu([
 // Category tabs: filter stock on hand and recent movements by product
 // category. Kept in the URL so a refresh lands on the same tab.
 let activeCategory = readHashFilters().category || 'all';
+let activeDivision = readHashFilters().division || (activeCategory !== 'all' && activeCategory !== 'other' ? divisionOf(activeCategory) : 'lighting');
 let levelsCache = [];
 let movementsCache = [];
 const isOtherCategory = c => !PRODUCT_CATEGORIES.includes(c || '');
-const inCategory = c => activeCategory === 'all' ? true
+const inCategory = c => activeCategory === 'all' ? divisionOf(c) === activeDivision
   : activeCategory === 'other' ? isOtherCategory(c) : c === activeCategory;
 const productOf = id => productsCache.find(x => x.id === id) || {};
 
@@ -95,15 +97,21 @@ function stockReportParams() {
 
 function setCategory(cat) {
   activeCategory = cat;
-  writeHashFilters(activeCategory);
+  writeHashFilters(activeCategory, activeDivision);
   renderTabs(); renderLevels(); renderMovements();
+}
+function setDivision(d) {
+  activeDivision = d;
+  setCategory('all');
 }
 
 function renderTabs() {
   // Counts are products in stock (distinct product lines), per category
-  const count = cat => new Set(levelsCache.filter(l => cat === 'all' ? true
+  document.getElementById('division-switch').innerHTML = divisionSwitchHtml(activeDivision);
+  const count = cat => new Set(levelsCache.filter(l => cat === 'all' ? divisionOf(l.category) === activeDivision
     : cat === 'other' ? isOtherCategory(l.category) : l.category === cat).map(l => l.product_id)).size;
-  const cats = ['all', ...PRODUCT_CATEGORIES, ...(count('other') ? ['other'] : [])];
+  const cats = ['all', ...categoriesOf(activeDivision),
+    ...(activeDivision === 'lighting' && count('other') ? ['other'] : [])];
   if (!cats.includes(activeCategory)) activeCategory = 'all';
   document.getElementById('category-tabs').innerHTML = cats.map(c => `
     <button type="button" class="tab${c === activeCategory ? ' active' : ''}" role="tab" aria-selected="${c === activeCategory}"

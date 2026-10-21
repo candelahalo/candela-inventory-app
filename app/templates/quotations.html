@@ -304,7 +304,8 @@ function addProductLine(productId) {
 // Type codes by category: SP1, SP2 … DL1 …; the same product (or series) keeps its code
 const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
   'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
-  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA', 'BOH': 'BOH' };
+  'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA', 'BOH': 'BOH',
+  'Lighting Control': 'LC', 'Keypads & Switches': 'KP', 'Curtains & Blinds': 'CB', 'Audio / Video / Security': 'AV' };
 function nextTypeCode(p, ownBlock) {
   if (!p) return '';
   const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);
@@ -441,7 +442,7 @@ function lineRow(item) {
 // ---------- + Driver: the driver that fits a light ----------
 // The smallest driver whose output power covers the light's wattage, with the
 // same dimming (ON/OFF unless the line says DALI / 1-10V / phase-cut).
-const NO_DRIVER_CATEGORIES = ['Drivers', 'Accessories', 'Track Accessories'];
+const NO_DRIVER_CATEGORIES = ['Drivers', 'Accessories', 'Track Accessories', ...AUTOMATION_CATEGORIES];
 function dimmingOf(text) {
   const t = (text || '').toUpperCase();
   if (/DALI/.test(t)) return 'DALI';

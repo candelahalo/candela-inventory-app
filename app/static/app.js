@@ -116,7 +116,17 @@ const PRODUCT_CATEGORIES = [
   'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted',
   'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light', 'Drivers', 'Accessories',
   'Track Accessories', 'BOH',
+  // Automation
+  'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security',
 ];
+const AUTOMATION_CATEGORIES = ['Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security'];
+// Lighting or Automation: products / stock show one at a time (no category counts as Lighting)
+const divisionOf = cat => AUTOMATION_CATEGORIES.includes(cat || '') ? 'automation' : 'lighting';
+const categoriesOf = division => PRODUCT_CATEGORIES.filter(c => divisionOf(c) === division);
+function divisionSwitchHtml(active) {
+  return ['lighting', 'automation'].map(d => `<button type="button" class="div-btn${d === active ? ' on' : ''}"
+    onclick="setDivision('${d}')">${d === 'lighting' ? 'Lighting' : 'Automation'}</button>`).join('');
+}
 
 // Category filter kept in the URL (#category=...), so a refresh or shared
 // link lands on the same tab. An old-style #Spotlight hash still works.
@@ -125,11 +135,12 @@ function readHashFilters() {
   if (!h) return {};
   if (!h.includes('=')) return { category: decodeURIComponent(h) };
   const p = new URLSearchParams(h);
-  return { category: p.get('category') || undefined };
+  return { category: p.get('category') || undefined, division: p.get('division') || undefined };
 }
 
-function writeHashFilters(category) {
+function writeHashFilters(category, division) {
   const p = new URLSearchParams();
+  if (division === 'automation') p.set('division', division);
   if (category && category !== 'all') p.set('category', category);
   const q = p.toString();
   history.replaceState(null, '', q ? '#' + q : location.pathname);

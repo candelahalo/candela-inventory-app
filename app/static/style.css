@@ -1134,3 +1134,9 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 
 /* New product: already in Products */
 .dup-warn { background: #FFF4E5; border: 1px solid #F0B35A; border-radius: 8px; padding: 9px 12px; margin: 10px 0 0; font-size: 13px; line-height: 1.5; }
+
+/* Products / Stock: Lighting | Automation */
+.div-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.div-btn { border: 0; background: #fff; padding: 7px 18px; font: inherit; font-size: 13.5px; cursor: pointer; color: var(--muted); }
+.div-btn + .div-btn { border-left: 1px solid var(--line); }
+.div-btn.on { background: var(--ink); color: #fff; font-weight: 600; }
