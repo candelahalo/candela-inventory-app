@@ -108,6 +108,19 @@
     <button type="button" class="btn btn-ghost btn-sm" id="add-line" title="A line typed by hand, or picked from the full list">+ Add line by hand</button>
     <button type="button" class="btn btn-ghost btn-sm" id="add-section" title="A heading over the lines below it, e.g. FRONT END MATERIALS">+ Section</button>
 
+    <details class="q-matrix" id="q-matrix">
+      <summary><strong>Rooms</strong> <span class="muted">— quantities per room; the totals become the line quantities</span> <span class="mx-sum" id="mx-sum"></span></summary>
+      <div class="mx-tools">
+        <button type="button" class="btn btn-sm" id="mx-read" title="Room names and the floor are read from the architect's plan; one PDF per floor, several at once is fine">Read rooms from layout PDF</button>
+        <input type="file" id="mx-file" accept=".pdf,application/pdf" multiple hidden>
+        <button type="button" class="btn btn-ghost btn-sm" id="mx-add-floor">+ Floor</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mx-cols-btn" title="Which lines of the quote get a column">Columns…</button>
+        <span class="muted mx-hint">Type a number, Enter goes down. Empty rooms are left out of the proposal.</span>
+      </div>
+      <div class="mx-cols" id="mx-cols" hidden></div>
+      <div class="mx-wrap" id="mx-wrap"></div>
+    </details>
+
     <div class="margin-summary" id="margin-summary">
       <div class="ms-row"><span>Revenue (goods)</span><strong id="ms-revenue">—</strong></div>
       <div class="ms-row"><span>Cost of goods</span><strong id="ms-cost">—</strong></div>
@@ -781,6 +794,7 @@ async function setImportedCategory(id, sel) {
 }
 
 function recalcMargins() {
+  if (document.getElementById('q-matrix').open && typeof renderMatrix === 'function') renderMatrix(false);
   if (!isAdmin) return;
   let revenue = 0, cost = 0;
   document.querySelectorAll('.line-item-block').forEach(block => {
@@ -882,6 +896,7 @@ function hideAddPanel() {
   clearClassAuto();
   openQuote = null;
   importedMeta = null;
+  mxReset(null);
   document.getElementById('import-note').style.display = 'none';
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
@@ -917,6 +932,7 @@ async function editQuotation(id) {
   document.getElementById('q-sec-sub').checked = !!q.section_subtotals;
   ['consultant', 'main_contractor', 'inclusions', 'exclusions', 'milestones'].forEach(k => { form[k].value = q[k] || ''; });
   document.getElementById('q-prop-prices').checked = q.proposal_prices !== false;
+  mxReset(q.room_matrix);
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1328,7 +1344,225 @@ function collectQuotationPayload() {
     if (n && t) notes[n] = t;
   });
   payload.section_notes = Object.keys(notes).length ? notes : null;
+  payload.room_matrix = mxPayload();
   return payload;
+}
+
+
+// ---------- Room matrix: rooms per floor x products ----------
+// Columns are the quote's product lines (lights and front-end devices by
+// default). Each column's total over all rooms becomes that line's quantity.
+const MX_DEFAULT_CATS = ['Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls', 'Sensors', 'Intercom',
+  'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted', 'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light'];
+const MX_FLOOR_ORDER = ['BASEMENT', 'LOWER GROUND', 'GROUND', 'MEZZANINE', 'FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'PENTHOUSE', 'ROOF', 'TERRACE'];
+var matrix = { cols: [], off: [], floors: [] };
+var mxSig = '';
+
+function mxReset(m) {
+  matrix = m && m.floors ? { cols: m.cols || [], off: m.off || [], floors: m.floors } : { cols: [], off: [], floors: [] };
+  mxSig = '';
+  document.getElementById('q-matrix').open = matrix.floors.length > 0;
+  document.getElementById('mx-cols').hidden = true;
+  renderMatrix(true);
+}
+// The product lines in the form: key (product id) -> {block, product}
+function mxLines() {
+  const out = new Map();
+  document.querySelectorAll('#line-items .line-item-block').forEach(b => {
+    const id = b.querySelector('.li-product').value;
+    if (!id || out.has(id)) return;
+    out.set(id, { block: b, product: productsCache.find(p => String(p.id) === id) || {} });
+  });
+  return out;
+}
+function mxColumns(lines) {
+  lines.forEach((l, k) => {
+    if (!matrix.cols.includes(k) && !matrix.off.includes(k) && MX_DEFAULT_CATS.includes(l.product.category)) matrix.cols.push(k);
+  });
+  return matrix.cols.filter(k => lines.has(k));
+}
+function mxTotal(k) {
+  return matrix.floors.reduce((t, f) => t + f.rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0), 0);
+}
+function mxApply() {
+  const lines = mxLines();
+  let n = 0;
+  matrix.cols.forEach(k => {
+    const l = lines.get(k), t = mxTotal(k);
+    if (!l) return;
+    l.block.classList.toggle('mx-line', t > 0);
+    l.block.querySelector('.li-qty').title = t > 0 ? 'Total from the Rooms table below' : '';
+    if (t > 0 && String(l.block.querySelector('.li-qty').value) !== String(t)) { l.block.querySelector('.li-qty').value = t; n++; }
+  });
+  if (n) recalcMargins();
+}
+function mxLabel(l, all) {
+  const code = l.block.querySelector('.li-type').value.trim();
+  const num = (l.block.querySelector('.li-num').textContent || '').replace('.', '').trim();
+  const full = (l.product.name || '').replace(/\s+/g, ' ').trim();
+  return { code, num, name: mxShort(full, all || []), full };
+}
+// "ALBA COLLECTION - SINGLE, 8 BUTTONS - KNX" next to "ALBA COLLECTION - SINGLE, 4 BUTTONS ..."
+// shows as "Alba · 8 BUTTONS - KNX": the words all of them share are dropped
+function mxShort(full, all) {
+  const w = full.split(' ');
+  const sibs = all.filter(n => n !== full && n.split(' ')[0] === w[0]).map(n => n.split(' '));
+  let cut = 0;
+  if (sibs.length) {
+    while (cut < w.length - 1 && sibs.every(o => o[cut] === w[cut])) cut++;
+  }
+  const rest = w.slice(cut).join(' ').replace(/^[-,\s]+/, '');
+  return cut ? w[0].charAt(0) + w[0].slice(1).toLowerCase() + ' · ' + rest : full;
+}
+function renderMatrix(force) {
+  const lines = mxLines();
+  const keys = mxColumns(lines);
+  const sig = keys.join(',') + '|' + keys.map(k => { const lb = mxLabel(lines.get(k)); return lb.code + lb.num; }).join(',');
+  const rooms = matrix.floors.reduce((a, f) => a + f.rooms.length, 0);
+  document.getElementById('mx-sum').textContent = matrix.floors.length
+    ? `${matrix.floors.length} floor${matrix.floors.length === 1 ? '' : 's'} · ${rooms} rooms` : '';
+  if (!force && sig === mxSig) return;
+  mxSig = sig;
+  const wrap = document.getElementById('mx-wrap');
+  if (!matrix.floors.length) {
+    wrap.innerHTML = '<div class="muted mx-empty">No rooms yet — read them from the layout PDF, or + Floor to type them.</div>';
+    return;
+  }
+  if (!keys.length) {
+    wrap.innerHTML = '<div class="muted mx-empty">No columns — add product lines to the quote, or pick them under Columns….</div>';
+  }
+  const names = keys.map(k => (lines.get(k).product.name || '').replace(/\s+/g, ' ').trim());
+  const head = keys.map(k => {
+    const l = lines.get(k), lb = mxLabel(l, names), img = l.product.image_path;
+    return `<th title="Line ${escHtml(lb.num)}: ${escHtml(lb.full)}">${img ? `<img src="${escHtml(img)}" alt="">` : ''}<b>${escHtml(lb.num)}${lb.code ? ' · ' + escHtml(lb.code) : ''}</b><span>${escHtml(lb.name)}</span></th>`;
+  }).join('');
+  let body = '';
+  matrix.floors.forEach((f, fi) => {
+    body += `<tr class="mx-floor"><td><input class="mx-fname" data-f="${fi}" value="${escHtml(f.name)}"></td><td colspan="${keys.length + 1}">
+      <button type="button" class="li-tool" onclick="mxAddRoom(${fi})">+ Room</button>
+      <button type="button" class="li-tool" onclick="mxMoveFloor(${fi},-1)" title="Move floor up">↑</button>
+      <button type="button" class="li-tool" onclick="mxMoveFloor(${fi},1)" title="Move floor down">↓</button>
+      <button type="button" class="remove-line" onclick="mxDelFloor(${fi})" title="Remove this floor">×</button></td></tr>`;
+    f.rooms.forEach((r, ri) => {
+      body += `<tr><td><input class="mx-rname" data-f="${fi}" data-r="${ri}" value="${escHtml(r.name)}"></td>`
+        + keys.map(k => `<td><input class="mx-n" type="number" min="0" inputmode="numeric" data-f="${fi}" data-r="${ri}" data-k="${k}" value="${(r.q || {})[k] || ''}"></td>`).join('')
+        + `<td><button type="button" class="remove-line" onclick="mxDelRoom(${fi},${ri})" title="Remove room">×</button></td></tr>`;
+    });
+    body += `<tr class="mx-ftotal"><td>Total — ${escHtml(f.name)}</td>` + keys.map(k => `<td data-ft="${fi}:${k}"></td>`).join('') + '<td></td></tr>';
+  });
+  body += `<tr class="mx-gtotal"><td>Total → line qty</td>` + keys.map(k => `<td data-gt="${k}"></td>`).join('') + '<td></td></tr>';
+  wrap.innerHTML = keys.length ? `<table class="mx-grid"><thead><tr><th class="mx-room">Room</th>${head}<th></th></tr></thead><tbody>${body}</tbody></table>` : wrap.innerHTML;
+  mxTotals();
+}
+function mxTotals() {
+  document.querySelectorAll('#mx-wrap [data-ft]').forEach(td => {
+    const [fi, k] = td.dataset.ft.split(':');
+    const t = matrix.floors[fi].rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0);
+    td.textContent = t || '–';
+  });
+  document.querySelectorAll('#mx-wrap [data-gt]').forEach(td => { td.textContent = mxTotal(td.dataset.gt) || '–'; });
+}
+function mxAddRoom(fi) {
+  matrix.floors[fi].rooms.push({ name: '', q: {} });
+  renderMatrix(true);
+  const ins = document.querySelectorAll(`.mx-rname[data-f="${fi}"]`);
+  ins[ins.length - 1].focus();
+}
+function mxDelRoom(fi, ri) { matrix.floors[fi].rooms.splice(ri, 1); renderMatrix(true); mxApply(); }
+function mxDelFloor(fi) {
+  if (!confirm(`Remove ${matrix.floors[fi].name} and its ${matrix.floors[fi].rooms.length} rooms?`)) return;
+  matrix.floors.splice(fi, 1); renderMatrix(true); mxApply();
+}
+function mxMoveFloor(fi, d) {
+  const j = fi + d;
+  if (j < 0 || j >= matrix.floors.length) return;
+  [matrix.floors[fi], matrix.floors[j]] = [matrix.floors[j], matrix.floors[fi]];
+  renderMatrix(true);
+}
+function mxRank(name) {
+  const u = (name || '').toUpperCase(); const i = MX_FLOOR_ORDER.findIndex(x => u.startsWith(x));
+  return i < 0 ? 99 : i;
+}
+document.getElementById('mx-wrap').addEventListener('input', e => {
+  const t = e.target, d = t.dataset;
+  if (t.classList.contains('mx-n')) {
+    const r = matrix.floors[d.f].rooms[d.r];
+    r.q = r.q || {};
+    const v = parseInt(t.value);
+    if (v > 0) r.q[d.k] = v; else delete r.q[d.k];
+    mxTotals(); mxApply();
+  } else if (t.classList.contains('mx-rname')) {
+    matrix.floors[d.f].rooms[d.r].name = t.value;
+  } else if (t.classList.contains('mx-fname')) {
+    matrix.floors[d.f].name = t.value;
+  }
+});
+// Enter / arrows move down and up the same column, like a spreadsheet
+document.getElementById('mx-wrap').addEventListener('keydown', e => {
+  const t = e.target;
+  if (!t.classList.contains('mx-n') && !t.classList.contains('mx-rname')) return;
+  if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key)) return;
+  e.preventDefault();
+  const cls = t.classList.contains('mx-n') ? `.mx-n[data-k="${t.dataset.k}"]` : '.mx-rname';
+  const all = [...document.querySelectorAll('#mx-wrap ' + cls)];
+  const next = all[all.indexOf(t) + (e.key === 'ArrowUp' ? -1 : 1)];
+  if (next) { next.focus(); next.select && next.select(); }
+});
+document.getElementById('q-matrix').addEventListener('toggle', () => renderMatrix(true));
+document.getElementById('mx-add-floor').addEventListener('click', () => {
+  const name = prompt('Floor name', ['Ground Floor', 'First Floor', 'Second Floor', 'Roof'][matrix.floors.length] || 'Floor');
+  if (!name) return;
+  matrix.floors.push({ name: name.trim(), rooms: [{ name: '', q: {} }] });
+  renderMatrix(true);
+});
+document.getElementById('mx-cols-btn').addEventListener('click', () => {
+  const box = document.getElementById('mx-cols');
+  if (!box.hidden) { box.hidden = true; return; }
+  const lines = mxLines(); mxColumns(lines);
+  if (!lines.size) { toast('Add product lines to the quote first', true); return; }
+  box.innerHTML = [...lines].map(([k, l]) => {
+    const lb = mxLabel(l);
+    return `<label class="chk"><input type="checkbox" data-k="${k}"${matrix.cols.includes(k) ? ' checked' : ''}> ${lb.code ? '<b>' + escHtml(lb.code) + '</b> ' : ''}${escHtml(lb.full)} <span class="muted">${escHtml(l.product.category || '')}</span></label>`;
+  }).join('');
+  box.hidden = false;
+});
+document.getElementById('mx-cols').addEventListener('change', e => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  matrix.cols = matrix.cols.filter(x => x !== k); matrix.off = matrix.off.filter(x => x !== k);
+  if (e.target.checked) matrix.cols.push(k); else matrix.off.push(k);
+  renderMatrix(true); mxApply();
+});
+document.getElementById('mx-read').addEventListener('click', () => document.getElementById('mx-file').click());
+document.getElementById('mx-file').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  for (const file of files) {
+    toast(`Reading rooms from ${file.name} … (about 10 seconds)`);
+    const fd = new FormData(); fd.append('file', file);
+    let res;
+    try { res = await fetch('/quotations/read-rooms', { method: 'POST', headers: authHeaders(), body: fd }); }
+    catch (err) { toast('Upload failed: ' + err.message, true); continue; }
+    if (res.status === 401) { signOut(); return; }
+    if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (err) {} toast(file.name + ': ' + d, true); continue; }
+    const d = await res.json();
+    let f = matrix.floors.find(x => x.name.toUpperCase() === d.floor.toUpperCase());
+    if (!f) { f = { name: d.floor, rooms: [] }; matrix.floors.push(f); }
+    const have = new Set(f.rooms.map(r => r.name.toUpperCase()));
+    let added = 0;
+    d.rooms.forEach(n => { if (!have.has(n.toUpperCase())) { f.rooms.push({ name: n, q: {} }); added++; } });
+    matrix.floors.sort((a, b) => mxRank(a.name) - mxRank(b.name));
+    toast(`${d.floor}: ${added} room${added === 1 ? '' : 's'} added — rename or remove any that aren't needed`);
+  }
+  document.getElementById('q-matrix').open = true;
+  renderMatrix(true);
+});
+function mxPayload() {
+  if (!matrix.floors.length) return null;
+  return { cols: matrix.cols, off: matrix.off, floors: matrix.floors.map(f => ({
+    name: f.name.trim() || 'Floor',
+    rooms: f.rooms.filter(r => r.name.trim() || Object.keys(r.q || {}).length).map(r => ({ name: r.name.trim(), q: r.q || {} })),
+  })) };
 }
 
 // ---------- Import an old quotation from its PDF ----------

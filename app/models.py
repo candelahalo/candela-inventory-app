@@ -176,6 +176,9 @@ class Quotation(Base):
     exclusions = Column(Text)
     milestones = Column(Text)  # one per line: "35% advance against design"
     proposal_prices = Column(Boolean, default=True, nullable=False)  # unit prices in the proposal
+    # Rooms per floor x products: {"cols": ["12", ...product ids], "floors": [{"name": "Ground Floor",
+    #   "rooms": [{"name": "Family Living", "q": {"12": 2}}]}]}; column totals are the line quantities
+    room_matrix = Column(JSON)
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

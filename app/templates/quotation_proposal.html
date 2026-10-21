@@ -17,6 +17,7 @@
   @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }
 }
+@page matrix { size: A4 landscape; margin: 18mm 14mm 16mm 14mm; }
 @page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } }
 
 * { box-sizing: border-box; }
@@ -65,6 +66,23 @@ table.boq tr.total td { background: #F3EEE2; font-weight: 700; font-size: 10px; 
 .photos { display: flex; gap: 6mm; margin-top: 7mm; justify-content: center; }
 .photos div { width: 48mm; height: 40mm; border: 0.75px solid #EEE7D6; border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 2mm; background: #fff; }
 .photos img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Room matrix */
+.mx-page { page: matrix; page-break-before: always; }
+.mx-head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1.5px solid #201E1A; padding-bottom: 2mm; margin-bottom: 4mm; }
+.mx-head .sys-name { font-size: 15px; }
+table.mx { width: 100%; border-collapse: collapse; font-size: 8.6px; table-layout: fixed; }
+table.mx th { background: #201E1A; color: #fff; font-weight: 600; font-size: 7.4px; padding: 1.6mm 1.2mm; vertical-align: bottom; text-align: center; line-height: 1.3; }
+table.mx th.room { text-align: left; width: 46mm; font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; }
+table.mx th .ref { display: block; color: #E9A43A; font-weight: 700; font-size: 8px; margin-bottom: .6mm; }
+table.mx th .ph { display: block; height: 9mm; margin: 0 auto 1mm; background: #fff; border-radius: 2px; padding: .8mm; width: 11mm; }
+table.mx th .ph img { max-width: 100%; max-height: 100%; object-fit: contain; }
+table.mx td { padding: 1.05mm 1.2mm; border-bottom: 0.5px solid #E6DFCC; text-align: center; font-variant-numeric: tabular-nums; }
+table.mx td.room { text-align: left; font-weight: 500; }
+table.mx td.z { color: #D4CCB8; }
+table.mx tr:nth-child(even) td { background: #FAF8F2; }
+table.mx tr.total td { background: #F3EEE2; font-weight: 700; border-bottom: 0; }
+.mx-note { margin-top: 3mm; font-size: 8px; color: #8A8473; }
 
 /* Summary */
 table.sum { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5mm; }
@@ -149,6 +167,22 @@ table.ms td.num { text-align: right; white-space: nowrap; }
     </tbody>
   </table>
   {% if s.photos %}<div class="photos">{% for ph in s.photos %}<div><img src="{{ ph }}"></div>{% endfor %}</div>{% endif %}
+</div>
+{% endfor %}
+
+<!-- ===== ROOM MATRIX: A PAGE PER FLOOR ===== -->
+{% for f in p.matrix %}
+<div class="mx-page">
+  <div class="mx-head"><div><div class="kicker">Device schedule by room</div><div class="sys-name">{{ f.name }}</div></div>
+    <div class="muted" style="font-size:8px">Ref = system . line in this proposal</div></div>
+  <table class="mx">
+    <thead><tr><th class="room">Room</th>
+      {% for c in f.cols %}<th>{% if c.photo %}<span class="ph"><img src="{{ c.photo }}"></span>{% endif %}<span class="ref">{{ c.ref }}</span>{{ c.title }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in f.rooms %}<tr><td class="room">{{ r.name }}</td>{% for n in r.cells %}<td{% if not n %} class="z"{% endif %}>{{ n if n else '–' }}</td>{% endfor %}</tr>{% endfor %}
+      <tr class="total"><td class="room">Total — {{ f.name }}</td>{% for n in f.totals %}<td>{{ n }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
 </div>
 {% endfor %}
 

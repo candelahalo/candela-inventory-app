@@ -90,7 +90,74 @@ def build_context(q):
         for b in s["brands"]:
             if b.upper() not in [x.upper() for x in brands]:
                 brands.append(b)
-    return {"systems": out, "brands": brands,
+    return {"systems": out, "brands": brands, "matrix": room_matrix(q, order),
             "milestones": milestones(q.milestones, q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or "").splitlines() if l.strip()],
             "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or "").splitlines() if l.strip()]}
+
+
+def _short(name, n=34):
+    name = re.sub(r"\s+", " ", name or "").strip()
+    return name if len(name) <= n else name[:n - 1].rstrip(" -,") + "…"
+
+
+def _short_among(full, names):
+    w = full.split(" ")
+    sibs = [n.split(" ") for n in names if n != full and n.split(" ")[0] == w[0]]
+    cut = 0
+    if sibs:
+        while cut < len(w) - 1 and all(len(o) > cut and o[cut] == w[cut] for o in sibs):
+            cut += 1
+    rest = " ".join(w[cut:]).lstrip("-, ")
+    return f"{w[0].capitalize()} · {rest}" if cut else full
+
+
+def room_matrix(q, order=None):
+    """Floors of rooms x the quote's products, for a page per floor.
+    -> [{"name", "cols": [{ref, title, photo, total}], "rooms": [{name, cells}], "totals"}]"""
+    m = q.room_matrix or {}
+    if not m.get("floors") or not m.get("cols"):
+        return []
+    order = order or []
+    refs, first = {}, {}
+    counters = {}
+    for it in q.items:
+        sec = it.section or "General"
+        sno = (order.index(sec) + 1) if sec in order else 1
+        counters[sec] = counters.get(sec, 0) + 1
+        if it.product_id and str(it.product_id) not in first:
+            first[str(it.product_id)] = it
+            refs[str(it.product_id)] = f"{sno}.{counters[sec]}" if len(order) > 1 else str(counters[sec])
+    keys = [k for k in m["cols"] if k in first]
+    # columns with nothing in any room are left out
+    grand = {k: sum((r.get("q") or {}).get(k, 0) or 0 for f in m["floors"] for r in f.get("rooms", [])) for k in keys}
+    keys = [k for k in keys if grand[k] > 0]
+    if not keys:
+        return []
+    names = [re.sub(r"\s+", " ", (first[k].product.name if first[k].product else _title(first[k])) or "").strip() for k in keys]
+    cols = [{"key": k, "ref": refs[k], "title": _short(_short_among(names[i], names), 46),
+             "photo": _photo(first[k]), "total": grand[k]} for i, k in enumerate(keys)]
+    floors = []
+    for f in m["floors"]:
+        rooms = []
+        for r in f.get("rooms", []):
+            cells = [int((r.get("q") or {}).get(k, 0) or 0) for k in keys]
+            if any(cells):
+                rooms.append({"name": r.get("name") or "", "cells": cells})
+        if rooms:
+            floors.append({"name": f.get("name") or "Floor", "rooms": rooms,
+                           "totals": [sum(r["cells"][i] for r in rooms) for i in range(len(keys))]})
+    # more than ~9 device columns don't fit one landscape page: split into parts
+    per = 9
+    parts = [cols[i:i + per] for i in range(0, len(cols), per)]
+    out = []
+    for fl in floors:
+        for pi, pc in enumerate(parts):
+            idx = [cols.index(c) for c in pc]
+            rooms = [{"name": r["name"], "cells": [r["cells"][i] for i in idx]} for r in fl["rooms"]]
+            rooms = [r for r in rooms if any(r["cells"])]
+            if not rooms:
+                continue
+            out.append({"name": fl["name"] + (f" ({pi + 1}/{len(parts)})" if len(parts) > 1 else ""),
+                        "cols": pc, "rooms": rooms, "totals": [fl["totals"][i] for i in idx]})
+    return out

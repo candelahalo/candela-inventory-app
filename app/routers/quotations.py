@@ -188,6 +188,25 @@ def _add_items(quotation, payload, db: Session):
 MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 
+@router.post("/read-rooms")
+async def read_rooms(file: UploadFile = File(...), current: models.User = Depends(auth.get_current_user)):
+    """Room names and the floor from an architect's layout PDF, for the room matrix."""
+    data = await file.read(MAX_IMPORT_BYTES + 1)
+    if len(data) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=400, detail="That PDF is over 25 MB.")
+    if not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="That file isn't a PDF.")
+    from starlette.concurrency import run_in_threadpool
+    from app.room_read import read
+    try:
+        res = await run_in_threadpool(read, data, file.filename or "")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Couldn't read that PDF.")
+    if not res["rooms"]:
+        raise HTTPException(status_code=400, detail="No room names found in that PDF - is it a scanned image? Add the rooms by hand.")
+    return res
+
+
 @router.post("/import-pdf")
 async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db),
                      current: models.User = Depends(auth.get_current_user)):
@@ -486,7 +505,7 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
                    "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals",
                    "consultant", "main_contractor", "section_notes", "inclusions", "exclusions", "milestones",
-                   "proposal_prices"]
+                   "proposal_prices", "room_matrix"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,
