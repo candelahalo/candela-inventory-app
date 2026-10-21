@@ -128,6 +128,7 @@ table.sum { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-to
 table.sum td { padding: 2.2mm 2mm; border-bottom: 0.5px solid #E6DFCC; }
 table.sum td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 table.sum td.no { width: 10mm; color: #C77D0A; font-weight: 700; }
+table.sum tr.ni td { color: #8A8473; font-style: italic; }
 table.sum tr.sub td { font-weight: 600; border-top: 1px solid #201E1A; }
 table.sum tr.grand td { background: #201E1A; color: #fff; font-weight: 700; font-size: 12px; }
 
@@ -167,7 +168,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 </div>
 <div class="systems-list">
   <div class="kicker">Proposed systems</div>
-  <ol>{% for s in p.systems %}<li><span>{{ '%02d' % s.no }}</span>{{ s.name|title }}</li>{% endfor %}</ol>
+  <ol>{% for s in p.systems %}<li><span>{{ '%02d' % s.no }}</span>{{ s.title }}</li>{% endfor %}</ol>
 </div>
 
 <!-- ===== LETTER ===== -->
@@ -221,7 +222,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
         <td class="c">{{ l.unit }}</td><td class="num">{{ l.qty }}</td>
         {% if show_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
     {% endfor %}
-      <tr class="total"><td colspan="{{ 5 if show_prices else 3 }}">Total — {{ s.name|title }} ({{ q.currency }}, VAT excluded)</td>
+      <tr class="total"><td colspan="{{ 5 if show_prices else 3 }}">Total — {{ s.title }} ({{ q.currency }}, VAT excluded)</td>
         <td class="num" colspan="2">{{ "{:,.2f}".format(s.total) }}</td></tr>
     </tbody>
   </table>
@@ -233,7 +234,8 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <div class="kicker">Conclusion</div>
   <h2>Price summary</h2>
   <table class="sum">
-    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.name|title }}</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
+    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.title }}</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
+    {% for n in p.not_included %}<tr class="ni"><td class="no">—</td><td>{{ n }}</td><td class="num">Not included</td></tr>{% endfor %}
     <tr class="sub"><td></td><td>Total of all systems</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</td></tr>
     {% if q.total_discount|abs >= 0.01 %}<tr><td></td><td>Discount</td><td class="num">− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</td></tr>{% endif %}
     {% set delivery = (q.freight_charges or 0) + q.transportation_amount %}
@@ -277,7 +279,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <div class="kicker">Agreement</div>
   <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
   {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-  {% if p.exclusions %}<div class="tsec"><h3>Exclusions</h3><ul>{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if p.exclusions or p.not_included %}<div class="tsec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li><strong>{{ n }}</strong> — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
   <div class="tsec"><h3>Payment terms</h3>
     {% if p.milestones %}
     <table class="ms">{% for pct, text, amt in p.milestones %}<tr><td class="pct">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>

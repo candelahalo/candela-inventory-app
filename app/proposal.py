@@ -59,6 +59,28 @@ def milestones(text, base):
     return out
 
 
+KEEP_CAPS = {"AC", "IT", "CCTV", "KNX", "DALI", "AV", "HVAC", "BMS", "VRF", "IP", "UPS", "ELV", "DB", "BOH", "TV"}
+
+
+def system_title(name):
+    """Section name for headings: the standard division's own spelling, else
+    title case that keeps AC, IT, CCTV, KNX... in capitals."""
+    from app.automation_template import DIVISIONS
+    for _k, title, _i in DIVISIONS:
+        if title.upper() == (name or "").strip().upper():
+            return title
+    words = []
+    for w in (name or "").split():
+        core = re.sub(r"[^\w-]", "", w).upper()
+        if core in KEEP_CAPS:
+            words.append(w.upper())
+        elif w.lower() in ("and", "of", "&", "for", "the", "with") and words:
+            words.append(w.lower())
+        else:
+            words.append(w[:1].upper() + w[1:].lower())
+    return " ".join(words)
+
+
 def build_context(q, standard=None):
     """standard: the Settings terms, used where the quotation's own boxes are empty."""
     standard = standard or {}
@@ -85,6 +107,7 @@ def build_context(q, standard=None):
     for i, name in enumerate(order, start=1):
         s = systems[name]
         s["no"] = i
+        s["title"] = system_title(name)
         s["notes"] = [l.strip().lstrip("•-* ").strip() for l in (notes.get(name) or "").splitlines() if l.strip()]
         out.append(s)
     brands = []
@@ -92,7 +115,12 @@ def build_context(q, standard=None):
         for b in s["brands"]:
             if b.upper() not in [x.upper() for x in brands]:
                 brands.append(b)
-    return {"systems": out, "brands": brands, "matrix": room_matrix(q, order),
+    # Standard automation divisions this quote doesn't take: named in the summary and exclusions
+    from app.automation_template import DIVISIONS
+    names = {s["name"].strip().upper() for s in out}
+    std = [(title.upper(), title) for key, title, _i in DIVISIONS if key != "fees"]  # fees are not a system
+    not_included = [title for sec, title in std if sec not in names] if any(sec in names for sec, _t in std) else []
+    return {"systems": out, "brands": brands, "matrix": room_matrix(q, order), "not_included": not_included,
             "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(),
             "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
