@@ -1532,11 +1532,13 @@ document.addEventListener('paste', e => {
 const MX_DEFAULT_CATS = ['Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls', 'Sensors', 'Intercom',
   'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted', 'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light'];
 const MX_FLOOR_ORDER = ['BASEMENT', 'LOWER GROUND', 'GROUND', 'MEZZANINE', 'FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'PENTHOUSE', 'ROOF', 'TERRACE'];
-var matrix = { cols: [], off: [], floors: [] };
+// Back-end items counted per floor (one number for the floor, not per room)
+const MX_FLOOR_CATS = ['Lighting Control'];
+var matrix = { cols: [], off: [], fcols: [], floors: [] };
 var mxSig = '';
 
 function mxReset(m) {
-  matrix = m && m.floors ? { cols: m.cols || [], off: m.off || [], floors: m.floors } : { cols: [], off: [], floors: [] };
+  matrix = m && m.floors ? { cols: m.cols || [], off: m.off || [], fcols: m.fcols || [], seen: m.seen || null, floors: m.floors } : { cols: [], off: [], fcols: [], floors: [] };
   mxSig = '';
   document.getElementById('q-matrix').open = matrix.floors.length > 0;
   document.getElementById('mx-cols').hidden = true;
@@ -1554,12 +1556,20 @@ function mxLines() {
 }
 function mxColumns(lines) {
   lines.forEach((l, k) => {
-    if (!matrix.cols.includes(k) && !matrix.off.includes(k) && MX_DEFAULT_CATS.includes(l.product.category)) matrix.cols.push(k);
+    if (matrix.cols.includes(k) || matrix.off.includes(k)) return;
+    if (MX_DEFAULT_CATS.includes(l.product.category)) matrix.cols.push(k);
+    else if (MX_FLOOR_CATS.includes(l.product.category)) { matrix.cols.push(k); if (!matrix.fcols.includes(k)) matrix.fcols.push(k); }
   });
-  return matrix.cols.filter(k => lines.has(k));
+  // per-room columns first, then the per-floor ones (as on the drawing schedules)
+  const keys = matrix.cols.filter(k => lines.has(k));
+  return keys.filter(k => !mxIsFloor(k)).concat(keys.filter(k => mxIsFloor(k)));
+}
+function mxIsFloor(k) { return matrix.fcols.includes(k); }
+function mxFloorTotal(f, k) {
+  return mxIsFloor(k) ? (parseInt((f.fq || {})[k]) || 0) : f.rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0);
 }
 function mxTotal(k) {
-  return matrix.floors.reduce((t, f) => t + f.rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0), 0);
+  return matrix.floors.reduce((t, f) => t + mxFloorTotal(f, k), 0);
 }
 function mxApply() {
   const lines = mxLines();
@@ -1611,18 +1621,22 @@ function renderMatrix(force) {
   const names = keys.map(k => (lines.get(k).product.name || '').replace(/\s+/g, ' ').trim());
   const head = keys.map(k => {
     const l = lines.get(k), lb = mxLabel(l, names), img = l.product.image_path;
-    return `<th title="Line ${escHtml(lb.num)}: ${escHtml(lb.full)}">${img ? `<img src="${escHtml(img)}" alt="">` : ''}<b>${escHtml(lb.num)}${lb.code ? ' · ' + escHtml(lb.code) : ''}</b><span>${escHtml(lb.name)}</span></th>`;
+    return `<th class="${mxIsFloor(k) ? 'mx-fl' : ''}" title="Line ${escHtml(lb.num)}: ${escHtml(lb.full)}${mxIsFloor(k) ? ' — one number per floor' : ''}">${img ? `<img src="${escHtml(img)}" alt="">` : ''}<b>${escHtml(lb.num)}${lb.code ? ' · ' + escHtml(lb.code) : ''}</b><span>${escHtml(lb.name)}</span>${mxIsFloor(k) ? '<i>per floor</i>' : ''}</th>`;
   }).join('');
   let body = '';
   matrix.floors.forEach((f, fi) => {
-    body += `<tr class="mx-floor"><td><input class="mx-fname" data-f="${fi}" value="${escHtml(f.name)}"></td><td colspan="${keys.length + 1}">
+    body += `<tr class="mx-floor"><td><div class="mx-fhead"><input class="mx-fname" data-f="${fi}" value="${escHtml(f.name)}">
       <button type="button" class="li-tool" onclick="mxAddRoom(${fi})">+ Room</button>
       <button type="button" class="li-tool" onclick="mxMoveFloor(${fi},-1)" title="Move floor up">↑</button>
-      <button type="button" class="li-tool" onclick="mxMoveFloor(${fi},1)" title="Move floor down">↓</button>
-      <button type="button" class="remove-line" onclick="mxDelFloor(${fi})" title="Remove this floor">×</button></td></tr>`;
+      <button type="button" class="li-tool" onclick="mxMoveFloor(${fi},1)" title="Move floor down">↓</button></div></td>`
+      + keys.map(k => mxIsFloor(k)
+        ? `<td><input class="mx-n mx-fn" type="number" min="0" inputmode="numeric" data-f="${fi}" data-k="${k}" value="${(f.fq || {})[k] || ''}" title="For the whole ${escHtml(f.name)}"></td>`
+        : '<td></td>').join('')
+      + `<td><button type="button" class="remove-line" onclick="mxDelFloor(${fi})" title="Remove this floor">×</button></td></tr>`;
     f.rooms.forEach((r, ri) => {
       body += `<tr><td><input class="mx-rname" data-f="${fi}" data-r="${ri}" value="${escHtml(r.name)}"></td>`
-        + keys.map(k => `<td><input class="mx-n" type="number" min="0" inputmode="numeric" data-f="${fi}" data-r="${ri}" data-k="${k}" value="${(r.q || {})[k] || ''}"></td>`).join('')
+        + keys.map(k => mxIsFloor(k) ? '<td class="mx-na"></td>'
+          : `<td><input class="mx-n" type="number" min="0" inputmode="numeric" data-f="${fi}" data-r="${ri}" data-k="${k}" value="${(r.q || {})[k] || ''}"></td>`).join('')
         + `<td><button type="button" class="remove-line" onclick="mxDelRoom(${fi},${ri})" title="Remove room">×</button></td></tr>`;
     });
     body += `<tr class="mx-ftotal"><td>Total — ${escHtml(f.name)}</td>` + keys.map(k => `<td data-ft="${fi}:${k}"></td>`).join('') + '<td></td></tr>';
@@ -1634,7 +1648,7 @@ function renderMatrix(force) {
 function mxTotals() {
   document.querySelectorAll('#mx-wrap [data-ft]').forEach(td => {
     const [fi, k] = td.dataset.ft.split(':');
-    const t = matrix.floors[fi].rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0);
+    const t = mxFloorTotal(matrix.floors[fi], k);
     td.textContent = t || '–';
   });
   document.querySelectorAll('#mx-wrap [data-gt]').forEach(td => { td.textContent = mxTotal(td.dataset.gt) || '–'; });
@@ -1662,7 +1676,13 @@ function mxRank(name) {
 }
 document.getElementById('mx-wrap').addEventListener('input', e => {
   const t = e.target, d = t.dataset;
-  if (t.classList.contains('mx-n')) {
+  if (t.classList.contains('mx-fn')) {
+    const f = matrix.floors[d.f];
+    f.fq = f.fq || {};
+    const v = parseInt(t.value);
+    if (v > 0) f.fq[d.k] = v; else delete f.fq[d.k];
+    mxTotals(); mxApply();
+  } else if (t.classList.contains('mx-n')) {
     const r = matrix.floors[d.f].rooms[d.r];
     r.q = r.q || {};
     const v = parseInt(t.value);
@@ -1680,7 +1700,7 @@ document.getElementById('mx-wrap').addEventListener('keydown', e => {
   if (!t.classList.contains('mx-n') && !t.classList.contains('mx-rname')) return;
   if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key)) return;
   e.preventDefault();
-  const cls = t.classList.contains('mx-n') ? `.mx-n[data-k="${t.dataset.k}"]` : '.mx-rname';
+  const cls = t.classList.contains('mx-n') ? `.mx-n${t.classList.contains('mx-fn') ? '.mx-fn' : ':not(.mx-fn)'}[data-k="${t.dataset.k}"]` : '.mx-rname';
   const all = [...document.querySelectorAll('#mx-wrap ' + cls)];
   const next = all[all.indexOf(t) + (e.key === 'ArrowUp' ? -1 : 1)];
   if (next) { next.focus(); next.select && next.select(); }
@@ -1689,7 +1709,7 @@ document.getElementById('q-matrix').addEventListener('toggle', () => renderMatri
 document.getElementById('mx-add-floor').addEventListener('click', () => {
   const name = prompt('Floor name', ['Ground Floor', 'First Floor', 'Second Floor', 'Roof'][matrix.floors.length] || 'Floor');
   if (!name) return;
-  matrix.floors.push({ name: name.trim(), rooms: [{ name: '', q: {} }] });
+  matrix.floors.push({ name: name.trim(), rooms: [{ name: '', q: {} }], fq: {} });
   renderMatrix(true);
 });
 document.getElementById('mx-cols-btn').addEventListener('click', () => {
@@ -1699,11 +1719,22 @@ document.getElementById('mx-cols-btn').addEventListener('click', () => {
   if (!lines.size) { toast('Add product lines to the quote first', true); return; }
   box.innerHTML = [...lines].map(([k, l]) => {
     const lb = mxLabel(l);
-    return `<label class="chk"><input type="checkbox" data-k="${k}"${matrix.cols.includes(k) ? ' checked' : ''}> ${lb.code ? '<b>' + escHtml(lb.code) + '</b> ' : ''}${escHtml(lb.full)} <span class="muted">${escHtml(l.product.category || '')}</span></label>`;
+    return `<div class="mx-colrow"><label class="chk"><input type="checkbox" data-k="${k}"${matrix.cols.includes(k) ? ' checked' : ''}> ${lb.code ? '<b>' + escHtml(lb.code) + '</b> ' : ''}${escHtml(lb.full)} <span class="muted">${escHtml(l.product.category || '')}</span></label>
+      <label class="chk mx-perfloor" title="One number for the whole floor (gateways, actuators, power supplies, WAPs…)"><input type="checkbox" data-fk="${k}"${mxIsFloor(k) ? ' checked' : ''}> per floor</label></div>`;
   }).join('');
   box.hidden = false;
 });
 document.getElementById('mx-cols').addEventListener('change', e => {
+  const fk = e.target.dataset.fk;
+  if (fk) {
+    matrix.fcols = matrix.fcols.filter(x => x !== fk);
+    if (e.target.checked) {
+      matrix.fcols.push(fk);
+      if (!matrix.cols.includes(fk)) { matrix.cols.push(fk); matrix.off = matrix.off.filter(x => x !== fk); const c = e.target.closest('.mx-colrow').querySelector('[data-k]'); if (c) c.checked = true; }
+    }
+    renderMatrix(true); mxApply();
+    return;
+  }
   const k = e.target.dataset.k;
   if (!k) return;
   matrix.cols = matrix.cols.filter(x => x !== k); matrix.off = matrix.off.filter(x => x !== k);
@@ -1724,7 +1755,7 @@ document.getElementById('mx-file').addEventListener('change', async e => {
     if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (err) {} toast(file.name + ': ' + d, true); continue; }
     const d = await res.json();
     let f = matrix.floors.find(x => x.name.toUpperCase() === d.floor.toUpperCase());
-    if (!f) { f = { name: d.floor, rooms: [] }; matrix.floors.push(f); }
+    if (!f) { f = { name: d.floor, rooms: [], fq: {} }; matrix.floors.push(f); }
     const have = new Set(f.rooms.map(r => r.name.toUpperCase()));
     let added = 0;
     d.rooms.forEach(n => { if (!have.has(n.toUpperCase())) { f.rooms.push({ name: n, q: {} }); added++; } });
@@ -1736,8 +1767,8 @@ document.getElementById('mx-file').addEventListener('change', async e => {
 });
 function mxPayload() {
   if (!matrix.floors.length) return null;
-  return { cols: matrix.cols, off: matrix.off, floors: matrix.floors.map(f => ({
-    name: f.name.trim() || 'Floor',
+  return { cols: matrix.cols, off: matrix.off, fcols: matrix.fcols, floors: matrix.floors.map(f => ({
+    name: f.name.trim() || 'Floor', fq: f.fq || {},
     rooms: f.rooms.filter(r => r.name.trim() || Object.keys(r.q || {}).length).map(r => ({ name: r.name.trim(), q: r.q || {} })),
   })) };
 }

@@ -17,7 +17,7 @@
   @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }
 }
-@page matrix { size: A4 landscape; margin: 18mm 14mm 16mm 14mm; }
+@page matrix { size: A4 landscape; margin: 15mm 12mm 13mm 12mm; }
 @page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } }
 
 * { box-sizing: border-box; }
@@ -67,36 +67,26 @@ table.boq tr.total td { background: #F3EEE2; font-weight: 700; font-size: 10px; 
 .photos div { width: 30mm; height: 24mm; border: 0.75px solid #EEE7D6; border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 2mm; background: #fff; }
 .photos img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-/* Room matrix */
+/* Design matrix */
 .mx-page { page: matrix; page-break-before: always; }
-.mx-head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1.5px solid #201E1A; padding-bottom: 2mm; margin-bottom: 4mm; }
-.mx-head .sys-name { font-size: 15px; }
-table.mx { width: 100%; border-collapse: collapse; font-size: 8.6px; table-layout: fixed; }
-table.mx th { background: #201E1A; color: #fff; font-weight: 600; font-size: 7.4px; padding: 1.6mm 1.2mm; vertical-align: bottom; text-align: center; line-height: 1.3; }
-table.mx th.sl, table.mx td.sl { width: 8mm; text-align: center; color: inherit; }
-table.mx th.room { text-align: left; width: 46mm; font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; }
-table.mx th .ref { display: block; color: #E9A43A; font-weight: 700; font-size: 8px; margin-bottom: .6mm; }
-table.mx th .ph { display: block; height: 9mm; margin: 0 auto 1mm; background: #fff; border-radius: 2px; padding: .8mm; width: 11mm; }
-table.mx th .ph img { max-width: 100%; max-height: 100%; object-fit: contain; }
-table.mx td { padding: 1.05mm 1.2mm; border-bottom: 0.5px solid #E6DFCC; text-align: center; font-variant-numeric: tabular-nums; }
-table.mx td.room { text-align: left; font-weight: 500; }
-table.mx td.z { color: #D4CCB8; }
-table.mx tr:nth-child(even) td { background: #FAF8F2; }
-table.mx tr.total td { background: #F3EEE2; font-weight: 700; border-bottom: 0; }
-.mx-note { margin-top: 3mm; font-size: 8px; color: #8A8473; }
-
-/* Systems follow one another; a system never splits unless it is longer than a page */
-.sys { margin-top: 10mm; }
-.sys-head, .notes { break-after: avoid; }
-table.boq tr { break-inside: avoid; }
-table.boq tr.total { break-before: avoid; }
-.photos { break-inside: avoid; break-before: avoid; }
-.terms-block { margin-top: 12mm; }
-.summary-block { margin-top: 12mm; break-inside: avoid; }
-.tsec h3 { break-after: avoid; }
-.kicker, h2 { break-after: avoid; }
-.terms-block .tsec:first-of-type { break-before: avoid; }
-.approve { break-inside: avoid; }
+.mx-title { text-align: center; font-size: 17px; font-weight: 600; letter-spacing: .08em; margin: 0 0 3mm; }
+table.mx { border-collapse: collapse; font-size: 7.8px; margin: 0 auto; }
+table.mx th { background: #201E1A; color: #fff; font-weight: 600; font-size: 7.6px; padding: 1.4mm 1mm; vertical-align: middle; border: 0.5px solid #4A463D; }
+table.mx th.sl, table.mx td.sl { width: 8mm; text-align: center; }
+table.mx th.room { text-align: left; width: 52mm; }
+table.mx th.vh { width: 9.5mm; height: 38mm; padding: 0; position: relative; vertical-align: bottom; }
+table.mx th.vh.fl { background: #3A352B; }
+table.mx th .vt { position: absolute; left: 50%; bottom: 1.2mm; width: 36mm; height: 6.2mm; margin-left: -3.1mm; transform-origin: 0 100%; transform: rotate(-90deg) translateY(100%); text-align: left; line-height: 1.12; font-size: 7.2px; overflow: hidden; }
+table.mx th .vt b { color: #E9A43A; }
+table.mx td { border: 0.5px solid #CFC7B4; padding: 0.35mm 1mm; text-align: center; height: 3.5mm; font-variant-numeric: tabular-nums; }
+table.mx td.room { text-align: left; }
+table.mx td.merged { background: #F3EEE2; font-weight: 700; font-size: 9px; vertical-align: middle; }
+table.mx tr.fl-row td { background: #C77D0A; color: #fff; font-weight: 700; text-align: left; letter-spacing: .04em; border-color: #C77D0A; }
+table.mx tbody.mx-floor { break-inside: avoid; }  /* a floor stays on one page when it fits */
+table.mx tr { break-inside: avoid; }
+table.mx tr.fl-row { break-after: avoid; }
+table.mx tr.total td { background: #201E1A; color: #fff; font-weight: 700; }
+.mx-note { margin-top: 2.5mm; font-size: 7.6px; color: #8A8473; text-align: center; }
 
 /* Images: a page per section */
 .gal-page { page-break-before: always; }
@@ -211,19 +201,24 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   </table>
 </div>
 
-<!-- ===== DESIGN MATRIX: A PAGE PER FLOOR ===== -->
-{% for f in p.matrix %}
+<!-- ===== DESIGN MATRIX: ONE TABLE, ALL FLOORS ===== -->
+{% for part in p.matrix %}
 <div class="mx-page">
-  <div class="mx-head"><div><div class="kicker">Design matrix</div><div class="sys-name">{{ f.name }}</div></div>
-    <div class="muted" style="font-size:8px">Ref = system . line in this proposal</div></div>
+  <div class="mx-title">DESIGN MATRIX{% if part.part %} <span class="muted">({{ part.part }})</span>{% endif %}</div>
   <table class="mx">
-    <thead><tr><th class="sl">Sl.</th><th class="room">Proposed location</th>
-      {% for c in f.cols %}<th>{% if c.photo %}<span class="ph"><img src="{{ c.photo }}"></span>{% endif %}<span class="ref">{{ c.ref }}</span>{{ c.title }}</th>{% endfor %}</tr></thead>
-    <tbody>
-    {% for r in f.rooms %}<tr><td class="sl">{{ loop.index }}</td><td class="room">{{ r.name }}</td>{% for n in r.cells %}<td{% if not n %} class="z"{% endif %}>{{ n if n else '–' }}</td>{% endfor %}</tr>{% endfor %}
-      <tr class="total"><td></td><td class="room">Total — {{ f.name }}</td>{% for n in f.totals %}<td>{{ n }}</td>{% endfor %}</tr>
+    <thead><tr><th class="sl">Sl.</th><th class="room">Proposed locations</th>
+      {% for c in part.cols %}<th class="vh{% if c.floor %} fl{% endif %}"><div class="vt"><b>{{ c.ref }}</b> {{ c.title }}</div></th>{% endfor %}</tr></thead>
+    {% for f in part.floors %}
+    <tbody class="mx-floor">
+      <tr class="fl-row"><td></td><td colspan="{{ part.cols|length + 1 }}">{{ f.name }}</td></tr>
+      {% for r in f.rows %}<tr><td class="sl">{{ r.sl }}</td><td class="room">{{ r.name }}</td>
+        {% for c in r.cells %}{% if c is not none %}<td{% if c.span > 1 %} rowspan="{{ c.span }}" class="merged"{% endif %}>{{ c.v if c.v else '' }}</td>{% endif %}{% endfor %}</tr>
+      {% endfor %}
     </tbody>
+    {% endfor %}
+    <tbody><tr class="total"><td></td><td class="room">Total</td>{% for n in part.totals %}<td>{{ n }}</td>{% endfor %}</tr></tbody>
   </table>
+  <div class="mx-note">Ref = system . line in this proposal. Shaded columns are counted per floor.</div>
 </div>
 {% endfor %}
 
