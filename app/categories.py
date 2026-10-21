@@ -8,10 +8,10 @@ PRODUCT_CATEGORIES = [
     "Track Accessories", "BOH",
     # Automation
     "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "AC Controls",
-    "Sensors", "Intercom",
+    "Sensors", "Intercom", "Automation Accessories",
 ]
 AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
-                         "AC Controls", "Sensors", "Intercom"]
+                         "AC Controls", "Sensors", "Intercom", "Automation Accessories"]
 
 # Earlier category / type names and where they belong now
 _OLD_TYPE = {
@@ -41,7 +41,10 @@ def classify(text):
     if re.search(r"keypad|touch ?screen|touch ?panel|push ?button|wall switch|scene switch|\b\d+\s*buttons?\b", t):
         return "Keypads & Switches"
     if re.search(r"\bcables?\b", t):
-        return "Accessories"
+        # bus / data cable is for automation; anything else stays with the lighting accessories
+        return "Automation Accessories" if re.search(r"knx|\beib\b|cat ?6|cat ?5|\butp\b|\bbus\b|dali|network|ethernet", t) else "Accessories"
+    if re.search(r"enclosure|db box|distribution box|din rail|patch panel", t):
+        return "Automation Accessories"
     if re.search(r"(motion|presence|occupancy|daylight|lux|pir|leak|smoke|temperature|humidity|door|window)\s*(/\s*\w+\s*)?sensor"
                  r"|\bsensors?\b|presence detector|motion detector", t) \
             and not re.search(r"\bdriver\b|luminaire|spotlight|downlight", t):

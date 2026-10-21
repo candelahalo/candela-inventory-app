@@ -386,9 +386,13 @@ def _clean_brand(b):
     return b or None
 
 
-def _category(text):
-    """Category for an imported item (types are no longer used)."""
-    return classify(text), None
+def _category(text, division=None):
+    """Category for an imported item (types are no longer used). In an
+    automation quotation, accessories are automation accessories."""
+    cat = classify(text)
+    if division == "automation" and cat == "Accessories":
+        cat = "Automation Accessories"
+    return cat, None
 
 
 def product_defs(items, division=None):
@@ -419,9 +423,9 @@ def product_defs(items, division=None):
             sku = "-".join(filter(None, [prefix, _slug(model), _slug(watt).replace("-", ""),
                                          (_slug(cct).replace("000K", "0K") if cct else None),
                                          FINISH_CODE.get((finish or "").lower())]))
-            cat, typ = _category(" ".join([model or "", _field(spec, "Type") or "", " ".join(spec[:2])]))
+            cat, typ = _category(" ".join([model or "", _field(spec, "Type") or "", " ".join(spec[:2])]), division)
             if not cat and division == "automation":  # keypads, sensors ...: their words can be further down
-                cat, typ = _category(" ".join([model or "", it.get("_lead") or "", " ".join(spec)]))
+                cat, typ = _category(" ".join([model or "", it.get("_lead") or "", " ".join(spec)]), division)
             it["_product"] = {"key": "m|" + _norm(brand) + "|" + _norm("\n".join(spec)), "name": name[:255],
                               "brand": brand, "sku": sku[:64], "spec": "\n".join(spec) or None,
                               "category": cat, "product_type": typ}
@@ -446,11 +450,11 @@ def product_defs(items, division=None):
             sku = f"{parent['prefix']}-{_slug(text or label)}"
             if len(sku) + len(_slug(ref)) < 60:
                 sku += "-" + _slug(ref)
-        cat, typ = _category(name if driver or text else label)
+        cat, typ = _category(name if driver or text else label, division)
         it["_product"] = {"key": "s|" + _norm(brand) + "|" + _norm(ref) + "|" + _norm(text or label),
                           "name": name[:255], "brand": brand, "sku": sku[:64], "spec": name,
                           # in an automation quote a line under an item isn't necessarily an accessory
-                          "category": cat or (None if division == "automation" else "Accessories"),
+                          "category": cat or ("Automation Accessories" if division == "automation" else "Accessories"),
                           "product_type": typ}
     # Different items that came out with the same name (e.g. stretch ceilings
     # of different sizes): add the dimension to tell them apart

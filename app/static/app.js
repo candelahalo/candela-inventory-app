@@ -118,10 +118,10 @@ const PRODUCT_CATEGORIES = [
   'Track Accessories', 'BOH',
   // Automation
   'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls',
-  'Sensors', 'Intercom',
+  'Sensors', 'Intercom', 'Automation Accessories',
 ];
 const AUTOMATION_CATEGORIES = ['Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security',
-  'AC Controls', 'Sensors', 'Intercom'];
+  'AC Controls', 'Sensors', 'Intercom', 'Automation Accessories'];
 // Lighting or Automation: products / stock show one at a time (no category counts as Lighting)
 const divisionOf = cat => AUTOMATION_CATEGORIES.includes(cat || '') ? 'automation' : 'lighting';
 const categoriesOf = division => PRODUCT_CATEGORIES.filter(c => divisionOf(c) === division);
