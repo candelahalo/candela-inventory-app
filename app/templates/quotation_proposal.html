@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{{ q.quote_number }} - Proposal</title>
+<style>
+@font-face { font-family: 'Inter'; font-weight: 400; src: url('app/static/fonts/Inter-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 500; src: url('app/static/fonts/Inter-Medium.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 600; src: url('app/static/fonts/Inter-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 700; src: url('app/static/fonts/Inter-Bold.ttf') format('truetype'); }
+
+@page {
+  size: A4;
+  margin: 24mm 18mm 20mm 18mm;
+  @top-left { content: "{{ ent.name|upper }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .08em; color: #9A9382; }
+  @top-right { content: "{{ q.quote_number }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .06em; color: #9A9382; }
+  @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }
+}
+@page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } }
+
+* { box-sizing: border-box; }
+body { font-family: 'Inter', Arial, sans-serif; font-size: 9.6px; color: #201E1A; line-height: 1.55; margin: 0; }
+h2 { font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+.kicker { font-size: 8px; letter-spacing: .16em; text-transform: uppercase; color: #C77D0A; font-weight: 600; }
+.muted { color: #8A8473; }
+.page { page-break-before: always; }
+
+/* Cover */
+.cover-logo img { width: 70mm; }
+.cover-band { margin: 38mm 0 10mm; border-left: 3px solid #C77D0A; padding: 2mm 0 2mm 7mm; }
+.cover-title { font-size: 30px; font-weight: 700; line-height: 1.15; margin: 3mm 0 2mm; }
+.cover-sub { font-size: 12px; color: #5D584C; }
+.meta { display: grid; grid-template-columns: 38mm 1fr; row-gap: 2.6mm; margin-top: 10mm; font-size: 10px; }
+.meta .k { font-size: 7.5px; letter-spacing: .12em; text-transform: uppercase; color: #9A9382; padding-top: 1.5px; }
+.meta .v { font-weight: 500; }
+.systems-list { margin-top: 12mm; border-top: 0.75px solid #E6DFCC; padding-top: 6mm; }
+.systems-list ol { margin: 3mm 0 0; padding-left: 0; list-style: none; columns: 2; column-gap: 10mm; }
+.systems-list li { font-size: 10.5px; padding: 1.6mm 0; border-bottom: 0.5px solid #EFE9DA; break-inside: avoid; }
+.systems-list li span { display: inline-block; width: 7mm; color: #C77D0A; font-weight: 700; }
+
+/* Letter */
+.letter p { font-size: 10px; margin: 0 0 4mm; max-width: 155mm; }
+.terms { display: grid; grid-template-columns: 34mm 1fr; row-gap: 2mm; margin: 6mm 0; font-size: 9.6px; }
+.terms .k { font-weight: 600; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: #5D584C; }
+.brands { display: flex; flex-wrap: wrap; gap: 2mm; margin: 2mm 0 6mm; }
+.brands span { border: 0.75px solid #E1D8C2; border-radius: 3px; padding: 1mm 2.5mm; font-size: 8.5px; font-weight: 600; letter-spacing: .04em; }
+
+/* System pages */
+.sys-head { display: flex; align-items: baseline; gap: 4mm; border-bottom: 1.5px solid #201E1A; padding-bottom: 2mm; margin-bottom: 5mm; }
+.sys-no { font-size: 26px; font-weight: 700; color: #C77D0A; line-height: 1; }
+.sys-name { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.notes { margin: 0 0 5mm; padding: 0; list-style: none; }
+.notes li { position: relative; padding-left: 5mm; margin-bottom: 1.6mm; font-size: 9.6px; }
+.notes li::before { content: ""; position: absolute; left: 0; top: 1.9mm; width: 2.2mm; height: 2.2mm; border-radius: 50%; background: #C77D0A; }
+table.boq { width: 100%; border-collapse: collapse; font-size: 9px; }
+table.boq th { text-align: left; font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: #201E1A; padding: 2.2mm 2mm; font-weight: 600; }
+table.boq td { padding: 2mm; border-bottom: 0.5px solid #E6DFCC; vertical-align: top; }
+table.boq tr:nth-child(even) td { background: #FAF8F2; }
+table.boq .num { text-align: right; white-space: nowrap; }
+table.boq .c { text-align: center; }
+table.boq .t { font-weight: 600; }
+table.boq .d { color: #7A7466; font-size: 8.3px; }
+table.boq tr.total td { background: #F3EEE2; font-weight: 700; font-size: 10px; border-bottom: 0; }
+.photos { display: flex; gap: 6mm; margin-top: 7mm; justify-content: center; }
+.photos div { width: 48mm; height: 40mm; border: 0.75px solid #EEE7D6; border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 2mm; background: #fff; }
+.photos img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Summary */
+table.sum { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5mm; }
+table.sum td { padding: 3mm 2mm; border-bottom: 0.5px solid #E6DFCC; }
+table.sum td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.sum td.no { width: 10mm; color: #C77D0A; font-weight: 700; }
+table.sum tr.sub td { font-weight: 600; border-top: 1px solid #201E1A; }
+table.sum tr.grand td { background: #201E1A; color: #fff; font-weight: 700; font-size: 12px; }
+
+/* Terms */
+.tsec { margin-bottom: 6mm; break-inside: avoid; }
+.tsec h3 { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 2.5mm; color: #5D584C; }
+.tsec ul { margin: 0; padding-left: 4.5mm; }
+.tsec li { margin-bottom: 1.2mm; }
+table.ms { width: 100%; border-collapse: collapse; font-size: 9.6px; }
+table.ms td { padding: 2mm; border-bottom: 0.5px solid #E6DFCC; }
+table.ms td.pct { width: 16mm; font-weight: 700; color: #C77D0A; }
+table.ms td.num { text-align: right; white-space: nowrap; }
+.approve { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: 14mm; }
+.approve .lbl { font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; color: #9A9382; }
+.approve .line { border-top: 0.75px solid #201E1A; margin-top: 16mm; padding-top: 2mm; font-size: 9px; }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER ===== -->
+<div class="cover-logo"><img src="{{ ent.logo }}"></div>
+<div class="cover-band">
+  <div class="kicker">Techno-Commercial Proposal</div>
+  <div class="cover-title">{{ q.subject or 'Home Automation' }}</div>
+  <div class="cover-sub">{{ q.project.name if q.project else (q.customer.company or q.customer.name) }}</div>
+</div>
+<div class="meta">
+  <div class="k">Client</div><div class="v">{{ q.customer.name }}</div>
+  {% if q.project %}<div class="k">Project</div><div class="v">{{ q.project.name }}</div>{% endif %}
+  {% if q.consultant %}<div class="k">Consultant</div><div class="v">{{ q.consultant }}</div>{% endif %}
+  {% if q.main_contractor %}<div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div>{% endif %}
+  <div class="k">System integrator</div><div class="v">{{ ent.name }}</div>
+  <div class="k">Proposal no.</div><div class="v">{{ q.quote_number }}</div>
+  <div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div>
+</div>
+<div class="systems-list">
+  <div class="kicker">Proposed systems</div>
+  <ol>{% for s in p.systems %}<li><span>{{ '%02d' % s.no }}</span>{{ s.name|title }}</li>{% endfor %}</ol>
+</div>
+
+<!-- ===== LETTER ===== -->
+<div class="page letter">
+  <div class="kicker">Introduction</div>
+  <h2 style="margin-bottom:6mm">Dear {{ q.attention_to or q.customer.name }},</h2>
+  <p>Thank you for inviting us to propose for {{ q.project.name if q.project else 'your project' }}. We are pleased to submit our techno-commercial proposal for the supply, installation, programming, testing and commissioning of the systems listed below.</p>
+  <p>Each system is set out on its own page with its scope, the equipment considered and its price, followed by a price summary and our terms.</p>
+  {% if p.brands %}<div class="kicker" style="margin-top:4mm">Brands proposed</div>
+  <div class="brands">{% for b in p.brands %}<span>{{ b|upper }}</span>{% endfor %}</div>{% endif %}
+  <div class="terms">
+    <div class="k">Currency</div><div>United Arab Emirates Dirhams ({{ q.currency }}), VAT excluded</div>
+    <div class="k">Scope</div><div>{{ q.scope }}</div>
+    <div class="k">Delivery</div><div>{{ q.delivery_time }}</div>
+    <div class="k">Validity</div><div>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
+  </div>
+  <p>For any technical query please contact {{ q.prepared_by_name or 'us' }}{% if q.prepared_by_title %}, {{ q.prepared_by_title }}{% endif %}.</p>
+  <p style="margin-top:8mm">Yours sincerely,<br><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ ent.name }}</span></p>
+</div>
+
+<!-- ===== ONE PAGE PER SYSTEM ===== -->
+{% for s in p.systems %}
+<div class="page">
+  <div class="sys-head"><div class="sys-no">{{ '%02d' % s.no }}</div><div class="sys-name">{{ s.name }}</div></div>
+  {% if s.notes %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  <table class="boq">
+    <thead><tr><th style="width:8mm" class="c">#</th><th style="width:30mm">Brand</th><th>Description</th><th style="width:12mm" class="c">Unit</th><th style="width:12mm" class="num">Qty</th>
+      {% if q.proposal_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for l in s.lines %}
+      <tr><td class="c">{{ loop.index }}</td><td>{{ l.brand or '—' }}</td>
+        <td><div class="t">{{ l.title }}</div>{% if l.detail %}<div class="d">{{ l.detail }}</div>{% endif %}</td>
+        <td class="c">{{ l.unit }}</td><td class="num">{{ l.qty }}</td>
+        {% if q.proposal_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
+    {% endfor %}
+      <tr class="total"><td colspan="{{ 5 if q.proposal_prices else 3 }}">Total — {{ s.name|title }} ({{ q.currency }}, VAT excluded)</td>
+        <td class="num" colspan="2">{{ "{:,.2f}".format(s.total) }}</td></tr>
+    </tbody>
+  </table>
+  {% if s.photos %}<div class="photos">{% for ph in s.photos %}<div><img src="{{ ph }}"></div>{% endfor %}</div>{% endif %}
+</div>
+{% endfor %}
+
+<!-- ===== PRICE SUMMARY ===== -->
+<div class="page">
+  <div class="kicker">Conclusion</div>
+  <h2>Price summary</h2>
+  <table class="sum">
+    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.name|title }}</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
+    <tr class="sub"><td></td><td>Total of all systems</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</td></tr>
+    {% if q.total_discount|abs >= 0.01 %}<tr><td></td><td>Discount</td><td class="num">− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</td></tr>{% endif %}
+    {% set delivery = (q.freight_charges or 0) + q.transportation_amount %}
+    {% if delivery %}<tr><td></td><td>Delivery</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(delivery) }}</td></tr>{% endif %}
+    <tr><td></td><td>VAT {{ "%g"|format(q.vat_percent) }}%</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</td></tr>
+    <tr class="grand"><td></td><td>Total including VAT</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
+  </table>
+  <div class="approve" style="margin-top:22mm">
+    <div><div class="lbl">Prepared by</div><div class="line"><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ q.prepared_by_title or '' }}</span></div></div>
+    <div><div class="lbl">For {{ ent.name }}</div><div class="line">Signature &amp; stamp</div></div>
+  </div>
+</div>
+
+<!-- ===== TERMS & APPROVAL ===== -->
+<div class="page">
+  <div class="kicker">Agreement</div>
+  <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
+  {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if p.exclusions %}<div class="tsec"><h3>Exclusions</h3><ul>{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  <div class="tsec"><h3>Payment terms</h3>
+    {% if p.milestones %}
+    <table class="ms">{% for pct, text, amt in p.milestones %}<tr><td class="pct">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>
+      <td class="num">{{ (q.currency ~ ' ' ~ "{:,.2f}".format(amt)) if amt is not none else '' }}</td></tr>{% endfor %}</table>
+    <div class="muted" style="margin-top:1.5mm">Amounts are on the total of {{ q.currency }} {{ "{:,.2f}".format(q.grand_total) }}, VAT excluded.</div>
+    {% else %}<div>{{ q.payment_terms }}</div>{% endif %}
+  </div>
+  {% if q.notes %}<div class="tsec"><h3>Notes</h3><div style="white-space:pre-line">{{ q.notes }}</div></div>{% endif %}
+  <div class="approve">
+    <div><div class="lbl">Client approval</div><div class="line">Name, signature &amp; stamp</div></div>
+    <div><div class="lbl">Date</div><div class="line">&nbsp;</div></div>
+  </div>
+</div>
+
+</body>
+</html>

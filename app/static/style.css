@@ -1158,3 +1158,11 @@ table.dt tr.row-selected td { background: #FDF6EA; }
 .section-block .li-tools { margin-right: 0; }
 .section-block.insert-here { box-shadow: inset 0 -3px 0 var(--amber); }
 label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; }
+
+/* Quote: proposal by system */
+.prop-box { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.prop-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; }
+.prop-head .btn { margin-left: auto; }
+.section-block { flex-wrap: wrap; }
+.section-block .sec-notes { flex-basis: 100%; margin-top: 6px; font: inherit; font-size: 13px; padding: 6px 8px; }
+.li-tool.on { border-color: var(--amber); }

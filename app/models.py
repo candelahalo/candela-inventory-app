@@ -168,6 +168,14 @@ class Quotation(Base):
     customer = relationship("Customer", back_populates="quotations")
     project = relationship("Project", back_populates="quotations")
     section_subtotals = Column(Boolean, default=False, nullable=False)  # a subtotal after each section
+    # Proposal by system (automation): see templates/quotation_proposal.html
+    consultant = Column(String(255))
+    main_contractor = Column(String(255))
+    section_notes = Column(JSON)  # {"HOME AUTOMATION": "We have considered ...\n..."}
+    inclusions = Column(Text)
+    exclusions = Column(Text)
+    milestones = Column(Text)  # one per line: "35% advance against design"
+    proposal_prices = Column(Boolean, default=True, nullable=False)  # unit prices in the proposal
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

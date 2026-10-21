@@ -200,6 +200,13 @@ class QuotationCreate(BaseModel):
     prepared_by_name: Optional[str] = "Johns James"
     prepared_by_title: Optional[str] = "Division Head - Projects"
     section_subtotals: bool = False
+    consultant: Optional[str] = None
+    main_contractor: Optional[str] = None
+    section_notes: Optional[dict] = None
+    inclusions: Optional[str] = None
+    exclusions: Optional[str] = None
+    milestones: Optional[str] = None
+    proposal_prices: bool = True
     items: List[QuotationItemCreate]
 
 
@@ -227,6 +234,13 @@ class QuotationOut(BaseModel):
     prepared_by_name: Optional[str]
     prepared_by_title: Optional[str]
     section_subtotals: Optional[bool] = False
+    consultant: Optional[str] = None
+    main_contractor: Optional[str] = None
+    section_notes: Optional[dict] = None
+    inclusions: Optional[str] = None
+    exclusions: Optional[str] = None
+    milestones: Optional[str] = None
+    proposal_prices: Optional[bool] = True
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float

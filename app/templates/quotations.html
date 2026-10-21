@@ -83,6 +83,18 @@
       <div class="field"><label>Prepared by (title)</label><input name="prepared_by_title" value="Division Head - Projects"></div>
       <div class="field span2"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
       </div>
+      <div class="prop-box">
+        <div class="prop-head"><strong>Proposal by system</strong> <span class="muted">(Export → Proposal by system: cover, a page per section, price summary, terms)</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="prop-defaults" title="Fills the empty boxes below with our usual automation text">Fill automation defaults</button></div>
+        <div class="form-grid">
+          <div class="field"><label>Consultant</label><input name="consultant" placeholder="e.g. Signature Engineering Consultant"></div>
+          <div class="field"><label>Main contractor</label><input name="main_contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
+          <div class="field span2"><label>Inclusions <span class="muted">(one per line)</span></label><textarea name="inclusions" rows="4"></textarea></div>
+          <div class="field span2"><label>Exclusions <span class="muted">(one per line)</span></label><textarea name="exclusions" rows="5"></textarea></div>
+          <div class="field span2"><label>Payment milestones <span class="muted">(one per line, e.g. "35% advance against design" — amounts are worked out)</span></label><textarea name="milestones" rows="4"></textarea></div>
+          <div class="field"><label class="chk"><input type="checkbox" id="q-prop-prices" checked> Show unit prices in the proposal</label></div>
+        </div>
+      </div>
     </details>
 
     <h2 style="margin-top:22px;">Line items</h2>
@@ -552,7 +564,12 @@ function removeLine(block) {
 }
 
 // ---------- Sections: a heading over the lines below it ----------
-function sectionRow(name) {
+function toggleSecNotes(btn) {
+  const t = btn.closest('.section-block').querySelector('.sec-notes');
+  t.style.display = t.style.display === 'none' ? '' : 'none';
+  if (t.style.display === '') t.focus();
+}
+function sectionRow(name, notes) {
   return `<div class="section-block">
     <span class="sec-label">Section</span>
     <input class="sec-name" maxlength="120" placeholder="e.g. FRONT END MATERIALS" value="${escHtml(name || '')}" style="text-transform:uppercase">
@@ -561,13 +578,16 @@ function sectionRow(name) {
       <button type="button" class="li-tool" onclick="moveLine(this, 1)" title="Move down">↓</button>
       <button type="button" class="li-tool" onclick="insertBelow(this.closest('.section-block'))" title="The next product you add goes below this heading">+ Insert below</button>
     </span>
+    <button type="button" class="li-tool sec-notes-btn" onclick="toggleSecNotes(this)" title="Scope notes for this system, shown in the proposal">Notes</button>
     <button type="button" class="remove-line" onclick="removeLine(this.closest('.section-block'))" title="Remove heading (its lines stay)">×</button>
+    <textarea class="sec-notes" rows="3" placeholder="Scope notes, one per line — e.g. We have considered KNX cables for all KNX devices." style="display:none">${escHtml(notes || '')}</textarea>
   </div>`;
 }
-function addSection(name, focus) {
+function addSection(name, focus, notes) {
   const container = document.getElementById('line-items');
-  container.insertAdjacentHTML('beforeend', sectionRow(name));
+  container.insertAdjacentHTML('beforeend', sectionRow(name, notes));
   const block = container.lastElementChild;
+  if (notes) { block.querySelector('.sec-notes').style.display = ''; block.querySelector('.sec-notes-btn').classList.add('on'); }
   const inMiddle = insertAfter && insertAfter.isConnected;
   if (inMiddle) insertAfter.after(block);
   // lines added next go under this heading
@@ -578,12 +598,12 @@ function addSection(name, focus) {
   return block;
 }
 // Saved / imported lines, with a heading wherever the section changes
-function loadLines(items) {
+function loadLines(items, notes) {
   let sec = null;
   items.forEach(item => {
     if ((item.section || null) !== sec) {
       sec = item.section || null;
-      if (sec) addSection(sec, false);
+      if (sec) addSection(sec, false, (notes || {})[sec]);
     }
     addLine(item);
   });
@@ -795,6 +815,28 @@ function recalcMargins() {
 
 document.getElementById('add-line').addEventListener('click', () => addLine());
 document.getElementById('add-section').addEventListener('click', () => addSection('', true));
+// Our usual automation proposal text; only empty boxes are filled
+const PROPOSAL_DEFAULTS = {
+  inclusions: ['Supply of the items listed in this proposal.',
+    'Installation, programming, testing and commissioning of the systems listed.',
+    'Manufacturer warranty on the supplied products from the date of delivery.',
+    'Post-handover support for programming adjustments for 45 days.',
+    'As-built documentation and client training at handover.'].join('\n'),
+  exclusions: ['Any civil, electrical or fit-out works, conduiting and cable pulling unless stated.',
+    'Supply of light fittings, drivers, AC / FCU units, curtain fabrics and motors unless listed.',
+    'Door locks, magnetic locks and strikes unless listed.',
+    'TVs, monitors, iPads and other client-supplied devices unless listed.',
+    'Electrical accessories / face plates unless listed.',
+    'Any item not mentioned in this proposal; changes to the BOQ will be priced separately.',
+    'Site passes, authority permits and their fees.',
+    'VAT and other government taxes.'].join('\n'),
+  milestones: ['50% advance with LPO', '40% upon delivery of hardware to site', '10% upon testing & commissioning'].join('\n'),
+};
+document.getElementById('prop-defaults').addEventListener('click', () => {
+  const f = document.getElementById('quote-form');
+  Object.entries(PROPOSAL_DEFAULTS).forEach(([k, v]) => { if (!f[k].value.trim()) f[k].value = v; });
+  toast('Usual automation text filled in — edit as needed');
+});
 
 function showAddPanel(title) {
   document.getElementById('form-title').textContent = title;
@@ -823,6 +865,7 @@ function setHeaderButtons(q) {
     { text: 'Download PDF', onclick: `downloadDoc(${q.id}, 'pdf')` },
     { text: 'Download Excel', onclick: `downloadDoc(${q.id}, 'excel')` },
     { text: 'Submittal PDF (quote + datasheets)', onclick: `submittalPdf(${q.id})` },
+    { text: 'Proposal by system (PDF)', onclick: `proposalPdf(${q.id})` },
   ] }]);
 }
 
@@ -870,8 +913,10 @@ async function editQuotation(id) {
   document.getElementById('editing-id').value = id;
   document.getElementById('line-items').innerHTML = '';
   insertAfter = null; showInsertPoint();
-  loadLines(q.items);
+  loadLines(q.items, q.section_notes);
   document.getElementById('q-sec-sub').checked = !!q.section_subtotals;
+  ['consultant', 'main_contractor', 'inclusions', 'exclusions', 'milestones'].forEach(k => { form[k].value = q[k] || ''; });
+  document.getElementById('q-prop-prices').checked = q.proposal_prices !== false;
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1195,6 +1240,11 @@ async function submittalPdf(id) {
   withDownloadToken('pdf', token => `/quotations/${id}/submittal?token=${token}`);
 }
 
+// Proposal by system: cover, a page per section, price summary, terms (opens in a new tab)
+function proposalPdf(id) {
+  return withDownloadToken('preview', token => `/quotations/${id}/proposal?token=${token}&preview=1`);
+}
+
 // kind: 'preview' (PDF in a new tab), 'pdf' or 'excel' (downloads).
 function downloadDoc(id, kind) {
   const preview = kind === 'preview';
@@ -1270,6 +1320,14 @@ function collectQuotationPayload() {
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
   payload.section_subtotals = document.getElementById('q-sec-sub').checked;
+  payload.proposal_prices = document.getElementById('q-prop-prices').checked;
+  const notes = {};
+  document.querySelectorAll('#line-items > .section-block').forEach(b => {
+    const n = b.querySelector('.sec-name').value.trim().toUpperCase();
+    const t = b.querySelector('.sec-notes').value.trim();
+    if (n && t) notes[n] = t;
+  });
+  payload.section_notes = Object.keys(notes).length ? notes : null;
   return payload;
 }
 

@@ -484,7 +484,9 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
 
     copy_fields = ["customer_id", "project_id", "division", "category", "notes", "attention_to", "subject", "currency", "scope",
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
-                   "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals"]
+                   "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals",
+                   "consultant", "main_contractor", "section_notes", "inclusions", "exclusions", "milestones",
+                   "proposal_prices"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,
@@ -557,6 +559,25 @@ def _quotation_pdf_bytes(quotation, db: Session, items_only: bool = False):
          "ent": for_quotation(quotation)}
     )
     return HTML(string=html_str, base_url=".").write_pdf()
+
+
+@download_router.get("/{quotation_id}/proposal")
+def quotation_proposal(quotation_id: int, token: str = Query(...), preview: bool = False, db: Session = Depends(get_db)):
+    """Proposal by system (home automation): cover, a page per section with
+    its scope notes, brands and total, price summary, terms and approval."""
+    auth.get_download_user_from_token(token, db)
+    quotation = db.query(models.Quotation).get(quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    from app.entity import for_quotation
+    from app.proposal import build_context
+    html_str = templates.get_template("quotation_proposal.html").render(
+        {"q": quotation, "p": build_context(quotation), "ent": for_quotation(quotation)})
+    pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
+    filename = f"Proposal-{quotation.quote_number.replace('/', '-')}.pdf"
+    disposition = "inline" if preview else "attachment"
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
+                             headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})
 
 
 @router.get("/{quotation_id}/submittal-check")
