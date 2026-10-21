@@ -17,7 +17,8 @@
   @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }
 }
-@page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } }
+@page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; }
+  @bottom-center { content: "We Light Your Dreams…"; font-family: 'Inter'; font-size: 9px; font-style: italic; color: #9A9382; } }
 
 * { box-sizing: border-box; }
 body { font-family: 'Inter', Arial, sans-serif; font-size: 9.6px; color: #201E1A; line-height: 1.55; margin: 0; }
@@ -38,6 +39,43 @@ h2 { font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 .systems-list ol { margin: 3mm 0 0; padding-left: 0; list-style: none; columns: 2; column-gap: 10mm; }
 .systems-list li { font-size: 10.5px; padding: 1.6mm 0; border-bottom: 0.5px solid #EFE9DA; break-inside: avoid; }
 .systems-list li span { display: inline-block; width: 7mm; color: #C77D0A; font-weight: 700; }
+
+/* Cover letter (quote by system) - as the standard quotation's first page */
+.qc-brand img { width: 72mm; }
+.qc-brand { margin-bottom: 16mm; }
+.qc-kicker { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: #C77D0A; margin-bottom: 3mm; }
+h1.qc-title { font-size: 34px; font-weight: 600; margin: 0 0 2mm; letter-spacing: -0.01em; }
+.qc-subject { font-size: 13.5px; color: #56503F; margin-bottom: 10mm; }
+.qc-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 12mm; padding: 6mm 0; border-top: 0.75px solid #DED6C2; border-bottom: 0.75px solid #DED6C2; margin-bottom: 8mm; }
+.qc-meta .k, .qc-systems .k, .sum-words .k, .sum-terms .k { font-size: 8.5px; text-transform: uppercase; letter-spacing: .08em; color: #9A9382; }
+.qc-meta .v { font-size: 11.5px; font-weight: 500; margin-top: 1mm; }
+.qc-intro { font-size: 10.8px; color: #3A362C; text-align: justify; margin-bottom: 6mm; max-width: 150mm; }
+.qc-systems { margin-bottom: 7mm; }
+.qc-systems .k { display: block; margin-bottom: 2mm; }
+.qc-systems .chip { display: inline-block; border: 0.75px solid #E1D8C2; border-radius: 3px; padding: 1mm 2.5mm; margin: 0 1.6mm 1.6mm 0; font-size: 9px; }
+.qc-systems .chip b { color: #C77D0A; margin-right: 1mm; }
+.qc-terms { display: grid; grid-template-columns: 34mm 1fr; row-gap: 2.4mm; margin-bottom: 8mm; max-width: 150mm; }
+.qc-terms .tk { font-size: 9.5px; font-weight: 600; color: #56503F; text-transform: uppercase; letter-spacing: .03em; }
+.qc-terms .tv { font-size: 10.5px; }
+.qc-closing { font-size: 10.5px; color: #3A362C; margin-bottom: 4mm; max-width: 150mm; }
+.qc-sign { margin-top: 4mm; }
+.page-break-after { page-break-after: always; }
+
+/* Submission summary: a full page */
+.summary-page { page-break-before: always; min-height: 238mm; display: flex; flex-direction: column; }
+.summary-page .approve { margin-top: auto; }
+table.sum td.br { font-size: 9px; color: #7A7466; }
+h2.sum-title { font-size: 22px; margin: 1mm 0 1mm; }
+.sum-sub { font-size: 9.5px; margin-bottom: 6mm; }
+table.sum th { text-align: left; font-size: 7.6px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: #201E1A; padding: 2.6mm 2mm; font-weight: 600; }
+table.sum th.num, table.sum th.c, table.sum td.c { text-align: center; }
+table.sum th.num { text-align: right; }
+table.sum td { padding: 4mm 2mm; font-size: 11.5px; }
+table.sum tr.grand td { font-size: 14px; padding: 5mm 2mm; }
+.sum-words { margin: 5mm 0 7mm; padding: 3.5mm 4mm; background: #F7F3EA; border-left: 3px solid #C77D0A; font-size: 10.5px; font-weight: 500; }
+.sum-words .k { display: block; margin-bottom: 1mm; }
+.sum-terms { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6mm; font-size: 9.6px; margin-bottom: 4mm; }
+.sum-terms .k { display: block; margin-bottom: 1mm; }
 
 /* Quotation header (quote by system) */
 .qhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5px solid #201E1A; padding-bottom: 4mm; }
@@ -189,22 +227,33 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <p style="margin-top:8mm">Yours sincerely,<br><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ ent.name }}</span></p>
 </div>
 {% else %}
-<!-- ===== QUOTATION HEADER (quote by system: no cover) ===== -->
-<div class="qhead">
-  <div class="qh-logo"><img src="{{ ent.logo }}"></div>
-  <div class="qh-right"><div class="kicker">Quotation</div><div class="qh-no">{{ q.quote_number }}</div><div class="muted">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
+<!-- ===== COVER LETTER (quote by system) ===== -->
+<div class="qc-brand"><img src="{{ ent.logo }}"></div>
+<div class="qc-kicker">Commercial Proposal</div>
+<h1 class="qc-title">Quotation</h1>
+<div class="qc-subject">{{ q.subject or 'Quotation for Home Automation' }}</div>
+<div class="qc-meta">
+  <div><div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div></div>
+  <div><div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
+  <div><div class="k">Prepared For</div><div class="v">{{ q.attention_to or q.customer.name }}</div></div>
+  <div><div class="k">{{ 'Project' if q.project else 'Company' }}</div><div class="v">{{ q.project.name if q.project else (q.customer.company or q.customer.name) }}</div></div>
 </div>
-<div class="qh-title">{{ q.subject or 'Home Automation' }}</div>
-<div class="qh-meta">
-  <div><span class="k">Client</span>{{ q.customer.name }}</div>
-  {% if q.attention_to %}<div><span class="k">Attention</span>{{ q.attention_to }}</div>{% endif %}
-  {% if q.project %}<div><span class="k">Project</span>{{ q.project.name }}</div>{% endif %}
-  <div><span class="k">Validity</span>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
-  {% if q.delivery_time %}<div><span class="k">Delivery</span>{{ q.delivery_time }}</div>{% endif %}
-  {% if q.payment_terms %}<div><span class="k">Payment</span>{{ q.payment_terms }}</div>{% endif %}
-  <div><span class="k">Currency</span>{{ q.currency }}, VAT excluded</div>
-  <div><span class="k">Prepared by</span>{{ q.prepared_by_name or '' }}{% if q.prepared_by_title %}, {{ q.prepared_by_title }}{% endif %}</div>
+<div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
+Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.</div>
+{% if p.systems %}<div class="qc-systems"><span class="k">Systems</span>{% for s in p.systems %}<span class="chip"><b>{{ '%02d' % s.no }}</b> {{ s.title }}</span>{% endfor %}</div>{% endif %}
+<div class="qc-terms">
+  <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
+  <div class="tk">Scope</div><div class="tv">{{ q.scope }}</div>
+  <div class="tk">Delivery</div><div class="tv">{{ q.delivery_time }}</div>
+  <div class="tk">Validity</div><div class="tv">{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
+  <div class="tk">Payment</div><div class="tv">{{ q.payment_terms }}</div>
 </div>
+<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>
+<div class="approve qc-sign">
+  <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or 'Authorized Signatory' }}</strong><br><span class="muted">{{ q.prepared_by_title or '' }}</span></div></div>
+  <div><div class="lbl">Accepted by client</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature &amp; date</span></div></div>
+</div>
+<div class="page-break-after"></div>
 {% endif %}
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
@@ -229,20 +278,37 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 </div>
 {% endfor %}
 
-<!-- ===== PRICE SUMMARY ===== -->
-<div class="summary-block">
-  <div class="kicker">Conclusion</div>
-  <h2>Price summary</h2>
+<!-- ===== SUBMISSION SUMMARY: A FULL PAGE ===== -->
+<div class="summary-page">
+  <div class="kicker">Submission summary</div>
+  <h2 class="sum-title">{{ q.subject or 'Home Automation' }}</h2>
+  <div class="sum-sub muted">{{ q.project.name if q.project else q.customer.name }} · {{ q.quote_number }} · {{ q.created_at.strftime('%d %B %Y') }}</div>
   <table class="sum">
-    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.title }}</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
-    {% for n in p.not_included %}<tr class="ni"><td class="no">—</td><td>{{ n }}</td><td class="num">Not included</td></tr>{% endfor %}
-    <tr class="sub"><td></td><td>Total of all systems</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.subtotal_before_discount) }}</td></tr>
-    {% if q.total_discount|abs >= 0.01 %}<tr><td></td><td>Discount</td><td class="num">− {{ q.currency }} {{ "{:,.2f}".format(q.total_discount) }}</td></tr>{% endif %}
+    <thead><tr><th class="no">#</th><th>System</th><th>Brands</th><th class="c">Items</th><th class="num">Amount ({{ q.currency }})</th></tr></thead>
+    <tbody>
+    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.title }}</td><td class="br">{{ s.brands|join(', ') if s.brands else '—' }}</td><td class="c">{{ s.lines|length }}</td><td class="num">{{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
+    {% for n in p.not_included %}<tr class="ni"><td class="no">—</td><td>{{ n }}</td><td></td><td class="c">—</td><td class="num">Not included</td></tr>{% endfor %}
+    <tr class="sub"><td></td><td colspan="3">Total of all systems</td><td class="num">{{ "{:,.2f}".format(q.subtotal_before_discount) }}</td></tr>
+    {% if q.total_discount|abs >= 0.01 %}<tr><td></td><td colspan="3">Discount</td><td class="num">− {{ "{:,.2f}".format(q.total_discount) }}</td></tr>{% endif %}
     {% set delivery = (q.freight_charges or 0) + q.transportation_amount %}
-    {% if delivery %}<tr><td></td><td>Delivery</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(delivery) }}</td></tr>{% endif %}
-    <tr><td></td><td>VAT {{ "%g"|format(q.vat_percent) }}%</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.vat_amount) }}</td></tr>
-    <tr class="grand"><td></td><td>Total including VAT</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
+    {% if delivery %}<tr><td></td><td colspan="3">Delivery</td><td class="num">{{ "{:,.2f}".format(delivery) }}</td></tr>{% endif %}
+    <tr><td></td><td colspan="3">Total excluding VAT</td><td class="num">{{ "{:,.2f}".format(q.grand_total) }}</td></tr>
+    <tr><td></td><td colspan="3">VAT {{ "%g"|format(q.vat_percent) }}%</td><td class="num">{{ "{:,.2f}".format(q.vat_amount) }}</td></tr>
+    <tr class="grand"><td></td><td colspan="3">Total including VAT</td><td class="num">{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</td></tr>
+    </tbody>
   </table>
+  <div class="sum-words"><span class="k">Amount in words</span>{{ p.total_words }}</div>
+  {% if not full %}
+  <div class="sum-terms">
+    <div><span class="k">Validity</span>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
+    <div><span class="k">Delivery</span>{{ q.delivery_time }}</div>
+    <div><span class="k">Payment</span>{{ q.payment_terms }}</div>
+  </div>
+  <div class="approve">
+    <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or '' }}</strong>{% if q.prepared_by_title %} — {{ q.prepared_by_title }}{% endif %}<br><span class="muted">Signature, stamp &amp; date</span></div></div>
+    <div><div class="lbl">Accepted by client</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature, stamp &amp; date</span></div></div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- ===== DESIGN MATRIX: ONE TABLE, ALL FLOORS ===== -->

@@ -86,6 +86,35 @@ def system_title(name):
     return " ".join(words)
 
 
+_ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
+         "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
+_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+
+def _words(n):
+    n = int(n)
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        return (_TENS[n // 10] + (" " + _ONES[n % 10] if n % 10 else "")).strip()
+    if n < 1000:
+        return (_ONES[n // 100] + " Hundred" + (" " + _words(n % 100) if n % 100 else "")).strip()
+    for size, name in ((10 ** 9, "Billion"), (10 ** 6, "Million"), (1000, "Thousand")):
+        if n >= size:
+            return (_words(n // size) + " " + name + (" " + _words(n % size) if n % size else "")).strip()
+    return ""
+
+
+def amount_in_words(amount, currency="AED"):
+    """382,272.30 -> "UAE Dirhams Three Hundred Eighty Two Thousand Two Hundred Seventy Two and 30/100 Only"."""
+    whole = int(amount)
+    fils = int(round((amount - whole) * 100))
+    if fils == 100:
+        whole, fils = whole + 1, 0
+    name = "UAE Dirhams" if currency == "AED" else currency
+    return f"{name} {_words(whole) or 'Zero'}" + (f" and {fils:02d}/100" if fils else "") + " Only"
+
+
 def build_context(q, standard=None):
     """standard: the Settings terms, used where the quotation's own boxes are empty."""
     standard = standard or {}
@@ -126,6 +155,7 @@ def build_context(q, standard=None):
     std = [(title.upper(), title) for key, title, _i in DIVISIONS if key != "fees"]  # fees are not a system
     not_included = [title for sec, title in std if sec not in names] if any(sec in names for sec, _t in std) else []
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order), "not_included": not_included,
+            "total_words": amount_in_words(q.total_with_vat, q.currency),
             "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(),
             "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
