@@ -211,6 +211,7 @@ function fillClassFromLinks() {
     sel.value = want[k] || '';
     sel.dataset.auto = sel.value ? '1' : '';
   }
+  if (typeof refreshQuoteCats === 'function') refreshQuoteCats();
 }
 ['q-division', 'q-category'].forEach(id =>
   document.getElementById(id).addEventListener('change', e => { e.target.dataset.auto = ''; }));
@@ -226,6 +227,22 @@ function quoteSpec(spec) {
   return (spec || '').split('\n').filter(l => !QUOTE_HIDE.test(l)).join('\n');
 }
 
+// An automation quote only offers the automation categories
+function isAutoQuote() { return document.getElementById('q-division').value === 'automation'; }
+function quoteCats() { return isAutoQuote() ? AUTOMATION_CATEGORIES : PRODUCT_CATEGORIES; }
+function lineCatOptions(cat) {
+  const list = quoteCats().slice();
+  if (cat && cat !== '__other' && !list.includes(cat)) list.push(cat);  // a line already in another category keeps it
+  return `<option value="">Choose category…</option>` + list.map(c => `<option${c === cat ? ' selected' : ''}>${c}</option>`).join('')
+    + `<option value="__other"${cat === '__other' ? ' selected' : ''}>Other</option>`;
+}
+// When the division changes: the chips and every line's category list follow
+function refreshQuoteCats() {
+  if (pickerCat && !quoteCats().includes(pickerCat)) pickerCat = '';
+  renderPicker();
+  document.querySelectorAll('#line-items .li-cat').forEach(sel => { const v = sel.value; sel.innerHTML = lineCatOptions(v); sel.value = v; });
+}
+document.getElementById('q-division').addEventListener('change', refreshQuoteCats);
 function productOptions(cat, query, keepId) {
   const q = (query || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
   // No category and nothing searched: no list (pick a category, or search across all)
@@ -233,7 +250,7 @@ function productOptions(cat, query, keepId) {
     const keep = keepId ? productsCache.find(p => p.id === keepId) : null;
     return `<option value="" data-unit="">— Custom line (not in product list) —</option>` + (keep ? `<option value="${keep.id}" data-price="${keep.selling_price}" data-cost="${keep.cost_price}" data-spec="${escHtml(quoteSpec(keep.spec_summary))}" data-image="${keep.image_path||''}" data-unit="${escHtml(keep.unit || 'pcs')}" data-category="${escHtml(keep.category || '')}">${escHtml(keep.name)} · ${escHtml(keep.sku)}</option>` : '');
   }
-  const inCat = p => !cat ? true : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
+  const inCat = p => !cat ? (!isAutoQuote() || AUTOMATION_CATEGORIES.includes(p.category || '')) : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
   const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '') + ' ' + (p.series || '')).toUpperCase().includes(w));
   const optHtml = (p, label) => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${escHtml(quoteSpec(p.spec_summary))}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${label || (escHtml(p.name) + ' · ' + escHtml(p.sku))}</option>`;
   // A series (CHERUB S / M / L / XL) is listed once; the size is picked under the line
@@ -263,7 +280,7 @@ function pickerList() {
   for (const p of productsCache) {
     if (p.series) { if (seen.has(p.series)) continue; }
     const fam = seriesOf(p);
-    const hit = fam.some(x => (!pickerCat || x.category === pickerCat) &&
+    const hit = fam.some(x => (pickerCat ? x.category === pickerCat : (!isAutoQuote() || AUTOMATION_CATEGORIES.includes(x.category || ''))) &&
       q.every(w => (x.sku + ' ' + x.name + ' ' + (x.brand || '') + ' ' + (x.series || '')).toUpperCase().includes(w)));
     if (!hit) continue;
     if (p.series) seen.add(p.series);
@@ -277,7 +294,7 @@ function pickerList() {
 function renderPicker() {
   const chips = document.getElementById('qp-chips');
   if (!chips) return;
-  const used = PRODUCT_CATEGORIES.filter(c => productsCache.some(p => p.category === c));
+  const used = quoteCats().filter(c => productsCache.some(p => p.category === c));
   chips.innerHTML = ['', ...used].map(c => `<button type="button" class="qp-chip${c === pickerCat ? ' on' : ''}" data-cat="${escHtml(c)}">${c || 'All'}</button>`).join('');
   const typed = document.getElementById('qp-search').value.trim();
   const grid = document.getElementById('qp-grid');
@@ -431,8 +448,7 @@ function lineRow(item) {
   // The product list follows the line's category (all products when it has none)
   const cat = item && item.product_id ? ((productsCache.find(p => p.id === item.product_id) || {}).category || '') : '';
   const opts = productOptions(cat, '', item ? item.product_id : null);
-  const catOpts = `<option value="">Choose category…</option>` + PRODUCT_CATEGORIES.map(c => `<option${c === cat ? ' selected' : ''}>${c}</option>`).join('')
-    + `<option value="__other">Other</option>`;
+  const catOpts = lineCatOptions(cat);
   return `<div class="line-item-block" data-line-image="${item && item.image_path ? escHtml(item.image_path) : ''}">
     <div class="line-item-row">
       <div class="field"><label>Photo</label><img class="li-photo" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;">
@@ -913,6 +929,7 @@ async function editQuotation(id) {
   loadLines(q.items, q.section_notes);
   document.getElementById('q-sec-sub').checked = !!q.section_subtotals;
   mxReset(q.room_matrix);
+  refreshQuoteCats();
   showAddPanel('Quotation ' + q.quote_number);
   setHeaderButtons(q);
   openQuote = q;
@@ -1377,7 +1394,7 @@ document.getElementById('ad-apply').addEventListener('click', async () => {
     insertAfter = null;
     loadLines(res.lines);
     const f = document.getElementById('quote-form');
-    if (!f.division.value) { f.division.value = 'automation'; }
+    if (!f.division.value) { f.division.value = 'automation'; refreshQuoteCats(); }
     if (!f.subject.value.trim()) f.subject.value = 'Quotation for Home Automation';
     toast(`${add.length} division${add.length === 1 ? '' : 's'} added` + ((res.created || []).length ? ` — ${res.created.length} new products in Products (no price yet: set price and cost there once)` : ''));
   } else if (drop.length) {
@@ -1699,6 +1716,7 @@ function openImportedQuotation(d, fileName) {
     discount_pct: i.discount_pct, section: i.section || null,
   })));
   importedMeta = { original_number: d.original_number, date: d.date };
+  refreshQuoteCats();
   const n = d.items.length, made = (d.created_products || []).length;
   const totalOk = d.pdf_total == null || Math.abs(d.pdf_total - d.imported_total) < 0.5;
   const parts = [
