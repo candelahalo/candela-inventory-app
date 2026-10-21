@@ -227,9 +227,15 @@ function quoteSpec(spec) {
   return (spec || '').split('\n').filter(l => !QUOTE_HIDE.test(l)).join('\n');
 }
 
-// An automation quote only offers the automation categories
+// An automation quote only offers the automation categories, a lighting quote
+// only the lighting ones; with no division set, all of them
 function isAutoQuote() { return document.getElementById('q-division').value === 'automation'; }
-function quoteCats() { return isAutoQuote() ? AUTOMATION_CATEGORIES : PRODUCT_CATEGORIES; }
+function isLightQuote() { return document.getElementById('q-division').value === 'lighting'; }
+function quoteCats() {
+  return isAutoQuote() ? AUTOMATION_CATEGORIES
+    : isLightQuote() ? PRODUCT_CATEGORIES.filter(c => !AUTOMATION_CATEGORIES.includes(c)) : PRODUCT_CATEGORIES;
+}
+function inQuoteCats(c) { return quoteCats().includes(c || ''); }
 function lineCatOptions(cat) {
   const list = quoteCats().slice();
   if (cat && cat !== '__other' && !list.includes(cat)) list.push(cat);  // a line already in another category keeps it
@@ -250,7 +256,7 @@ function productOptions(cat, query, keepId) {
     const keep = keepId ? productsCache.find(p => p.id === keepId) : null;
     return `<option value="" data-unit="">— Custom line (not in product list) —</option>` + (keep ? `<option value="${keep.id}" data-price="${keep.selling_price}" data-cost="${keep.cost_price}" data-spec="${escHtml(quoteSpec(keep.spec_summary))}" data-image="${keep.image_path||''}" data-unit="${escHtml(keep.unit || 'pcs')}" data-category="${escHtml(keep.category || '')}">${escHtml(keep.name)} · ${escHtml(keep.sku)}</option>` : '');
   }
-  const inCat = p => !cat ? (!isAutoQuote() || AUTOMATION_CATEGORIES.includes(p.category || '')) : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
+  const inCat = p => !cat ? (!document.getElementById('q-division').value || inQuoteCats(p.category)) : cat === '__other' ? !PRODUCT_CATEGORIES.includes(p.category || '') : p.category === cat;
   const hit = p => q.every(w => (p.sku + ' ' + p.name + ' ' + (p.brand || '') + ' ' + (p.series || '')).toUpperCase().includes(w));
   const optHtml = (p, label) => `<option value="${p.id}" data-price="${p.selling_price}" data-cost="${p.cost_price}" data-spec="${escHtml(quoteSpec(p.spec_summary))}" data-image="${p.image_path||''}" data-unit="${escHtml(p.unit || 'pcs')}" data-category="${escHtml(p.category || '')}">${label || (escHtml(p.name) + ' · ' + escHtml(p.sku))}</option>`;
   // A series (CHERUB S / M / L / XL) is listed once; the size is picked under the line
@@ -280,7 +286,7 @@ function pickerList() {
   for (const p of productsCache) {
     if (p.series) { if (seen.has(p.series)) continue; }
     const fam = seriesOf(p);
-    const hit = fam.some(x => (pickerCat ? x.category === pickerCat : (!isAutoQuote() || AUTOMATION_CATEGORIES.includes(x.category || ''))) &&
+    const hit = fam.some(x => (pickerCat ? x.category === pickerCat : (!document.getElementById('q-division').value || inQuoteCats(x.category))) &&
       q.every(w => (x.sku + ' ' + x.name + ' ' + (x.brand || '') + ' ' + (x.series || '')).toUpperCase().includes(w)));
     if (!hit) continue;
     if (p.series) seen.add(p.series);
