@@ -1451,6 +1451,14 @@ const MX_DEFAULT_CATS = ['Keypads & Switches', 'Curtains & Blinds', 'Audio / Vid
 const MX_FLOOR_ORDER = ['BASEMENT', 'LOWER GROUND', 'GROUND', 'MEZZANINE', 'FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'PENTHOUSE', 'ROOF', 'TERRACE'];
 // Back-end items counted per floor (one number for the floor, not per room)
 const MX_FLOOR_CATS = ['Lighting Control'];
+// Counted per floor by default: gateways, actuators, power supplies, controllers, switches,
+// recorders, amplifiers... Sensors, keypads, curtains and intercom stay per room.
+const MX_ROOM_CATS = ['Sensors', 'Keypads & Switches', 'Curtains & Blinds', 'Intercom'];
+const MX_FLOOR_RE = /gateway|actuator|power supply|hard disk|\bhdd\b|\bups\b|\bpsu\b|controller|processor|module|router|\bnvr\b|recorder|network switch|poe switch|\brack\b|amplifier|streamer|server|interface|enclosure|\bdb\b/i;
+function mxFloorDefault(p) {
+  if (MX_ROOM_CATS.includes(p.category)) return false;
+  return MX_FLOOR_CATS.includes(p.category) || MX_FLOOR_RE.test(p.name || '');
+}
 var matrix = { cols: [], off: [], fcols: [], floors: [] };
 var mxSig = '';
 
@@ -1475,14 +1483,31 @@ function mxLines() {
 function mxColumns(lines) {
   lines.forEach((l, k) => {
     if (matrix.cols.includes(k) || matrix.off.includes(k)) return;
-    if (MX_DEFAULT_CATS.includes(l.product.category)) matrix.cols.push(k);
-    else if (MX_FLOOR_CATS.includes(l.product.category)) { matrix.cols.push(k); if (!matrix.fcols.includes(k)) matrix.fcols.push(k); }
+    const floor = mxFloorDefault(l.product);
+    if (MX_DEFAULT_CATS.includes(l.product.category) || floor) {
+      matrix.cols.push(k);
+      if (floor && !matrix.fcols.includes(k)) matrix.fcols.push(k);
+    }
   });
   // per-room columns first, then the per-floor ones (as on the drawing schedules)
   const keys = matrix.cols.filter(k => lines.has(k));
   return keys.filter(k => !mxIsFloor(k)).concat(keys.filter(k => mxIsFloor(k)));
 }
 function mxIsFloor(k) { return matrix.fcols.includes(k); }
+// Room-wise <-> floor-wise for one item; going to floor-wise, each floor starts with its rooms' total
+function mxToggleMode(k) {
+  if (mxIsFloor(k)) {
+    matrix.fcols = matrix.fcols.filter(x => x !== k);
+  } else {
+    matrix.fcols.push(k);
+    matrix.floors.forEach(f => {
+      const t = f.rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0);
+      f.fq = f.fq || {};
+      if (t && !f.fq[k]) f.fq[k] = t;
+    });
+  }
+  renderMatrix(true); mxApply();
+}
 function mxFloorTotal(f, k) {
   return mxIsFloor(k) ? (parseInt((f.fq || {})[k]) || 0) : f.rooms.reduce((a, r) => a + (parseInt((r.q || {})[k]) || 0), 0);
 }
@@ -1539,7 +1564,7 @@ function renderMatrix(force) {
   const names = keys.map(k => (lines.get(k).product.name || '').replace(/\s+/g, ' ').trim());
   const head = keys.map(k => {
     const l = lines.get(k), lb = mxLabel(l, names), img = l.product.image_path;
-    return `<th class="${mxIsFloor(k) ? 'mx-fl' : ''}" title="Line ${escHtml(lb.num)}: ${escHtml(lb.full)}${mxIsFloor(k) ? ' — one number per floor' : ''}">${img ? `<img src="${escHtml(img)}" alt="">` : ''}<b>${escHtml(lb.num)}${lb.code ? ' · ' + escHtml(lb.code) : ''}</b><span>${escHtml(lb.name)}</span>${mxIsFloor(k) ? '<i>per floor</i>' : ''}</th>`;
+    return `<th class="${mxIsFloor(k) ? 'mx-fl' : ''}" title="Line ${escHtml(lb.num)}: ${escHtml(lb.full)}${mxIsFloor(k) ? ' — one number per floor' : ''}">${img ? `<img src="${escHtml(img)}" alt="">` : ''}<b>${escHtml(lb.num)}${lb.code ? ' · ' + escHtml(lb.code) : ''}</b><span>${escHtml(lb.name)}</span><button type="button" class="mx-mode${mxIsFloor(k) ? ' fl' : ''}" onclick="mxToggleMode('${k}')" title="Count this item per room or once per floor">${mxIsFloor(k) ? 'per floor' : 'per room'}</button></th>`;
   }).join('');
   let body = '';
   matrix.floors.forEach((f, fi) => {

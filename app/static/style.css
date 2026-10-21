@@ -1266,3 +1266,7 @@ body.mx-noscroll { overflow: hidden; }
 .ds-ptype { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
 .ds-ptype label { display: inline-flex; gap: 5px; align-items: center; font-weight: 400; margin: 0; }
 .li-desc.li-desc-one { min-height: 0; height: 38px; resize: none; white-space: nowrap; overflow-x: auto; }
+/* Room matrix: per room / per floor switch in each column */
+.mx-grid th .mx-mode { display: block; margin: 4px auto 0; font: inherit; font-size: 10px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: #5D584C; }
+.mx-grid th .mx-mode.fl { background: var(--amber, #C77D0A); border-color: var(--amber, #C77D0A); color: #fff; }
+.mx-grid th i { display: none; }
