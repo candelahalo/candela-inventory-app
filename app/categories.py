@@ -8,10 +8,10 @@ PRODUCT_CATEGORIES = [
     "Track Accessories", "BOH",
     # Automation
     "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "AC Controls",
-    "Sensors", "Intercom", "Automation Accessories",
+    "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning",
 ]
 AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
-                         "AC Controls", "Sensors", "Intercom", "Automation Accessories"]
+                         "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning"]
 
 # Earlier category / type names and where they belong now
 _OLD_TYPE = {
