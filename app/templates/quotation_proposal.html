@@ -187,46 +187,6 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 <body>
 {% set show_prices = q.proposal_prices or not full %}
 
-{% if full %}
-<!-- ===== COVER ===== -->
-<div class="cover-logo"><img src="{{ ent.logo }}"></div>
-<div class="cover-band">
-  <div class="kicker">Techno-Commercial Proposal</div>
-  <div class="cover-title">{{ q.subject or 'Home Automation' }}</div>
-  <div class="cover-sub">{{ q.project.name if q.project else (q.customer.company or q.customer.name) }}</div>
-</div>
-<div class="meta">
-  <div class="k">Client</div><div class="v">{{ q.customer.name }}</div>
-  {% if q.project %}<div class="k">Project</div><div class="v">{{ q.project.name }}</div>{% endif %}
-  {% if q.consultant %}<div class="k">Consultant</div><div class="v">{{ q.consultant }}</div>{% endif %}
-  {% if q.main_contractor %}<div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div>{% endif %}
-  <div class="k">System integrator</div><div class="v">{{ ent.name }}</div>
-  <div class="k">Proposal no.</div><div class="v">{{ q.quote_number }}</div>
-  <div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div>
-</div>
-<div class="systems-list">
-  <div class="kicker">Proposed systems</div>
-  <ol>{% for s in p.systems %}<li><span>{{ '%02d' % s.no }}</span>{{ s.title }}</li>{% endfor %}</ol>
-</div>
-
-<!-- ===== LETTER ===== -->
-<div class="page letter">
-  <div class="kicker">Introduction</div>
-  <h2 style="margin-bottom:6mm">Dear {{ q.attention_to or q.customer.name }},</h2>
-  <p>Thank you for inviting us to propose for {{ q.project.name if q.project else 'your project' }}. We are pleased to submit our techno-commercial proposal for the supply, installation, programming, testing and commissioning of the systems listed below.</p>
-  <p>Each system is set out with its scope, the equipment considered and its price, followed by a price summary{% if p.matrix %}, the design matrix{% endif %}{% if p.gallery %}, product images{% endif %} and our terms.</p>
-  {% if p.brands %}<div class="kicker" style="margin-top:4mm">Brands proposed</div>
-  <div class="brands">{% for b in p.brands %}<span>{{ b|upper }}</span>{% endfor %}</div>{% endif %}
-  <div class="terms">
-    <div class="k">Currency</div><div>United Arab Emirates Dirhams ({{ q.currency }}), VAT excluded</div>
-    <div class="k">Scope</div><div>{{ q.scope }}</div>
-    <div class="k">Delivery</div><div>{{ q.delivery_time }}</div>
-    <div class="k">Validity</div><div>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
-  </div>
-  <p>For any technical query please contact {{ q.prepared_by_name or 'us' }}{% if q.prepared_by_title %}, {{ q.prepared_by_title }}{% endif %}.</p>
-  <p style="margin-top:8mm">Yours sincerely,<br><strong>{{ q.prepared_by_name or '' }}</strong><br><span class="muted">{{ ent.name }}</span></p>
-</div>
-{% else %}
 <!-- ===== COVER LETTER (quote by system) ===== -->
 <div class="qc-brand"><img src="{{ ent.logo }}"></div>
 <div class="qc-kicker">Commercial Proposal</div>
@@ -237,9 +197,12 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   <div><div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
   <div><div class="k">Prepared For</div><div class="v">{{ q.attention_to or q.customer.name }}</div></div>
   <div><div class="k">{{ 'Project' if q.project else 'Company' }}</div><div class="v">{{ q.project.name if q.project else (q.customer.company or q.customer.name) }}</div></div>
+  {% if full and q.consultant %}<div><div class="k">Consultant</div><div class="v">{{ q.consultant }}</div></div>{% endif %}
+  {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.</div>
+Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %}{% if full and p.gallery %}, product images{% endif %}{% if full %} and our scope, terms and payment milestones{% endif %}.</div>
+{% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 {% if p.systems %}<div class="qc-systems"><span class="k">Systems</span>{% for s in p.systems %}<span class="chip"><b>{{ '%02d' % s.no }}</b> {{ s.title }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -248,13 +211,12 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
   <div class="tk">Validity</div><div class="tv">{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from date of issue' }}</div>
   <div class="tk">Payment</div><div class="tv">{{ q.payment_terms }}</div>
 </div>
-<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>
+{% if not full %}<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>
 <div class="approve qc-sign">
   <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or 'Authorized Signatory' }}</strong><br><span class="muted">{{ q.prepared_by_title or '' }}</span></div></div>
   <div><div class="lbl">Accepted by client</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature &amp; date</span></div></div>
-</div>
+</div>{% endif %}
 <div class="page-break-after"></div>
-{% endif %}
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
 {% for s in p.systems %}
