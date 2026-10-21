@@ -65,17 +65,17 @@ h1.qc-title { font-size: 34px; font-weight: 600; margin: 0 0 2mm; letter-spacing
 .qc-intro { margin-bottom: 5mm; } .qc-systems { margin-bottom: 5mm; } .qc-terms { row-gap: 2.6mm; }{% endif %}
 
 /* Submission summary: a full page */
-.summary-page { page-break-before: always; min-height: 238mm; display: flex; flex-direction: column; }
-.summary-page .approve { margin-top: auto; }
+.summary-page { page-break-before: always; }
+.summary-page .approve { margin-top: 9mm; break-inside: avoid; }
 table.sum td.br { font-size: 9px; color: #7A7466; }
 h2.sum-title { font-size: 22px; margin: 1mm 0 1mm; }
 .sum-sub { font-size: 9.5px; margin-bottom: 6mm; }
 table.sum th { text-align: left; font-size: 7.6px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: #201E1A; padding: 2.6mm 2mm; font-weight: 600; }
 table.sum th.num, table.sum th.c, table.sum td.c { text-align: center; }
 table.sum th.num { text-align: right; }
-table.sum td { padding: 4mm 2mm; font-size: 11.5px; }
-table.sum tr.grand td { font-size: 14px; padding: 5mm 2mm; }
-.sum-words { margin: 5mm 0 7mm; padding: 3.5mm 4mm; background: #F7F3EA; border-left: 3px solid #C77D0A; font-size: 10.5px; font-weight: 500; }
+table.sum td { padding: 2.8mm 2mm; font-size: 11px; }
+table.sum tr.grand td { font-size: 13.5px; padding: 4mm 2mm; }
+.sum-words { margin: 5mm 0 6mm; padding: 3.5mm 4mm; background: #F7F3EA; border-left: 3px solid #C77D0A; font-size: 10.5px; font-weight: 500; }
 .sum-words .k { display: block; margin-bottom: 1mm; }
 .sum-terms { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6mm; font-size: 9.6px; margin-bottom: 4mm; }
 .sum-terms .k { display: block; margin-bottom: 1mm; }
@@ -150,6 +150,7 @@ table.boq tr.total { break-before: avoid; }
 .kicker, h2 { break-after: avoid; }
 .terms-block .tsec:first-of-type { break-before: avoid; }
 .approve { break-inside: avoid; }
+.sign-keep { break-inside: avoid; }  /* payment terms and the signatures stay together */
 
 /* Images: a page per section */
 .gal-page { page-break-before: always; }
@@ -206,7 +207,6 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
 Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %}{% if full and p.gallery %}, product images{% endif %}{% if full %} and our scope, terms and payment milestones{% endif %}.</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
-{% if p.systems %}<div class="qc-systems"><span class="k">Systems</span>{% for s in p.systems %}<span class="chip"><b>{{ '%02d' % s.no }}</b> {{ s.title }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
   <div class="tk">Scope</div><div class="tv">{{ q.scope }}</div>
@@ -302,12 +302,12 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
 
 <!-- ===== TERMS & APPROVAL ===== -->
 {% if full %}
-<div class="terms-block{% if p.matrix or p.gallery %} new-page{% endif %}">
+<div class="terms-block new-page">
   <div class="kicker">Agreement</div>
   <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
   {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
   {% if p.exclusions or p.not_included %}<div class="tsec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li><strong>{{ n }}</strong> — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-  <div class="tsec"><h3>Payment terms</h3>
+  <div class="sign-keep"><div class="tsec"><h3>Payment terms</h3>
     {% if p.milestones %}
     <table class="ms">{% for pct, text, amt in p.milestones %}<tr><td class="pct">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>
       <td class="num">{{ (q.currency ~ ' ' ~ "{:,.2f}".format(amt)) if amt is not none else '' }}</td></tr>{% endfor %}</table>
@@ -318,6 +318,7 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
   <div class="approve">
     <div><div class="lbl">For {{ ent.name }}</div><div class="line"><strong>{{ q.prepared_by_name or '' }}</strong>{% if q.prepared_by_title %} — {{ q.prepared_by_title }}{% endif %}<br><span class="muted">Signature, stamp &amp; date</span></div></div>
     <div><div class="lbl">Client approval</div><div class="line"><strong>&nbsp;</strong><br><span class="muted">Name, signature, stamp &amp; date</span></div></div>
+  </div>
   </div>
 </div>
 
