@@ -308,9 +308,9 @@ function setFormKind(kind) {
   const f = document.getElementById('product-form'), gen = kind === 'general';
   document.getElementById('name-hint').textContent = gen ? '(CODE · WHAT IT IS, e.g. TXA112 KNX POWER SUPPLY 320MA)' : '(MODEL · WATT · CCT · FINISH)';
   f.name.placeholder = gen ? 'TXA112 KNX POWER SUPPLY 320MA' : 'KOR S 17W 3000K WHITE';
-  document.getElementById('spec-label').textContent = gen ? 'Short description (one line — automation items print their name only)' : 'Spec summary (used as default quotation description)';
+  document.getElementById('spec-label').textContent = gen ? 'One-line description (printed under the name in quotes)' : 'Spec summary (used as default quotation description)';
   f.spec_summary.rows = gen ? 1 : 3;
-  document.getElementById('spec-field').style.display = gen ? 'none' : '';  // automation items are their name only
+
   const kr = document.getElementById('ds-kind-row');
   if (kr) kr.style.display = gen ? 'none' : '';  // automation: the supplier PDF is the datasheet
   f.spec_summary.placeholder = gen ? 'e.g. KNX power supply 320 mA with auxiliary output' : 'Source : LED\nCCT : 3000K\nPower : 12W\nIP Rating : IP65';
@@ -403,7 +403,7 @@ async function dsRead(file) {
       // automation / general: name, brand, category, one line - no versions or lighting specs
       f.name.value = r.model || '';
       f.sku.value = '';  // made on save: AUTO-BRAND-first words
-      f.spec_summary.value = '';
+      f.spec_summary.value = r.description || '';
       fillCategorySelect(f.category, AUTOMATION_CATEGORIES.includes(r.category) ? r.category : '');
       const vs = r.versions || [];
       // the model numbers the sheet lists: pick which one this product is (add the others one by one)

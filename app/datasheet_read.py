@@ -556,7 +556,9 @@ def read_general(data: bytes, filename: str = "") -> dict:
                 if "." in buf or not nxt or nxt.startswith("•"):
                     break
                 buf += " " + nxt
-            desc = buf.split(". ")[0].rstrip(".") + "."
+            desc = buf.split(". ")[0].rstrip(".")
+            if len(desc) > 100:  # one line in a quote
+                desc = desc[:100].rsplit(" ", 1)[0].rstrip(",;:-")
             break
     cat = ""
     for src in (t, title, desc, text[:1500]):

@@ -28,8 +28,9 @@ def _detail(item, title):
     """One short line under the name: the first description line that adds something.
     Automation items are their name alone."""
     from app.categories import AUTOMATION_CATEGORIES
+    from app.models import one_line
     if item.product and item.product.category in AUTOMATION_CATEGORIES:
-        return ""
+        return one_line(item.description, title)[:140]
     for l in (item.description or "").splitlines():
         l = l.strip()
         if not l or re.match(r"^(brand)\s*:", l, re.I) or l.upper() == title.upper():

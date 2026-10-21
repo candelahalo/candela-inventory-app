@@ -249,6 +249,15 @@ function refreshQuoteCats() {
   document.querySelectorAll('#line-items .li-cat').forEach(sel => { const v = sel.value; sel.innerHTML = lineCatOptions(v); sel.value = v; });
 }
 document.getElementById('q-division').addEventListener('change', refreshQuoteCats);
+// The one line an automation item shows: the first spec line that isn't Brand: / Code: or the name
+function oneLine(text, name) {
+  for (const l of (text || '').split('\n')) {
+    const t = l.trim();
+    if (!t || /^(brand|code)\s*:/i.test(t) || t.toUpperCase() === (name || '').trim().toUpperCase()) continue;
+    return t;
+  }
+  return '';
+}
 function productOptions(cat, query, keepId) {
   const q = (query || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
   // No category and nothing searched: no list (pick a category, or search across all)
@@ -706,10 +715,11 @@ function addLine(item) {
     block.querySelector('.li-runs-row').style.display = wantsRuns || runsInput.value.trim() ? '' : 'none';
     const isLight = opt.value && opt.dataset.category && !NO_DRIVER_CATEGORIES.includes(opt.dataset.category);
     block.querySelector('.li-drv').style.display = isLight ? '' : 'none';
-    // Automation items are one line - their name - so no description box
+    // Automation items: a short name and a one-line description
     const oneLine = !!opt.value && AUTOMATION_CATEGORIES.includes(opt.dataset.category || '');
-    descArea.style.display = oneLine ? 'none' : '';
-    block.querySelector('.li-desc-lbl').textContent = oneLine ? 'One line — the product name' : 'Description (defaults from product spec)';
+    descArea.rows = oneLine ? 1 : Math.max(descArea.rows, 2);
+    descArea.classList.toggle('li-desc-one', oneLine);
+    block.querySelector('.li-desc-lbl').textContent = oneLine ? 'One-line description' : 'Description (defaults from product spec)';
   };
   sel.addEventListener('change', () => {
     const opt = sel.selectedOptions[0];
@@ -717,7 +727,7 @@ function addLine(item) {
     if (opt.value) {
       priceInput.value = opt.dataset.price;
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
-      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? '' : (opt.dataset.spec || '');
+      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? oneLine(opt.dataset.spec, opt.textContent.split(' · ')[0]) : (opt.dataset.spec || '');
       block.dataset.lineImage = '';  // show the chosen product's photo
       unitInput.value = '';
     }
@@ -750,7 +760,7 @@ function addLine(item) {
     if (opt) {
       priceInput.value = opt.dataset.price;
       block.querySelector('.li-cost').value = opt.dataset.cost || 0;
-      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? '' : (opt.dataset.spec || '');
+      descArea.value = AUTOMATION_CATEGORIES.includes(opt.dataset.category || '') ? oneLine(opt.dataset.spec, opt.textContent.split(' · ')[0]) : (opt.dataset.spec || '');
     }
     renderLineOptions(block, null);
     if (block.querySelector('.li-opts-row select[data-key]')) applyLineOptions(block);

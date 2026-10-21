@@ -1,3 +1,4 @@
+import re
 import enum
 from datetime import datetime
 
@@ -281,6 +282,17 @@ def format_runs(text, unit=None):
     return shown + (f" = {f(sum(nums))} {u}" if len(nums) > 1 else "")
 
 
+def one_line(text, name=""):
+    """Automation items: the one line that says what it is - the first line of the
+    description that isn't a Brand: / Code: row or the name again."""
+    for line in (text or "").splitlines():
+        t = line.strip()
+        if not t or re.match(r"^(brand|code)\s*:", t, re.I) or t.upper() == (name or "").strip().upper():
+            continue
+        return t
+    return ""
+
+
 class QuotationItem(Base):
     __tablename__ = "quotation_items"
 
@@ -307,11 +319,13 @@ class QuotationItem(Base):
 
     @property
     def print_description(self):
-        """What the PDF / Excel print under the name. Automation items are one
-        line - their name - so their description is not printed; lights keep their spec."""
+        """What the PDF / Excel print under the name. Automation items: one line;
+        lights: their whole spec."""
         from app.categories import AUTOMATION_CATEGORIES
         if self.product and self.product.category in AUTOMATION_CATEGORIES:
-            return None
+            # a line left empty takes the product's one line
+            return (one_line(self.description, self.product.name)
+                    or one_line(self.product.spec_summary, self.product.name) or None)
         return self.description
 
     @property

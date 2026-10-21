@@ -1265,3 +1265,4 @@ body.mx-noscroll { overflow: hidden; }
 /* Products: light vs automation / general datasheet */
 .ds-ptype { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
 .ds-ptype label { display: inline-flex; gap: 5px; align-items: center; font-weight: 400; margin: 0; }
+.li-desc.li-desc-one { min-height: 0; height: 38px; resize: none; white-space: nowrap; overflow-x: auto; }

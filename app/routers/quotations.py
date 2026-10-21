@@ -193,6 +193,11 @@ PROPOSAL_FIELDS = ("consultant", "main_contractor", "inclusions", "exclusions", 
                    "proposal_prices", "proposal_photos", "proposal_photo_size")
 
 
+def one_line(text, name=""):
+    from app.models import one_line as _ol
+    return _ol(text, name)
+
+
 @router.get("/automation-divisions")
 def automation_divisions(current: models.User = Depends(auth.get_current_user)):
     """The standard home automation divisions (systems) a quote can take."""
@@ -207,7 +212,7 @@ def automation_division_lines(payload: dict, db: Session = Depends(get_db),
     the first time, no brand, in its Automation category); drawings,
     installation and fees are typed lines. Quantity 1 - the Rooms table or
     staff set the real numbers."""
-    from app.automation_template import DIVISIONS
+    from app.automation_template import DIVISIONS, SHORT
     from app.naming import standard_name, standard_sku
     keys = set(payload.get("keys") or [])
     lines, created = [], []
@@ -220,10 +225,11 @@ def automation_division_lines(payload: dict, db: Session = Depends(get_db),
                 lines.append({"section": section, "product_id": None, "description": text, "unit": "lot",
                               "quantity": 1, "unit_price": 0, "unit_cost": 0, "discount_pct": 0})
                 continue
-            name = standard_name(text, None, category)
+            short = SHORT.get(text, text)  # a short name; the item text is its one-line description
+            name = standard_name(short, None, category)
             prod = db.query(models.Product).filter(func.upper(models.Product.name) == name.upper()).first()
             if prod is None:
-                base = re.sub(r"^ITEM-", "AUTO-", standard_sku(text, None, category) or "AUTO")
+                base = standard_sku(short, None, category) or "AUTO"
                 sku, n = base, 2
                 while db.query(models.Product).filter(models.Product.sku == sku).first():
                     sku, n = f"{base[:60]}-{n}", n + 1
@@ -237,7 +243,7 @@ def automation_division_lines(payload: dict, db: Session = Depends(get_db),
                 created.append({"id": prod.id, "sku": prod.sku, "name": prod.name, "category": prod.category})
             elif not prod.is_active:
                 prod.is_active = True
-            lines.append({"section": section, "product_id": prod.id, "description": "",  # one line: the name
+            lines.append({"section": section, "product_id": prod.id, "description": one_line(prod.spec_summary, prod.name) or one_line(text, prod.name),
                           "unit": prod.unit or "pcs", "quantity": 1, "unit_price": prod.selling_price or 0,
                           "unit_cost": prod.cost_price or 0, "discount_pct": 0})
     db.commit()

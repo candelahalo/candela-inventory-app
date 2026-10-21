@@ -158,7 +158,9 @@ function applyKind() {
   const f = document.getElementById('product-form');
   const auto = AUTOMATION_CATEGORIES.includes(f.category.value);
   document.querySelectorAll('.halo-only').forEach(el => { el.style.display = auto ? 'none' : ''; });
-  document.getElementById('spec-field').style.display = auto ? 'none' : '';  // automation items are their name only
+  // automation items: a short name and a one-line description
+  document.getElementById('spec-label').textContent = auto ? 'One-line description (printed under the name in quotes)' : 'Spec summary (used as default quotation description)';
+  f.spec_summary.rows = auto ? 1 : 5;
 }
 document.getElementById('product-form').category.addEventListener('change', applyKind);
 async function loadProduct() {
