@@ -150,7 +150,7 @@ def room_matrix(q, order=None):
     names = [re.sub(r"\s+", " ", (first[k].product.name if first[k].product else _title(first[k])) or "").strip() for k in keys]
     cols = [{"key": k, "ref": refs[k], "title": _short(_short_among(names[i], names), 60), "floor": k in fcols}
             for i, k in enumerate(keys)]
-    per = 20  # columns that fit across a landscape page
+    per = 14  # columns that fit across an A4 portrait page
     parts = []
     for start in range(0, len(cols), per):
         pc = cols[start:start + per]
