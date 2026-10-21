@@ -122,7 +122,7 @@
     </details>
 
     <details class="q-matrix q-photos" id="q-photos" open>
-      <summary><strong>Proposal photos</strong> <span class="muted">— shown after the price summary</span> <span class="mx-sum" id="pp-sum"></span></summary>
+      <summary><strong>Proposal photos</strong> <span class="muted">— a page per section, after the design matrix</span> <span class="mx-sum" id="pp-sum"></span></summary>
       <div class="pp-bar">
         <span class="pp-sizes" id="pp-sizes">Size
           <label><input type="radio" name="pp_size" value="S"> Small</label>
@@ -1414,7 +1414,7 @@ function renderPP(onlyIfChanged) {
   ppSig = sig;
   document.getElementById('pp-sum').textContent = off ? 'off' : `${list.length} photo${list.length === 1 ? '' : 's'}`;
   document.getElementById('pp-note').textContent = off ? 'No photos in the proposal.'
-    : 'Click a photo to change it (upload, or pick a product photo). Or drop an image file on it, or copy an image and press Ctrl+V with the mouse over it.';
+    : 'Click a photo to change it (upload, or pick a product photo). Or drop an image file on it, or copy an image and press Ctrl+V with the mouse over it. A section with many photos is made smaller to fit its page.';
   document.getElementById('pp-reset').style.display = ppPhotos ? '' : 'none';
   document.getElementById('pp-grid').innerHTML = off ? '' : list.map((ph, i) => `
     <div class="pp-card" data-i="${i}">
