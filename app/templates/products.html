@@ -7,6 +7,7 @@
     <p>Your light fitting and home automation catalog.</p>
   </div>
   <div class="head-actions"><span id="report-btns"></span>
+    <button class="btn btn-ghost" id="from-bill-btn" title="Upload a supplier bill / invoice PDF: its items are added to the product list, prices already in the list updated">+ From supplier bill</button>
     <button class="btn btn-ghost" id="from-ds-btn" title="Upload a datasheet PDF: the form fills itself, you check and save">+ From datasheet PDF</button>
     <button class="btn" id="show-add-btn">+ Add product</button></div>
 </div>
@@ -60,6 +61,37 @@
       Photo and datasheets are added on the product's own page after saving.
     </p>
   </form>
+</div>
+
+<div class="panel bill-panel" id="bill-panel" style="display:none;">
+  <div class="bill-head">
+    <h2>Add from a supplier bill</h2>
+    <button type="button" class="remove-line" onclick="billClose()" title="Close">×</button>
+  </div>
+  <div class="bill-kind" id="bill-kind">This bill is for
+    <label><input type="radio" name="bill-kind" value="light" checked> Lighting products</label>
+    <label><input type="radio" name="bill-kind" value="automation"> Automation products</label>
+  </div>
+  <div class="bill-row">
+    <input type="file" id="bill-file" accept="application/pdf" hidden>
+    <button type="button" class="btn btn-sm" onclick="document.getElementById('bill-file').click()">Choose bill PDF</button>
+    <span id="bill-name" class="muted">Supplier invoice, quotation or proforma (PDF, not a scan).</span>
+  </div>
+  <div id="bill-found" style="display:none;">
+    <div class="bill-bar">
+      <label>Currency <select id="bill-cur"><option>AED</option><option>USD</option><option>EUR</option></select></label>
+      <label>Supplier <input id="bill-supplier" list="supplier-list" placeholder="Optional — saved as usual supplier"></label>
+      <label>Category for ticked new lines <select id="bill-allcat"></select></label>
+    </div>
+    <div class="table-wrap"><table class="bill-table">
+      <thead><tr><th><input type="checkbox" id="bill-all" checked title="Tick / untick all"></th><th>Code</th><th>Name</th><th>Brand</th><th>Category</th><th class="num">Unit price</th><th>In the list?</th></tr></thead>
+      <tbody id="bill-rows"></tbody>
+    </table></div>
+    <div class="form-actions">
+      <button type="button" class="btn" id="bill-save">Add to products</button>
+      <span class="muted" id="bill-sum"></span>
+    </div>
+  </div>
 </div>
 
 <div class="div-switch" id="division-switch"></div>
@@ -155,6 +187,112 @@ document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('dup-warn').style.display = 'none';
   document.getElementById('save-product-btn').textContent = 'Save product';
   document.getElementById('add-note').style.display = '';
+});
+
+// ---------- From a supplier bill: lighting or automation ----------
+let billData = null, billFile = null;
+const billKind = () => document.querySelector('input[name=bill-kind]:checked').value;
+document.getElementById('from-bill-btn').addEventListener('click', () => {
+  document.querySelectorAll('input[name=bill-kind]').forEach(x => { x.checked = x.value === (activeDivision === 'automation' ? 'automation' : 'light'); });
+  document.getElementById('bill-panel').style.display = 'block';
+  document.getElementById('bill-panel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
+function billClose() {
+  billData = billFile = null;
+  document.getElementById('bill-panel').style.display = 'none';
+  document.getElementById('bill-found').style.display = 'none';
+  document.getElementById('bill-name').textContent = 'Supplier invoice, quotation or proforma (PDF, not a scan).';
+}
+document.getElementById('bill-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) billRead(f); });
+document.querySelectorAll('input[name=bill-kind]').forEach(x => x.addEventListener('change', () => { if (billFile) billRead(billFile); }));
+async function billRead(file) {
+  billFile = file;
+  const label = document.getElementById('bill-name');
+  label.textContent = 'Reading ' + file.name + '…';
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const res = await fetch('/products/from-bill/read?kind=' + billKind(), { method: 'POST', body: fd, headers: authHeaders() });
+    if (res.status === 401) { signOut(); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Could not read the bill'); }
+    billData = await res.json();
+  } catch (err) { label.textContent = err.message; toast(err.message, true); return; }
+  label.textContent = `${file.name} — ${billData.lines.length} lines. Check them, then Add to products.`;
+  document.getElementById('bill-cur').value = billData.currency;
+  const all = document.getElementById('bill-allcat');
+  all.innerHTML = '<option value="">—</option>' + billData.categories.map(c => `<option>${escHtml(c)}</option>`).join('');
+  all.value = '';
+  billRender();
+  document.getElementById('bill-found').style.display = '';
+}
+function billRender() {
+  const cur = document.getElementById('bill-cur').value;
+  const catOpts = c => '<option value="">Choose…</option>' + billData.categories.map(x => `<option${x === c ? ' selected' : ''}>${escHtml(x)}</option>`).join('');
+  document.getElementById('bill-rows').innerHTML = billData.lines.map((l, i) => {
+    const m = l.match;
+    const was = m ? (m.cost_amount != null ? `${billNum(m.cost_amount)} ${m.cost_currency || ''}` : '—') : '';
+    return `<tr class="${l.use ? '' : 'bill-off'}${l.service ? ' bill-svc' : ''}" data-i="${i}">
+      <td><input type="checkbox" class="bill-use" ${l.use ? 'checked' : ''}></td>
+      <td class="mono">${m ? escHtml(l.code || '') : `<input class="bill-code" value="${escHtml(l.code || '')}" placeholder="—">`}</td>
+      <td>${m ? `<span title="${escHtml(l.description)}">${escHtml(m.name)}</span>` : `<input class="bill-nm" value="${escHtml(l.name)}" title="${escHtml(l.description)}">`}
+        ${l.section ? `<div class="muted bill-sec">${escHtml(l.section)}</div>` : ''}</td>
+      <td>${m ? '' : `<input class="bill-br" value="${escHtml(l.brand || '')}" placeholder="—">`}</td>
+      <td>${m ? `<span class="muted">${escHtml(m.category || '')}</span>` : `<select class="bill-cat">${catOpts(l.category)}</select>`}</td>
+      <td class="num"><input class="bill-pr" type="number" step="0.0001" min="0" value="${l.unit_price}"></td>
+      <td>${m ? `<span class="badge stage-approved">In list</span><div class="mono bill-sku">${escHtml(m.sku)}</div><div class="muted">cost ${was} → <b class="bill-new">${billNum(l.unit_price)} ${cur}</b></div>`
+               : `<span class="badge stage-ordered">New</span>${l.service ? ' <span class="muted">service line</span>' : ''}`}</td>
+    </tr>`;
+  }).join('');
+  billSum();
+}
+const billNum = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+function billCollect() {
+  document.querySelectorAll('#bill-rows tr').forEach(tr => {
+    const l = billData.lines[tr.dataset.i], v = c => { const el = tr.querySelector(c); return el ? el.value : null; };
+    l.use = tr.querySelector('.bill-use').checked;
+    if (v('.bill-nm') !== null) l.name = v('.bill-nm');
+    if (v('.bill-code') !== null) l.code = v('.bill-code');
+    if (v('.bill-br') !== null) l.brand = v('.bill-br');
+    if (v('.bill-cat') !== null) l.category = v('.bill-cat');
+    l.unit_price = parseFloat(v('.bill-pr')) || 0;
+  });
+}
+function billSum() {
+  const on = billData.lines.filter(l => l.use);
+  const upd = on.filter(l => l.match).length;
+  document.getElementById('bill-sum').textContent = `${on.length - upd} new product${on.length - upd === 1 ? '' : 's'} · ${upd} price update${upd === 1 ? '' : 's'} · stock not changed`;
+}
+document.getElementById('bill-rows').addEventListener('change', e => {
+  billCollect();
+  const tr = e.target.closest('tr');
+  if (e.target.classList.contains('bill-use')) tr.classList.toggle('bill-off', !e.target.checked);
+  if (e.target.classList.contains('bill-pr')) { const b = tr.querySelector('.bill-new'); if (b) b.textContent = billNum(parseFloat(e.target.value) || 0) + ' ' + document.getElementById('bill-cur').value; }
+  billSum();
+});
+document.getElementById('bill-all').addEventListener('change', e => { billCollect(); billData.lines.forEach(l => l.use = e.target.checked); billRender(); });
+document.getElementById('bill-cur').addEventListener('change', () => { billCollect(); billRender(); });
+document.getElementById('bill-allcat').addEventListener('change', e => {
+  if (!e.target.value) return;
+  billCollect(); billData.lines.forEach(l => { if (l.use && !l.match) l.category = e.target.value; }); billRender();
+  e.target.value = '';
+});
+document.getElementById('bill-save').addEventListener('click', async () => {
+  billCollect();
+  const on = billData.lines.filter(l => l.use);
+  if (!on.length) { toast('Tick at least one line', true); return; }
+  const miss = on.filter(l => !l.match && !l.category);
+  if (miss.length) { toast(`Choose a category for ${miss.length} new line${miss.length === 1 ? '' : 's'}`, true); return; }
+  const btn = document.getElementById('bill-save'); btn.disabled = true;
+  try {
+    const r = await api('/products/from-bill/apply', { method: 'POST', body: JSON.stringify({
+      kind: billData.kind, currency: document.getElementById('bill-cur').value,
+      supplier: document.getElementById('bill-supplier').value,
+      lines: on.map(l => ({ use: true, match_id: l.match ? l.match.id : null, code: l.code || '', name: l.name || '',
+        description: l.description || '', brand: l.brand || '', category: l.category || '', unit: l.unit || 'pcs', unit_price: l.unit_price })) }) });
+    toast(`${r.created.length} added, ${r.updated.length} price${r.updated.length === 1 ? '' : 's'} updated`);
+    billClose();
+    loadProducts();
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
 });
 
 async function deleteProduct(id, name) {

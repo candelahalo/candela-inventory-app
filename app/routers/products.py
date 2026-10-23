@@ -166,6 +166,166 @@ def read_datasheet(file: UploadFile = File(...), kind: str = "light"):
         raise HTTPException(status_code=400, detail="Couldn't read that PDF - fill the form by hand")
 
 
+# ---------- Products from a supplier bill (PDF) ----------
+def _bill_code(spec):
+    m = re.search(r"^\s*code\s*:\s*(.+)$", spec or "", re.I | re.M)
+    return " ".join(m.group(1).split()).upper() if m else ""
+
+
+def _bill_short(desc):
+    """Automation names stay short: a long bill text up to its first comma."""
+    d = " ".join((desc or "").split())
+    if len(d) > 40:
+        first = re.split(r",|\s[-–]\s|\(", d)[0].strip()
+        if len(first.split()) >= 3:
+            d = first
+    return d
+
+
+def _bill_match(db, code, name, brand, category):
+    """A product already in the list: the same supplier code, or the same name and brand."""
+    code = (code or "").strip().upper()
+    std = naming.standard_name(name, brand, category).upper() if name else ""
+    b = (brand or "").strip().upper()
+    best = None
+    for p in db.query(models.Product).all():
+        if code and (_bill_code(p.spec_summary) == code or (p.sku or "").upper() == code):
+            hit = True
+        else:
+            hit = bool(std) and p.name.upper() == std and (p.brand or "").strip().upper() == b
+        if hit and (best is None or (p.is_active and not best.is_active)):
+            best = p
+    return best
+
+
+def _bill_auto_cat(text):
+    """Automation category from the words of a bill line (tried before the general guess)."""
+    t = text.lower()
+    for pat, cat in [(r"cable|pipe|piping|conduit|accessor|enclosure", "Automation Accessories"),
+                     (r"camera|\bnvr\b|\bdvr\b|\bhdd\b|\bpoe\b|access point|\brack\b|wi-?fi|router|network switch|cctv", "Audio / Video / Security"),
+                     (r"\bframe\b|cover|plate|\bpb\b|\d+pb\b|push|keypad|touch", "Keypads & Switches"),
+                     (r"controller|server|gateway|processor|domovea|interface|module|power supply|actuator", "Lighting Control")]:
+        if re.search(pat, t):
+            return cat
+    return ""
+
+
+def _bill_cats(kind):
+    from app.categories import PRODUCT_CATEGORIES, AUTOMATION_CATEGORIES
+    return AUTOMATION_CATEGORIES if kind == "automation" else [c for c in PRODUCT_CATEGORIES if c not in AUTOMATION_CATEGORIES]
+
+
+@router.post("/from-bill/read")
+def bill_read(file: UploadFile = File(...), kind: str = "light", db: Session = Depends(get_db)):
+    """Read a supplier bill / invoice PDF: its item lines, each with a suggested
+    name and category, and the product it already is (if any). Nothing saved."""
+    from app import bill_read as br
+    from app.categories import classify
+    data = file.file.read(30 * 1024 * 1024 + 1)
+    if len(data) > 30 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="That PDF is over 30 MB")
+    if not data.lstrip()[:5].startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="That isn't a PDF file")
+    try:
+        res = br.read(data, file.filename or "")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Couldn't read that PDF")
+    if not res["lines"]:
+        raise HTTPException(status_code=400, detail="No item lines found (qty x price = amount). Is it a scanned bill?")
+    kind = "automation" if kind == "automation" else "light"
+    cats = _bill_cats(kind)
+    for ln in res["lines"]:
+        if kind == "automation":
+            cat = ("Testing & Commissioning" if ln["service"] else
+                   _bill_auto_cat(ln["description"]) or classify(ln["description"] + " " + ln["section"]))
+        else:
+            cat = classify(ln["description"] + " " + ln["section"])
+        ln["category"] = cat if cat in cats else ""
+        ln["name"] = naming.standard_name(_bill_short(ln["description"]) if kind == "automation" else ln["description"],
+                                          ln["brand"], ln["category"])
+        p = _bill_match(db, ln["code"], ln["name"], ln["brand"], ln["category"])
+        ln["match"] = ({"id": p.id, "sku": p.sku, "name": p.name, "category": p.category,
+                        "cost_amount": p.cost_amount, "cost_currency": p.cost_currency} if p else None)
+        if p and p.category in cats:
+            ln["category"] = p.category
+        ln["use"] = not ln["service"]
+    res["kind"] = kind
+    res["categories"] = cats
+    return res
+
+
+class BillLine(BaseModel):
+    use: bool = True
+    match_id: Optional[int] = None
+    code: str = ""
+    name: str = ""
+    description: str = ""
+    brand: str = ""
+    category: str = ""
+    unit: str = "pcs"
+    unit_price: float = 0.0
+
+
+class BillApply(BaseModel):
+    kind: str = "light"
+    currency: str = "AED"
+    supplier: str = ""
+    lines: List[BillLine]
+
+
+@router.post("/from-bill/apply")
+def bill_apply(payload: BillApply, db: Session = Depends(get_db), current: models.User = Depends(auth.get_current_user)):
+    """Ticked bill lines: new ones become products, ones already in the list get the bill's cost."""
+    kind = "automation" if payload.kind == "automation" else "light"
+    cats = _bill_cats(kind)
+    cur = (payload.currency or "AED").upper()
+    if cur not in fx.CURRENCIES:
+        raise HTTPException(status_code=400, detail="Currency must be AED, USD or EUR")
+    supplier = " ".join((payload.supplier or "").split()) or None
+    rates = fx.rates(db)
+    created, updated = [], []
+    for i, ln in enumerate(payload.lines, 1):
+        if not ln.use:
+            continue
+        if ln.unit_price < 0:
+            raise HTTPException(status_code=400, detail=f"Line {i}: price can't be negative")
+        p = db.query(models.Product).get(ln.match_id) if ln.match_id else None
+        if p:
+            p.cost_amount, p.cost_currency = round(ln.unit_price, 4), cur
+            if supplier and not p.supplier:
+                p.supplier = supplier
+            if not p.is_active:
+                p.is_active = True
+            fx.apply_cost(p, rates)
+            log_activity(db, current.username, "product", p.id, f"{p.sku} — {p.name}", "updated",
+                         f"cost {ln.unit_price:g} {cur} from supplier bill")
+            updated.append(p.sku)
+            continue
+        name = " ".join((ln.name or ln.description).split())
+        if not name:
+            raise HTTPException(status_code=400, detail=f"Line {i}: name is empty")
+        if ln.category not in cats:
+            raise HTTPException(status_code=400, detail=f"Line {i} ({name[:40]}): choose a category")
+        code = " ".join((ln.code or "").split()).upper()
+        desc = " ".join((ln.description or "").split())
+        spec = "\n".join(x for x in [f"Code: {code}" if code else "",
+                                       desc if desc.upper() != name.upper() else ""] if x) or None
+        data = _standardise(db, {"sku": "", "name": name, "brand": (ln.brand or "").strip().upper() or None,
+                                 "category": ln.category, "supplier": supplier, "unit": (ln.unit or "pcs")[:32],
+                                 "spec_summary": spec})
+        p = models.Product(**data, cost_amount=round(ln.unit_price, 4), cost_currency=cur, landed_pct=0.0,
+                           selling_price=0.0, reorder_level=0, is_active=True,
+                           datasheet_mode="none" if ln.category == "Testing & Commissioning" else "supplier",
+                           no_datasheet=ln.category == "Testing & Commissioning")
+        fx.apply_cost(p, rates)
+        db.add(p)
+        db.flush()
+        log_activity(db, current.username, "product", p.id, f"{p.sku} — {p.name}", "created", "from supplier bill")
+        created.append(p.sku)
+    db.commit()
+    return {"created": created, "updated": updated}
+
+
 @router.post("/bulk-delete/check")
 def bulk_delete_check(payload: schemas.IdsIn, db: Session = Depends(get_db),
                       current: models.User = Depends(auth.require_admin)):
