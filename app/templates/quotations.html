@@ -366,7 +366,7 @@ function addProductLine(productId) {
 const TYPE_PREFIX = { 'Spotlight': 'SP', 'Downlight': 'DL', '230V Track Light': 'TL', '48V Track Light': 'MT',
   'Surface Mounted': 'SM', 'Custom Light': 'LL', 'Semi Recessed Light': 'SR', 'Strip Light': 'ST',
   'Neon Light': 'NL', 'Drivers': 'DR', 'Accessories': 'AC', 'Track Accessories': 'TA', 'BOH': 'BOH',
-  'Lighting Control': 'LC', 'Keypads & Switches': 'KP', 'Curtains & Blinds': 'CB', 'Audio / Video / Security': 'AV', 'AC Controls': 'ACC', 'Sensors': 'SN', 'Intercom': 'IC', 'Automation Accessories': 'AA', 'Testing & Commissioning': 'TC' };
+  'Lighting Control': 'LC', 'Keypads & Switches': 'KP', 'Curtains & Blinds': 'CB', 'Audio / Video / Security': 'AV', 'CCTV': 'CC', 'Wi-Fi & Network': 'WN', 'AC Controls': 'ACC', 'Sensors': 'SN', 'Intercom': 'IC', 'Automation Accessories': 'AA', 'Testing & Commissioning': 'TC' };
 function nextTypeCode(p, ownBlock) {
   if (!p) return '';
   const blocks = [...document.querySelectorAll('#line-items .line-item-block')].filter(b => b !== ownBlock);
@@ -1446,7 +1446,7 @@ document.getElementById('ad-apply').addEventListener('click', async () => {
 // ---------- Room matrix: rooms per floor x products ----------
 // Columns are the quote's product lines (lights and front-end devices by
 // default). Each column's total over all rooms becomes that line's quantity.
-const MX_DEFAULT_CATS = ['Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls', 'Sensors', 'Intercom',
+const MX_DEFAULT_CATS = ['Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'CCTV', 'Wi-Fi & Network', 'AC Controls', 'Sensors', 'Intercom',
   'Spotlight', 'Downlight', '230V Track Light', '48V Track Light', 'Surface Mounted', 'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light'];
 const MX_FLOOR_ORDER = ['BASEMENT', 'LOWER GROUND', 'GROUND', 'MEZZANINE', 'FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'PENTHOUSE', 'ROOF', 'TERRACE'];
 // Back-end items counted per floor (one number for the floor, not per room)

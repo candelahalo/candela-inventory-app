@@ -117,10 +117,11 @@ const PRODUCT_CATEGORIES = [
   'Custom Light', 'Semi Recessed Light', 'Strip Light', 'Neon Light', 'Drivers', 'Accessories',
   'Track Accessories', 'BOH',
   // Automation
-  'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'AC Controls',
-  'Sensors', 'Intercom', 'Automation Accessories', 'Testing & Commissioning',
+  'Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security', 'CCTV',
+  'Wi-Fi & Network', 'AC Controls', 'Sensors', 'Intercom', 'Automation Accessories', 'Testing & Commissioning',
 ];
 const AUTOMATION_CATEGORIES = ['Lighting Control', 'Keypads & Switches', 'Curtains & Blinds', 'Audio / Video / Security',
+  'CCTV', 'Wi-Fi & Network',
   'AC Controls', 'Sensors', 'Intercom', 'Automation Accessories', 'Testing & Commissioning'];
 // Lighting or Automation: products / stock show one at a time (no category counts as Lighting)
 const divisionOf = cat => AUTOMATION_CATEGORIES.includes(cat || '') ? 'automation' : 'lighting';

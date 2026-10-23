@@ -7,10 +7,11 @@ PRODUCT_CATEGORIES = [
     "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
     "Track Accessories", "BOH",
     # Automation
-    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "AC Controls",
-    "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning",
+    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "CCTV",
+    "Wi-Fi & Network", "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning",
 ]
 AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
+                         "CCTV", "Wi-Fi & Network",
                          "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning"]
 
 # Earlier category / type names and where they belong now
@@ -24,6 +25,9 @@ _OLD_CATEGORY = {
     "led flex": "Strip Light", "surface mounted": "Surface Mounted", "accessories": "Accessories",
 }
 
+CCTV_RE = r"cctv|camera|\bnvr\b|\bdvr\b|video recorder|surveillance|\bhdd\b|hard dis[ck]"
+WIFI_RE = (r"wi-?fi|access point|\brouter\b|cloud gateway|firewall|poe switch|network switch|\bswitch\b.*\bport\b"
+           r"|\d+\s*-?\s*port\b.*switch|it rack|\brack\b|patch panel")
 _DRIVER = r"\bdriver|power supply|\bpsu\b|transformer"
 _ACCESSORY = r"connector|channel|end ?cap|\bkit\b|feeder|bracket|accessor"
 
@@ -51,7 +55,11 @@ def classify(text):
         return "Sensors"
     if re.search(r"curtain|\bblinds?\b|roller shade|shade motor|tubular motor", t):
         return "Curtains & Blinds"
-    if re.search(r"speaker|amplifier|cctv|camera|access control", t):
+    if re.search(CCTV_RE, t):
+        return "CCTV"
+    if re.search(WIFI_RE, t):
+        return "Wi-Fi & Network"
+    if re.search(r"speaker|amplifier|access control", t):
         return "Audio / Video / Security"
     if re.search(r"\bknx\b|actuator|dimmer module|relay module|dali (gateway|controller|master)|lighting control", t):
         return "Lighting Control"
