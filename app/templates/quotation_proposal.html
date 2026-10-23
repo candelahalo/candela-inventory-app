@@ -227,7 +227,7 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
       {% if show_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
     <tbody>
     {% for l in s.lines %}
-      <tr><td class="c">{{ loop.index }}</td><td>{{ l.brand or '—' }}</td>
+      <tr><td class="c">{{ loop.index }}</td><td>{{ l.brand or '' }}</td>
         <td><div class="t">{{ l.title }}</div>{% if l.detail %}<div class="d">{{ l.detail }}</div>{% endif %}</td>
         <td class="c">{{ l.unit }}</td><td class="num">{{ l.qty }}</td>
         {% if show_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
@@ -247,7 +247,7 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
   <table class="sum">
     <thead><tr><th class="no">#</th><th>System</th><th>Brands</th><th class="c">Items</th><th class="num">Amount ({{ q.currency }})</th></tr></thead>
     <tbody>
-    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.title }}</td><td class="br">{{ s.brands|join(', ') if s.brands else '—' }}</td><td class="c">{{ s.lines|length }}</td><td class="num">{{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
+    {% for s in p.systems %}<tr><td class="no">{{ '%02d' % s.no }}</td><td>{{ s.title }}</td><td class="br">{{ s.brands|join(', ') }}</td><td class="c">{{ s.lines|length }}</td><td class="num">{{ "{:,.2f}".format(s.total) }}</td></tr>{% endfor %}
     {% for n in (p.not_included if full else []) %}<tr class="ni"><td class="no">—</td><td>{{ n }}</td><td></td><td class="c">—</td><td class="num">Not included</td></tr>{% endfor %}
     <tr class="sub"><td></td><td colspan="3">Total of all systems</td><td class="num">{{ "{:,.2f}".format(q.subtotal_before_discount) }}</td></tr>
     {% if q.total_discount|abs >= 0.01 %}<tr><td></td><td colspan="3">Discount</td><td class="num">− {{ "{:,.2f}".format(q.total_discount) }}</td></tr>{% endif %}
