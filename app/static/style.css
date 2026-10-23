@@ -1306,3 +1306,22 @@ body.mx-noscroll { overflow: hidden; }
 .ap-rm-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; margin-bottom: 4px; }
 .ap-rm-head .muted { font-size: 12px; }
 .ap-rm-txt { width: 100%; font-family: inherit; font-size: 12.5px; line-height: 1.5; }
+/* Automation proposal: brochure pages */
+.bp-list { display: grid; gap: 10px; padding-top: 8px; }
+.bp-card { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: #fff; }
+.bp-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.bp-head select { width: auto; padding: 4px 8px; font-size: 12.5px; }
+.bp-tools { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; }
+.bp-body { display: flex; gap: 14px; flex-wrap: wrap; }
+.bp-imgs { display: flex; gap: 8px; }
+.bp-slot { position: relative; width: 130px; height: 100px; border: 1.5px dashed var(--line); border-radius: 5px; background: #FAF8F2; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--muted); font-size: 12px; }
+.bp-bleed .bp-slot { width: 100px; height: 140px; }
+.bp-slot.has { border-style: solid; background: #fff; }
+.bp-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bp-bleed .bp-slot img { width: 100%; height: 100%; object-fit: cover; }
+.bp-slot.drop, .bp-slot:hover { border-color: var(--amber, #C77D0A); }
+.bp-x { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; line-height: 18px; padding: 0; }
+.bp-txt { flex: 1; min-width: 240px; display: grid; gap: 6px; align-content: start; }
+.bp-txt textarea { font-family: inherit; }
+.bp-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; }

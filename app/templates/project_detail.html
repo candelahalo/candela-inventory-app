@@ -68,7 +68,7 @@
 
 <div class="panel" id="ap-panel" style="display:none;">
   <div class="panel-head"><h2>Automation proposal</h2>
-    <span class="muted-note">Photo cover, letter, product datasheets and images, general remarks, scope, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
+    <span class="muted-note">Photo cover, letter, brochure pages, product datasheets and images, general remarks, scope, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
   <div id="ap-empty" class="muted" style="display:none;">Make a quotation for this project first.</div>
   <div id="ap-body">
     <div class="form-grid">
@@ -90,6 +90,15 @@
       <div class="ap-cover-note muted"><label class="chk" style="color:var(--ink,#14161A);font-weight:600"><input type="checkbox" id="ap-ds" checked> Product datasheet pages</label>
         The first page of each product's datasheet, after the letter. Products marked "No datasheet needed" are left out.</div>
     </div>
+    <details class="q-matrix" id="ap-pages" open>
+      <summary><strong>Brochure pages</strong> <span class="muted">— after the letter: a title, one or two pictures and a line of text, or a full-page photo</span> <span class="mx-sum" id="bp-sum"></span></summary>
+      <div class="bp-list" id="bp-list"></div>
+      <div class="bp-add"><span class="muted">Add a page:</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="bpAdd('one')">Title + 1 picture</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="bpAdd('two')">Title + 2 pictures</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="bpAdd('bleed')">Full-page photo</button></div>
+      <input type="file" id="bp-file" accept="image/jpeg,image/png,image/webp" hidden>
+    </details>
     <details class="q-matrix" id="ap-remarks" open>
       <summary><strong>General remarks</strong> <span class="muted">— one per line, for each system; made from the quote lines, change them as you like</span></summary>
       <div id="ap-rm" class="ap-rm"></div>
@@ -513,6 +522,71 @@ document.addEventListener('paste', e => {
 });
 
 
+// ---------- Brochure pages: title, 1 or 2 pictures, a line of text; or a full-page photo ----------
+let bpPages = [], bpTarget = null, bpHover = null;
+const BP_LAYOUT = { one: 'Title + 1 picture', two: 'Title + 2 pictures', bleed: 'Full-page photo' };
+const bpSlots = pg => pg.layout === 'two' ? 2 : 1;
+function bpRender() {
+  document.getElementById('bp-sum').textContent = bpPages.length ? `${bpPages.length} page${bpPages.length === 1 ? '' : 's'}` : '';
+  document.getElementById('bp-list').innerHTML = bpPages.map((pg, i) => `
+    <div class="bp-card" data-i="${i}">
+      <div class="bp-head"><strong>Page ${i + 1}</strong>
+        <select class="bp-layout" data-i="${i}">${Object.entries(BP_LAYOUT).map(([k, v]) => `<option value="${k}"${k === pg.layout ? ' selected' : ''}>${v}</option>`).join('')}</select>
+        <span class="bp-tools"><button type="button" class="li-tool" onclick="bpMove(${i},-1)" title="Move up">↑</button>
+        <button type="button" class="li-tool" onclick="bpMove(${i},1)" title="Move down">↓</button>
+        <button type="button" class="remove-line" onclick="bpDel(${i})" title="Remove this page">×</button></span></div>
+      <div class="bp-body">
+        <div class="bp-imgs bp-${pg.layout}">${Array.from({ length: bpSlots(pg) }, (_, k) => `
+          <div class="bp-slot${pg.images[k] ? ' has' : ''}" data-i="${i}" data-k="${k}" title="Click, drop or paste a picture">
+            ${pg.images[k] ? `<img src="${esc(pg.images[k])}" alt=""><button type="button" class="bp-x" onclick="event.stopPropagation();bpClear(${i},${k})" title="Remove picture">×</button>` : '<span>+ Picture</span>'}
+          </div>`).join('')}</div>
+        <div class="bp-txt">
+          <input class="bp-title" data-i="${i}" value="${esc(pg.title || '')}" placeholder="Title, e.g. CENTRALIZED CONTROL SYSTEM">
+          <textarea class="bp-text" data-i="${i}" rows="2" placeholder="A line of text, e.g. Single app control for multiple sub systems.">${esc(pg.text || '')}</textarea>
+        </div>
+      </div>
+    </div>`).join('') || '<div class="muted" style="padding:6px 0">No brochure pages — add one below.</div>';
+}
+function bpAdd(layout) { bpPages.push({ layout, title: '', text: '', images: [] }); bpRender(); }
+function bpMove(i, d) { const j = i + d; if (j < 0 || j >= bpPages.length) return; [bpPages[i], bpPages[j]] = [bpPages[j], bpPages[i]]; bpRender(); }
+function bpDel(i) { bpPages.splice(i, 1); bpRender(); }
+function bpClear(i, k) { bpPages[i].images.splice(k, 1); bpRender(); }
+async function bpUpload(file, i, k) {
+  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { toast('Use a JPG, PNG or WebP picture', true); return; }
+  toast('Uploading picture…');
+  const fd = new FormData(); fd.append('file', file, file.name || 'picture.png');
+  const res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd });
+  if (res.status === 401) { signOut(); return; }
+  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (e) {} toast(d, true); return; }
+  const path = (await res.json()).path;
+  const pg = bpPages[i]; if (!pg) return;
+  pg.images[Math.min(k, pg.images.length)] = path;
+  bpRender(); toast('Picture added');
+}
+const bpList = document.getElementById('bp-list');
+bpList.addEventListener('click', e => { const s = e.target.closest('.bp-slot'); if (!s) return; bpTarget = [+s.dataset.i, +s.dataset.k]; document.getElementById('bp-file').click(); });
+document.getElementById('bp-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f && bpTarget) bpUpload(f, ...bpTarget); });
+bpList.addEventListener('input', e => {
+  const i = e.target.dataset.i; if (i === undefined) return;
+  if (e.target.classList.contains('bp-title')) bpPages[i].title = e.target.value;
+  if (e.target.classList.contains('bp-text')) bpPages[i].text = e.target.value;
+});
+bpList.addEventListener('change', e => {
+  if (!e.target.classList.contains('bp-layout')) return;
+  const pg = bpPages[e.target.dataset.i]; pg.layout = e.target.value; pg.images = pg.images.slice(0, bpSlots(pg)); bpRender();
+});
+bpList.addEventListener('dragover', e => { const s = e.target.closest('.bp-slot'); if (!s) return; e.preventDefault(); s.classList.add('drop'); });
+bpList.addEventListener('dragleave', e => { const s = e.target.closest('.bp-slot'); if (s) s.classList.remove('drop'); });
+bpList.addEventListener('drop', e => { const s = e.target.closest('.bp-slot'); if (!s) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) bpUpload(f, +s.dataset.i, +s.dataset.k); });
+bpList.addEventListener('mouseover', e => { const s = e.target.closest('.bp-slot'); bpHover = s ? [+s.dataset.i, +s.dataset.k] : null; });
+bpList.addEventListener('mouseleave', () => { bpHover = null; });
+document.addEventListener('paste', e => {
+  if (!bpHover) return;
+  const item = [...((e.clipboardData || {}).items || [])].find(x => x.type.startsWith('image/'));
+  if (!item) return;
+  e.preventDefault(); e.stopImmediatePropagation(); bpUpload(item.getAsFile(), ...bpHover);
+}, true);
+
 // ---------- Proposal cover photo and general remarks ----------
 let apCover = null, apSystems = [], apCvHover = false;
 function apRenderCover() {
@@ -600,6 +674,7 @@ async function apLoad(id) {
   AP_TERMS.forEach(k => { document.getElementById('ap-' + k).value = d[k] || apStd[k] || ''; });
   apStdNotes();
   apCover = d.proposal_cover || null; apRenderCover();
+  bpPages = (d.proposal_pages || []).map(x => ({ ...x, images: [...(x.images || [])] })); bpRender();
   document.getElementById('ap-ds').checked = d.proposal_datasheets !== false;
   apDefaultPhotos = d.default_photos || [];
   ppReset(d.proposal_photos, d.proposal_photo_size);
@@ -624,6 +699,7 @@ async function apSave(quiet) {
     proposal_prices: document.getElementById('ap-prices').checked,
     proposal_cover: apCover, proposal_remarks: apRemarksValue(),
     proposal_datasheets: document.getElementById('ap-ds').checked,
+    proposal_pages: bpPages.length ? bpPages.map(x => ({ layout: x.layout, title: x.title || '', text: x.text || '', images: x.images.filter(Boolean) })) : null,
     proposal_photos: ppPhotos, proposal_photo_size: ppSize(),
   };
   // the same as the standard terms -> saved empty, so it follows Settings

@@ -206,7 +206,7 @@ def build_context(q, standard=None):
     not_included = [title for sec, title in std if sec not in names] if any(sec in names for sec, _t in std) else []
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order), "not_included": not_included,
             "total_words": amount_in_words(q.total_with_vat, q.currency),
-            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(), "cover": cover(q),
+            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(), "cover": cover(q), "pages": brochure_pages(q),
             "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
             "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or standard.get("exclusions") or "").splitlines() if l.strip()]}
@@ -302,6 +302,25 @@ def default_photos(q):
             continue
         seen.add(path)
         out.append({"path": path, "caption": it.product.name if it.product else _title(it), "group": it.section or ""})
+    return out
+
+
+def brochure_pages(q):
+    """Brochure pages with the image paths WeasyPrint opens; pictures that are gone are skipped."""
+    out = []
+    for pg in q.proposal_pages or []:
+        imgs, wide = [], []
+        for path in pg.get("images") or []:
+            if path and path.startswith("/static/") and ".." not in path and os.path.exists(url_to_disk_path(path)):
+                imgs.append("app" + path)
+                wide.append(_aspect(url_to_disk_path(path)) < 0.9)
+        if not imgs and not (pg.get("title") or pg.get("text")):
+            continue
+        layout = pg.get("layout") or "one"
+        if layout == "two" and len(imgs) == 2 and all(wide):
+            layout = "stack"   # two landscape pictures: one above the other, full width
+        out.append({"layout": layout, "title": (pg.get("title") or "").strip(),
+                    "text": (pg.get("text") or "").strip(), "images": imgs})
     return out
 
 

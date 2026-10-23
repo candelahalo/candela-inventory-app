@@ -209,6 +209,22 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 .cover-pg .cv-tag { position: absolute; right: 16mm; bottom: 9mm; font-size: 9px; font-style: italic; color: #fff; }
 .cover-pg.nophoto .cv-photo { background: #17161B; }
 .cover-pg.nophoto .cv-band { position: absolute; left: 0; right: 0; top: 118mm; height: 1px; background: rgba(227,154,30,.5); }
+/* ---- Brochure pages (after the letter) ---- */
+.br-pg { page-break-before: always; text-align: center; height: 246mm; display: flex; flex-direction: column; justify-content: space-around; }
+.br-title { font-size: 22px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #201E1A; margin: 0; }
+.br-one .br-img { height: 175mm; line-height: 175mm; white-space: nowrap; }
+.br-stack .br-img { height: 98mm; line-height: 98mm; white-space: nowrap; }
+.br-two .br-row { font-size: 0; }
+.br-two .br-img { display: inline-block; width: 82mm; height: 120mm; line-height: 120mm; margin: 0 2mm; white-space: nowrap; vertical-align: top; }
+.br-img img { max-width: 100%; max-height: 100%; object-fit: contain; vertical-align: middle; }
+.br-text { font-size: 12px; line-height: 1.6; color: #3A372F; margin: 0 auto; max-width: 150mm; text-align: center; white-space: pre-line; }
+.br-bleed { page: cover; page-break-before: always; position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #17161B; }
+.br-bleed .bb-photo { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; background-size: cover; background-position: center; }
+.br-bleed .bb-box { position: absolute; left: 16mm; bottom: 18mm; max-width: 150mm; background: rgba(23,22,27,.78); color: #fff;
+  border-left: 2.5px solid #E39A1E; padding: 5mm 7mm; text-align: left; }
+.br-bleed .bb-title { font-size: 18px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.br-bleed .bb-text { font-size: 10.5px; margin-top: 1.5mm; white-space: pre-line; }
+.nonum { bookmark-level: 2; bookmark-label: "nonum"; }
 /* ---- General remarks ---- */
 .rm-page { page-break-before: always; }
 h2.rm-title { bookmark-level: 1; bookmark-label: "General remarks"; }
@@ -278,6 +294,24 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 <div class="page-break-after"></div>
 
 {% if full %}
+<!-- ===== BROCHURE PAGES ===== -->
+{% for b in p.pages %}
+{% if b.layout == 'bleed' %}
+<div class="br-bleed"><div class="nonum" style="height:0"></div>
+  <div class="bb-photo"{% if b.images %} style="background-image: url('{{ b.images[0] }}')"{% endif %}></div>
+  {% if b.title or b.text %}<div class="bb-box">{% if b.title %}<div class="bb-title">{{ b.title }}</div>{% endif %}{% if b.text %}<div class="bb-text">{{ b.text }}</div>{% endif %}</div>{% endif %}
+</div>
+{% else %}
+<div class="br-pg br-{{ b.layout }}">
+  {% if b.title %}<div class="br-title">{{ b.title }}</div>{% endif %}
+  {% if b.layout == 'two' %}<div class="br-row">{% for im in b.images %}<div class="br-img"><img src="{{ im }}"></div>{% endfor %}</div>
+  {% elif b.layout == 'stack' %}{% for im in b.images %}<div class="br-img"><img src="{{ im }}"></div>{% endfor %}
+  {% elif b.images %}<div class="br-img"><img src="{{ b.images[0] }}"></div>{% endif %}
+  {% if b.text %}<div class="br-text">{{ b.text }}</div>{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+
 <!-- ===== PRODUCT IMAGES (the product datasheets are put in before them) ===== -->
 {% for pg in p.gallery %}
 <div class="gal-pg gal-{{ pg.size }}{% if pg.fill %} fill{% endif %}{% if loop.first %} first{% endif %}">

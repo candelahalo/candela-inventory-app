@@ -24,6 +24,18 @@ def _render(q, db, full):
     return HTML(string=html, base_url=".").render()
 
 
+def _marker_pages(doc, label):
+    """Indexes of every page holding a bookmark with this label."""
+    out = []
+    def walk(items):
+        for it in items:
+            if it[0] == label:
+                out.append(it[1][0])
+            walk(it[2] if len(it) > 2 else [])
+    walk(doc.make_bookmark_tree())
+    return out
+
+
 def _marker_page(doc, label):
     """Index of the page holding the bookmark with this label (None if absent)."""
     def walk(items):
@@ -69,9 +81,9 @@ def _sheet_pages(q, db):
     return out
 
 
-def _numbers(n, skip_first=True):
-    """n A4 pages with only "Page x of n" at the bottom right (none on the cover)."""
-    body = "".join(f'<div class="pg"><span>{"" if (skip_first and i == 1) else f"Page {i} of {n}"}</span></div>'
+def _numbers(n, skip=()):
+    """n A4 pages with only "Page x of n" at the bottom right (none on the cover or full-bleed photos)."""
+    body = "".join(f'<div class="pg"><span>{"" if (i == 1 or i in skip) else f"Page {i} of {n}"}</span></div>'
                    for i in range(1, n + 1))
     doc = f"""<html><head><meta charset="UTF-8"><style>
       @font-face {{ font-family: 'Inter'; src: url('app/static/fonts/Inter-Regular.ttf'); }}
@@ -93,8 +105,10 @@ def build(q, db, full=False):
     at = at if at is not None else min(2, len(main))
     sheets = _sheet_pages(q, db) if getattr(q, "proposal_datasheets", True) is not False else []
     pages = main[:at] + sheets + main[at:]
+    # full-bleed photo pages: no page number on the photo (1-based numbers after the datasheets went in)
+    skip = {i + 1 + (len(sheets) if i >= at else 0) for i in _marker_pages(doc, "nonum")}
     writer = PdfWriter()
-    for p, num in zip(pages, _numbers(len(pages))):
+    for p, num in zip(pages, _numbers(len(pages), skip)):
         p.merge_page(num)
         writer.add_page(p)
     out = io.BytesIO()

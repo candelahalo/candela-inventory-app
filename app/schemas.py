@@ -213,6 +213,7 @@ class QuotationCreate(BaseModel):
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: bool = True
+    proposal_pages: Optional[List[dict]] = None
     items: List[QuotationItemCreate]
 
 
@@ -253,6 +254,7 @@ class QuotationOut(BaseModel):
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: Optional[bool] = True
+    proposal_pages: Optional[List[dict]] = None
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float
@@ -522,6 +524,21 @@ class ProposalSettings(BaseModel):
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: bool = True
+    proposal_pages: Optional[List[dict]] = None
+
+    @field_validator("proposal_pages")
+    @classmethod
+    def _pages(cls, v):
+        if not v:
+            return None
+        out = []
+        for pg in v[:40]:
+            pg = pg or {}
+            layout = pg.get("layout") if pg.get("layout") in ("bleed", "one", "two") else "one"
+            imgs = [str(x) for x in (pg.get("images") or []) if isinstance(x, str) and x.startswith("/static/uploads/") and ".." not in x]
+            out.append({"layout": layout, "title": str(pg.get("title") or "")[:120], "text": str(pg.get("text") or "")[:600],
+                        "images": imgs[:2 if layout == "two" else 1]})
+        return out or None
 
     @field_validator("proposal_cover")
     @classmethod
