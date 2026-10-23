@@ -153,16 +153,19 @@ table.boq tr.total { break-before: avoid; }
 .sign-keep { break-inside: avoid; }  /* payment terms and the signatures stay together */
 
 /* Images: a page per section */
-.gal-page { page-break-before: always; }
-.gal-title { text-align: center; font-size: 20px; font-weight: 600; letter-spacing: .08em; color: #201E1A; margin: 2mm 0 9mm; }
+/* Images: the sections run on one after another (a new page only when the next one doesn't fit) */
+.gal-page { margin-top: 9mm; }
+.gal-page.first { page-break-before: always; margin-top: 0; }
+.gal-title { text-align: center; font-size: 16px; font-weight: 600; letter-spacing: .08em; color: #201E1A; margin: 2mm 0 6mm;
+  padding-bottom: 2.5mm; border-bottom: 1px solid #E6DFCC; break-after: avoid; page-break-after: avoid; }
 .gal { font-size: 0; orphans: 1; widows: 1; text-align: center; }
-.gal-card { display: inline-block; vertical-align: top; margin: 0 2.5mm 7mm; break-inside: avoid; text-align: center; }
+.gal-card { display: inline-block; vertical-align: top; margin: 0 2.5mm 5mm; break-inside: avoid; text-align: center; }
 .gal-img { text-align: center; }
 .gal-img img { max-width: 100%; max-height: 100%; object-fit: contain; vertical-align: middle; }
-.gal-cap { font-size: 8.6px; line-height: 1.35; margin-top: 2.5mm; color: #3A372F; }
-.gal-s .gal-card { width: 38mm; } .gal-s .gal-img { height: 34mm; }
-.gal-m .gal-card { width: 52mm; } .gal-m .gal-img { height: 48mm; }
-.gal-l .gal-card { width: 80mm; } .gal-l .gal-img { height: 72mm; }
+.gal-cap { font-size: 8.6px; line-height: 1.35; margin-top: 2mm; color: #3A372F; }
+.gal-s .gal-card { width: 38mm; } .gal-s .gal-img { height: 33mm; }
+.gal-m .gal-card { width: 52mm; } .gal-m .gal-img { height: 43mm; }
+.gal-l .gal-card { width: 80mm; } .gal-l .gal-img { height: 61mm; }
 .terms-block.new-page { page-break-before: always; margin-top: 0; }
 
 /* Summary */
@@ -292,9 +295,9 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
 </div>
 {% endfor %}
 
-<!-- ===== IMAGES: A PAGE PER SECTION ===== -->
+<!-- ===== IMAGES: SECTION BY SECTION, RUNNING ON ===== -->
 {% for g in (p.gallery if full else []) %}
-<div class="gal-page gal-{{ g.size }}">
+<div class="gal-page gal-{{ g.size }}{% if loop.first %} first{% endif %}">
   <div class="gal-title">{{ (g.group or 'Products')|upper }}</div>
   <div class="gal">{% for ph in g.photos %}<div class="gal-card"><div class="gal-img"><img src="{{ ph.src }}"></div>{% if ph.caption %}<div class="gal-cap">{{ ph.caption }}</div>{% endif %}</div>{% endfor %}</div>
 </div>
