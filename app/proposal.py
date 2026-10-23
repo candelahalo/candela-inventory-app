@@ -313,23 +313,91 @@ def cover(q):
     return "app" + path
 
 
+# Product image pages, laid out here so every page is filled:
+#   per row, card width and the tallest an image may be (mm)
+GAL = {"S": (4, 38.0, 40.0), "M": (3, 52.0, 52.0), "L": (2, 80.0, 80.0), "F": (1, 174.0, 104.0)}  # F: 2 a page
+GAL_PAGE_H = 247.0   # A4 297 - 24 top - 20 bottom margin, less a little to be safe
+GAL_HEAD_H = 16.0    # section title with its rule and the space above it
+GAL_GAP = 5.0        # under each row
+
+
+def _aspect(path):
+    """height / width of an image file (1.0 when it can't be read)."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            w, h = im.size
+        return (h / w) if w else 1.0
+    except Exception:
+        return 1.0
+
+
+def _cap_h(text, width, big=False):
+    if not text:
+        return 0.0
+    per_line = max(8, int(width / (2.0 if big else 1.55)))
+    lines = min(3, -(-len(text) // per_line))
+    return 2.0 + lines * (4.2 if big else 3.1)
+
+
 def gallery(q):
-    """Photos page before the price summary, grouped by system: [{"group", "photos": [{src, caption}]}]."""
-    if (q.proposal_photo_size or "M").upper() == "OFF":
+    """Product images grouped by system and laid out in pages:
+    [{"rows": [{"group"?: title, "h": image height, "pad": extra space under, "photos": [{src, caption}]}]}].
+    Rows run on from one section to the next; the space left at the foot of a page
+    goes between its rows (images grow first, up to their box), so no page is half empty."""
+    size = (q.proposal_photo_size or "M").upper()
+    if size == "OFF":
         return []
+    size = size if size in GAL else "M"
+    cols, cw, maxh = GAL[size]
     photos = q.proposal_photos if q.proposal_photos is not None else default_photos(q)
     groups = []
     for ph in photos:
         path = (ph or {}).get("path") or ""
-        if not path.startswith("/static/") or ".." in path or not os.path.exists(url_to_disk_path(path)):
+        disk = url_to_disk_path(path) if path.startswith("/static/") and ".." not in path else ""
+        if not disk or not os.path.exists(disk):
             continue
         g = (ph.get("group") or "").strip()
         if not groups or groups[-1]["group"] != g:
             groups.append({"group": g, "photos": []})
-        groups[-1]["photos"].append({"src": "app" + path, "caption": (ph.get("caption") or "").strip()})
-    # the sections run on one after another at the chosen size (S 4, M 3, L 2 per row; F one per page)
-    size = (q.proposal_photo_size or "M").upper()
-    size = size if size in ("S", "M", "L", "F") else "M"
+        groups[-1]["photos"].append({"src": "app" + path, "caption": (ph.get("caption") or "").strip(),
+                                     "ar": _aspect(disk)})
+    # rows of each section, with their natural height
+    rows = []
     for g in groups:
-        g["size"] = size.lower()
-    return groups
+        for i in range(0, len(g["photos"]), cols):
+            ps = g["photos"][i:i + cols]
+            ih = max(min(maxh, cw * p["ar"]) for p in ps)
+            ch = max(_cap_h(p["caption"], cw, size == "F") for p in ps)
+            rows.append({"group": (g["group"] or "Products") if i == 0 else None, "img": ih, "cap": ch,
+                         "full": max(cw * p["ar"] for p in ps),
+                         "photos": [{"src": p["src"], "caption": p["caption"]} for p in ps]})
+    # pages
+    pages, cur, used = [], [], 0.0
+    for r in rows:
+        need = r["img"] + r["cap"] + GAL_GAP + (GAL_HEAD_H if r["group"] else 0.0)
+        if cur and used + need > GAL_PAGE_H:
+            pages.append((cur, used))
+            cur, used = [], 0.0
+        cur.append(r)
+        used += need
+    if cur:
+        pages.append((cur, used))
+    out = []
+    for n, (rs, used) in enumerate(pages):
+        spare = max(0.0, GAL_PAGE_H - used)
+        last = n == len(pages) - 1
+        if last and used < GAL_PAGE_H * 0.55:
+            spare = 0.0   # a short last page stays as it is
+        # let the images grow into the spare space (not past their box width / the size cap)
+        for r in rs:
+            room = min(r["full"], maxh * 1.3, GAL_PAGE_H - r["cap"] - GAL_GAP - GAL_HEAD_H) - r["img"]
+            grow = max(0.0, min(room, spare / len(rs)))
+            r["img"] += grow
+        used2 = sum(r["img"] + r["cap"] + GAL_GAP + (GAL_HEAD_H if r["group"] else 0.0) for r in rs)
+        pad = max(0.0, GAL_PAGE_H - used2) / len(rs) if spare else 0.0
+        out.append({"cw": cw, "size": size.lower(), "fill": bool(spare), "rows": [{"group": r["group"], "h": round(r["img"], 1), "pad": 0,
+                              "photos": r["photos"]} for r in rs]})
+    return out
+
+
