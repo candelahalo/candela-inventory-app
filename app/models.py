@@ -187,6 +187,7 @@ class Quotation(Base):
     # {"SECTION NAME": "one remark per line"}; a system not in it gets the remarks made from its lines
     proposal_cover = Column(String(500))
     proposal_remarks = Column(JSON)
+    proposal_datasheets = Column(Boolean, default=True, nullable=False)  # first page of each datasheet
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

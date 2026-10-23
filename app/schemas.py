@@ -212,6 +212,7 @@ class QuotationCreate(BaseModel):
     proposal_photo_size: str = "M"
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
+    proposal_datasheets: bool = True
     items: List[QuotationItemCreate]
 
 
@@ -251,6 +252,7 @@ class QuotationOut(BaseModel):
     proposal_photo_size: Optional[str] = "M"
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
+    proposal_datasheets: Optional[bool] = True
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float
@@ -519,6 +521,7 @@ class ProposalSettings(BaseModel):
     proposal_photo_size: str = "M"
     proposal_cover: Optional[str] = None
     proposal_remarks: Optional[dict] = None
+    proposal_datasheets: bool = True
 
     @field_validator("proposal_cover")
     @classmethod
@@ -539,4 +542,4 @@ class ProposalSettings(BaseModel):
     @classmethod
     def _size(cls, v):
         v = (v or "M").upper()
-        return v if v in ("S", "M", "L", "OFF") else "M"
+        return v if v in ("S", "M", "L", "F", "OFF") else "M"

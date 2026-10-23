@@ -154,16 +154,25 @@ table.boq tr.total { break-before: avoid; }
 .sign-keep { break-inside: avoid; }  /* payment terms and the signatures stay together */
 
 /* Images: a page per section */
-.gal-page { page-break-before: always; }
-.gal-title { text-align: center; font-size: 20px; font-weight: 600; letter-spacing: .08em; color: #201E1A; margin: 2mm 0 9mm; }
+/* Product images: the sections run on one after another (a new page only when the next one doesn't fit) */
+.gal-page { margin-top: 9mm; }
+.gal-page.first { page-break-before: always; margin-top: 0; }
+.gal-page.first .gal-title { bookmark-level: 1; bookmark-label: "Product images"; }
+.gal-title { text-align: center; font-size: 16px; font-weight: 600; letter-spacing: .08em; color: #201E1A; margin: 2mm 0 6mm;
+  padding-bottom: 2.5mm; border-bottom: 1px solid #E6DFCC; break-after: avoid; page-break-after: avoid; }
+.gal-f .gal-card + .gal-card { page-break-before: always; }
+.gal-page.gal-f + .gal-page { page-break-before: always; margin-top: 0; }
 .gal { font-size: 0; orphans: 1; widows: 1; text-align: center; }
-.gal-card { display: inline-block; vertical-align: top; margin: 0 2.5mm 7mm; break-inside: avoid; text-align: center; }
+.gal-card { display: inline-block; vertical-align: top; margin: 0 2.5mm 5mm; break-inside: avoid; text-align: center; }
 .gal-img { text-align: center; }
 .gal-img img { max-width: 100%; max-height: 100%; object-fit: contain; vertical-align: middle; }
-.gal-cap { font-size: 8.6px; line-height: 1.35; margin-top: 2.5mm; color: #3A372F; }
-.gal-s .gal-card { width: 38mm; } .gal-s .gal-img { height: 34mm; }
-.gal-m .gal-card { width: 52mm; } .gal-m .gal-img { height: 48mm; }
-.gal-l .gal-card { width: 80mm; } .gal-l .gal-img { height: 72mm; }
+.gal-cap { font-size: 8.6px; line-height: 1.35; margin-top: 2mm; color: #3A372F; }
+.gal-s .gal-card { width: 38mm; } .gal-s .gal-img { height: 33mm; }
+.gal-m .gal-card { width: 52mm; } .gal-m .gal-img { height: 43mm; }
+.gal-l .gal-card { width: 80mm; } .gal-l .gal-img { height: 61mm; }
+.gal-f .gal-card { display: block; width: auto; margin: 4mm 0 5mm; } .gal-f .gal-img { height: auto; }
+.gal-f .gal-img img { max-width: 174mm; max-height: 200mm; width: auto; height: auto; }
+.gal-f .gal-cap { font-size: 11px; font-weight: 600; letter-spacing: .04em; }
 .terms-block.new-page { page-break-before: always; margin-top: 0; }
 
 /* Summary */
@@ -259,7 +268,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our proposal: the product datasheets, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our proposal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -272,7 +281,15 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 <div class="page-break-after"></div>
 
 {% if full %}
-<!-- ===== GENERAL REMARKS (product datasheets are put in before this page) ===== -->
+<!-- ===== PRODUCT IMAGES (the product datasheets are put in before them) ===== -->
+{% for g in p.gallery %}
+<div class="gal-page gal-{{ g.size }}{% if loop.first %} first{% endif %}">
+  <div class="gal-title">{{ (g.group or 'Products')|upper }}</div>
+  <div class="gal">{% for ph in g.photos %}<div class="gal-card"><div class="gal-img"><img src="{{ ph.src }}"></div>{% if ph.caption %}<div class="gal-cap">{{ ph.caption }}</div>{% endif %}</div>{% endfor %}</div>
+</div>
+{% endfor %}
+
+<!-- ===== GENERAL REMARKS (product datasheets and images come before this page) ===== -->
 <div class="rm-page">
   <div class="kicker">Our proposal</div>
   <h2 class="rm-title">General remarks</h2>

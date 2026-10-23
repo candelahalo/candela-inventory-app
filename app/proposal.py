@@ -327,13 +327,9 @@ def gallery(q):
         if not groups or groups[-1]["group"] != g:
             groups.append({"group": g, "photos": []})
         groups[-1]["photos"].append({"src": "app" + path, "caption": (ph.get("caption") or "").strip()})
-    # each section is one page: if its photos don't fit at the chosen size, use a smaller one
-    order, cap = ["L", "M", "S"], {"L": 4, "M": 9, "S": 16}
+    # the sections run on one after another at the chosen size (S 4, M 3, L 2 per row; F one per page)
     size = (q.proposal_photo_size or "M").upper()
-    size = size if size in cap else "M"
+    size = size if size in ("S", "M", "L", "F") else "M"
     for g in groups:
-        sz = size
-        while len(g["photos"]) > cap[sz] and sz != "S":
-            sz = order[order.index(sz) + 1]
-        g["size"] = sz.lower()
+        g["size"] = size.lower()
     return groups
