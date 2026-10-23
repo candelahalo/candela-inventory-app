@@ -7,11 +7,11 @@ PRODUCT_CATEGORIES = [
     "Custom Light", "Semi Recessed Light", "Strip Light", "Neon Light", "Drivers", "Accessories",
     "Track Accessories", "BOH",
     # Automation
-    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security", "CCTV",
-    "Wi-Fi & Network", "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning",
+    "Lighting Control", "Keypads & Switches", "Curtains & Blinds", "CCTV",
+    "Wi-Fi & Network", "Background Music", "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning",
 ]
-AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "Audio / Video / Security",
-                         "CCTV", "Wi-Fi & Network",
+AUTOMATION_CATEGORIES = ["Lighting Control", "Keypads & Switches", "Curtains & Blinds", "CCTV", "Wi-Fi & Network",
+                         "Background Music",
                          "AC Controls", "Sensors", "Intercom", "Automation Accessories", "Testing & Commissioning"]
 
 # Earlier category / type names and where they belong now
@@ -28,6 +28,7 @@ _OLD_CATEGORY = {
 CCTV_RE = r"cctv|camera|\bnvr\b|\bdvr\b|video recorder|surveillance|\bhdd\b|hard dis[ck]"
 WIFI_RE = (r"wi-?fi|access point|\brouter\b|cloud gateway|firewall|poe switch|network switch|\bswitch\b.*\bport\b"
            r"|\d+\s*-?\s*port\b.*switch|it rack|\brack\b|patch panel")
+MUSIC_RE = r"speaker|amplifier|\bamp\b|subwoofer|streamer|audio|music|soundbar|\bsonos\b"
 _DRIVER = r"\bdriver|power supply|\bpsu\b|transformer"
 _ACCESSORY = r"connector|channel|end ?cap|\bkit\b|feeder|bracket|accessor"
 
@@ -59,8 +60,10 @@ def classify(text):
         return "CCTV"
     if re.search(WIFI_RE, t):
         return "Wi-Fi & Network"
-    if re.search(r"speaker|amplifier|access control", t):
-        return "Audio / Video / Security"
+    if re.search(MUSIC_RE, t):
+        return "Background Music"
+    if re.search(r"access control|rfid|exit button|em lock|maglock", t):
+        return "Intercom"
     if re.search(r"\bknx\b|actuator|dimmer module|relay module|dali (gateway|controller|master)|lighting control", t):
         return "Lighting Control"
     if re.search(_DRIVER, t):

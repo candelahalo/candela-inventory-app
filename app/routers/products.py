@@ -200,11 +200,12 @@ def _bill_match(db, code, name, brand, category):
 
 def _bill_auto_cat(text):
     """Automation category from the words of a bill line (tried before the general guess)."""
-    from app.categories import CCTV_RE, WIFI_RE
+    from app.categories import CCTV_RE, WIFI_RE, MUSIC_RE
     t = text.lower()
     for pat, cat in [(r"cable|pipe|piping|conduit|accessor|enclosure", "Automation Accessories"),
                      (CCTV_RE, "CCTV"),
                      (WIFI_RE + r"|\bpoe\b", "Wi-Fi & Network"),
+                     (MUSIC_RE, "Background Music"),
                      (r"\bframe\b|cover|plate|\bpb\b|\d+pb\b|push|keypad|touch", "Keypads & Switches"),
                      (r"controller|server|gateway|processor|domovea|interface|module|power supply|actuator", "Lighting Control")]:
         if re.search(pat, t):

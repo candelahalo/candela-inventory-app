@@ -11,7 +11,7 @@ DIVISIONS = [
     ("central", "Centralized Control System", [
         ("Main automation controller for all subsystems", "Lighting Control"),
         ("1 year remote access subscription kit", "Automation Accessories"),
-        ("iPad 10.9\" 10th gen, supplied by client", "Audio / Video / Security"),
+        ("iPad 10.9\" 10th gen, supplied by client", "Keypads & Switches"),
         ("Wall station for iPad 10.9\" 10th gen with USB-C, black anodized / gold anodized / titanium anodized", "Keypads & Switches"),
         ("USB-C charger & USB-C to USB-C cable", "Automation Accessories"),
         ("Cat6 cabling including termination", "Automation Accessories"),
@@ -36,10 +36,10 @@ DIVISIONS = [
          "load calculations, DB circuit labelling and termination, line testing, grounding requirements and final validation", S),
     ]),
     ("music", "Background Music System", [
-        ("8-inch 2-way in-ceiling speaker", "Audio / Video / Security"),
-        ("Outdoor 4.1 (4 satellites and 1 subwoofer) in-planter speakers", "Audio / Video / Security"),
-        ("Network audio streamer", "Audio / Video / Security"),
-        ("12 channel audio frequency amplifier", "Audio / Video / Security"),
+        ("8-inch 2-way in-ceiling speaker", "Background Music"),
+        ("Outdoor 4.1 (4 satellites and 1 subwoofer) in-planter speakers", "Background Music"),
+        ("Network audio streamer", "Background Music"),
+        ("12 channel audio frequency amplifier", "Background Music"),
         ("Speaker cabling including termination - indoor", "Automation Accessories"),
         ("Speaker cabling including termination - outdoor", "Automation Accessories"),
         ("Cat6 patch cords", "Automation Accessories"),
