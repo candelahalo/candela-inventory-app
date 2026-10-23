@@ -67,6 +67,52 @@ def milestones(text, base):
 KEEP_CAPS = {"AC", "IT", "CCTV", "KNX", "DALI", "AV", "HVAC", "BMS", "VRF", "IP", "UPS", "ELV", "DB", "BOH", "TV"}
 
 
+LOWER_KEEP = {"KNX", "DALI", "POE", "NVR", "DVR", "HDD", "IP", "AC", "HVAC", "VRF", "CCTV", "UPS", "LED", "USB-C", "USB",
+              "TV", "RFID", "EM", "AP", "HDMI", "CAT6", "CAT6A", "UTP", "IT", "PIR", "DB", "ELV", "FCU", "4K", "AV", "SIP", "PDU", "L3"}
+
+
+def _sentence(text):
+    """KEYPAD 4 BUTTON KNX -> keypad 4 button KNX (capitals kept for KNX, DALI, ...)."""
+    special = {"POE": "PoE", "IPAD": "iPad", "WI-FI": "Wi-Fi", "WIFI": "Wi-Fi", "IPHONE": "iPhone"}
+    words = []
+    for w in (text or "").split():
+        wc = re.sub(r"[^\w-]", "", w).upper()
+        if wc in special:
+            words.append(w.upper().replace(wc, special[wc]))
+            continue
+        parts = []
+        for part in w.split("-"):
+            core = re.sub(r"[^\w]", "", part).upper()
+            if core in special:
+                parts.append(part.upper().replace(core, special[core]))
+            elif core in LOWER_KEEP or (re.search(r"\d", core) and re.search(r"[A-Z]", core) and len(core) <= 6):
+                parts.append(part.upper())
+            else:
+                parts.append(part.lower())
+        words.append("-".join(parts))
+    return " ".join(words)
+
+
+def _qty(n):
+    return f"{n:g}" if n is not None else ""
+
+
+def auto_remarks(system):
+    """General remarks made from a system's lines: "We have considered 4 no's of keypad from the brand Lutron."
+    Service lines (installation, programming, fees) are left out."""
+    out = []
+    for l in system["lines"]:
+        if not l["product"]:
+            continue
+        what = _sentence(l["title"])
+        brand = f" from the brand {l['brand'].title() if l['brand'].isupper() and len(l['brand']) > 4 else l['brand']}" if l["brand"] else ""
+        if (l["unit"] or "").lower() in ("pcs", "nos", "no", "pc", "set", "sets", "unit", "units") and l["qty"]:
+            out.append(f"We have considered {_qty(l['qty'])} no's of {what}{brand}.")
+        else:
+            out.append(f"We have considered {what}{brand}.")
+    return out
+
+
 def system_title(name):
     """Section name for headings: the standard division's own spelling, else
     title case that keeps AC, IT, CCTV, KNX... in capitals."""
@@ -129,7 +175,7 @@ def build_context(q, standard=None):
         brand = _brand(it)
         total = round(it.quantity * it.unit_price, 2)
         s["lines"].append({"brand": brand, "title": title, "detail": _detail(it, title), "unit": it.unit or (it.product.unit if it.product else "pcs"),
-                           "qty": it.quantity, "price": it.unit_price, "total": total})
+                           "qty": it.quantity, "price": it.unit_price, "total": total, "product": bool(it.product)})
         s["total"] = round(s["total"] + total, 2)
         ph = _photo(it)
         if ph and ph not in s["photos"] and len(s["photos"]) < 3:
@@ -143,6 +189,10 @@ def build_context(q, standard=None):
         s["no"] = i
         s["title"] = system_title(name)
         s["notes"] = [l.strip().lstrip("•-* ").strip() for l in (notes.get(name) or "").splitlines() if l.strip()]
+        s["auto_remarks"] = auto_remarks(s)
+        edited = (q.proposal_remarks or {}).get(name)
+        s["remarks"] = ([l.strip().lstrip("•-* ").strip() for l in edited.splitlines() if l.strip()]
+                        if edited is not None else s["notes"] + s["auto_remarks"])
         out.append(s)
     brands = []
     for s in out:
@@ -156,7 +206,7 @@ def build_context(q, standard=None):
     not_included = [title for sec, title in std if sec not in names] if any(sec in names for sec, _t in std) else []
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order), "not_included": not_included,
             "total_words": amount_in_words(q.total_with_vat, q.currency),
-            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(),
+            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(), "cover": cover(q),
             "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
             "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or standard.get("exclusions") or "").splitlines() if l.strip()]}
@@ -253,6 +303,14 @@ def default_photos(q):
         seen.add(path)
         out.append({"path": path, "caption": it.product.name if it.product else _title(it), "group": it.section or ""})
     return out
+
+
+def cover(q):
+    """The cover photo, as a path WeasyPrint can open (None: the plain dark cover)."""
+    path = q.proposal_cover or ""
+    if not path.startswith("/static/") or ".." in path or not os.path.exists(url_to_disk_path(path)):
+        return None
+    return "app" + path
 
 
 def gallery(q):

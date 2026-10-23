@@ -15,8 +15,9 @@
   @top-left { content: "{{ ent.name|upper }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .08em; color: #9A9382; }
   @top-right { content: "{{ q.quote_number }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .06em; color: #9A9382; }
   @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
-  @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }
+  {% if not full %}@bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }{% endif %}
 }
+@page cover { margin: 0; @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-center { content: ""; } }
 @page :first { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; }
   @bottom-center { content: "We Light Your Dreams…"; font-family: 'Inter'; font-size: 9px; font-style: italic; color: #9A9382; } }
 
@@ -186,10 +187,63 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 .approve { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: 10mm; }
 .approve .lbl { font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; color: #9A9382; }
 .approve .line { border-top: 0.75px solid #201E1A; margin-top: 13mm; padding-top: 2mm; font-size: 9px; }
+/* ---- Full proposal: photo cover ---- */
+.cover-pg { page: cover; position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #17161B; }
+.cover-pg .cv-photo { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; background-size: cover; background-position: center; }
+.cover-pg .cv-logo { position: absolute; left: 16mm; top: 16mm; background: #fff; padding: 4.5mm 6mm; border-radius: 2px; }
+.cover-pg .cv-logo img { width: 52mm; display: block; }
+.cover-pg .cv-box { position: absolute; left: 16mm; right: 16mm; bottom: 20mm; color: #fff; border-left: 2.5px solid #E39A1E;
+  padding: 7mm 8mm 7mm 8mm; background: rgba(23,22,27,.78); }
+.cover-pg.nophoto .cv-box { background: none; }
+.cover-pg .cv-kick { font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; color: #F2B24A; font-weight: 600; }
+.cover-pg .cv-title { font-size: 30px; font-weight: 700; letter-spacing: .01em; line-height: 1.12; margin: 2mm 0 6mm; text-transform: uppercase; }
+.cover-pg .cv-meta { display: grid; grid-template-columns: 30mm 1fr; row-gap: 1.6mm; font-size: 10px; }
+.cover-pg .cv-meta .k { color: rgba(255,255,255,.62); letter-spacing: .06em; }
+.cover-pg .cv-meta .v { color: #fff; font-weight: 600; }
+.cover-pg .cv-tag { position: absolute; right: 16mm; bottom: 9mm; font-size: 9px; font-style: italic; color: #fff; }
+.cover-pg.nophoto .cv-photo { background: #17161B; }
+.cover-pg.nophoto .cv-band { position: absolute; left: 0; right: 0; top: 118mm; height: 1px; background: rgba(227,154,30,.5); }
+/* ---- General remarks ---- */
+.rm-page { page-break-before: always; }
+h2.rm-title { bookmark-level: 1; bookmark-label: "General remarks"; }
+h2.price-title, h2.scope-title { bookmark-level: none; }
+.rm-sys { margin-top: 7mm; break-inside: auto; }
+.rm-sys h3 { font-size: 11.5px; font-weight: 700; margin: 0 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1px solid #E6DFCC; break-after: avoid; }
+.rm-sys h3 span { color: #C77D0A; margin-right: 2.5mm; }
+.rm-sys li { break-inside: avoid; }
+.scope-page, .price-page { page-break-before: always; }
+.price-page .sys:first-of-type { margin-top: 6mm; }
+.integrator { display: flex; align-items: center; gap: 8mm; padding: 5mm 0 6mm; border-bottom: 0.75px solid #E6DFCC; margin-bottom: 7mm; }
+.integrator img { width: 44mm; }
+.integrator .k { font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; color: #9A9382; }
+.integrator .v { font-size: 12px; font-weight: 700; margin-top: 1mm; }
 </style>
 </head>
 <body>
-{% set show_prices = q.proposal_prices or not full %}
+{% set show_prices = not full %}{# full proposal: quantities only; system totals when prices are on #}
+{% set show_totals = q.proposal_prices or not full %}
+
+{% if full %}
+<!-- ===== PHOTO COVER (full proposal) ===== -->
+<div class="cover-pg{% if not p.cover %} nophoto{% endif %}">
+  <div class="cv-photo"{% if p.cover %} style="background-image: url('{{ p.cover }}')"{% endif %}></div>
+  {% if not p.cover %}<div class="cv-band"></div>{% endif %}
+  <div class="cv-logo"><img src="{{ ent.logo }}"></div>
+  <div class="cv-box">
+    <div class="cv-kick">Commercial Proposal</div>
+    <div class="cv-title">{{ (q.subject or 'Home Automation System')|replace('Quotation for ', '') }}</div>
+    <div class="cv-meta">
+      {% if q.project %}<div class="k">Project</div><div class="v">{{ q.project.name }}</div>{% endif %}
+      <div class="k">Client</div><div class="v">{{ q.customer.company or q.customer.name }}</div>
+      {% if q.consultant %}<div class="k">Consultant</div><div class="v">{{ q.consultant }}</div>{% endif %}
+      {% if q.main_contractor %}<div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div>{% endif %}
+      <div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div>
+      <div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div>
+    </div>
+  </div>
+  <div class="cv-tag">We Light Your Dreams…</div>
+</div>
+{% endif %}
 
 <!-- ===== COVER LETTER (quote by system) ===== -->
 <div class="qc-brand"><img src="{{ ent.logo }}"></div>
@@ -205,7 +259,7 @@ table.ms td.num { text-align: right; white-space: nowrap; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %}{% if full and p.gallery %}, product images{% endif %}{% if full %} and our scope, terms and payment milestones{% endif %}.</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our proposal: the product datasheets, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -217,11 +271,35 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
 {% if not full %}<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>{% endif %}
 <div class="page-break-after"></div>
 
+{% if full %}
+<!-- ===== GENERAL REMARKS (product datasheets are put in before this page) ===== -->
+<div class="rm-page">
+  <div class="kicker">Our proposal</div>
+  <h2 class="rm-title">General remarks</h2>
+  {% for s in p.systems %}{% if s.remarks %}
+  <div class="rm-sys"><h3><span>{{ '%02d' % s.no }}</span>{{ s.title }}</h3>
+    <ul class="notes">{% for n in s.remarks %}<li>{{ n }}</li>{% endfor %}</ul></div>
+  {% endif %}{% endfor %}
+</div>
+
+<!-- ===== SCOPE: INCLUSIONS AND EXCLUSIONS ===== -->
+{% if p.inclusions or p.exclusions or p.not_included %}
+<div class="scope-page">
+  <div class="kicker">Scope</div>
+  <h2 class="scope-title" style="margin-bottom:6mm">Inclusions &amp; exclusions</h2>
+  {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if p.exclusions or p.not_included %}<div class="tsec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li><strong>{{ n }}</strong> — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endif %}
+<div class="price-page"><div class="kicker">{{ 'Price' if q.proposal_prices else 'Bill of quantities' }}</div>
+  <h2 class="price-title">Equipment by system</h2></div>
+{% endif %}
+
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
 {% for s in p.systems %}
 <div class="sys{% if s.lines|length <= 4 %} keep{% endif %}">
   <div class="sys-head"><div class="sys-no">{{ '%02d' % s.no }}</div><div class="sys-name">{{ s.name }}</div></div>
-  {% if s.notes %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  {% if s.notes and not full %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   <table class="boq">
     <thead><tr><th style="width:8mm" class="c">#</th><th style="width:30mm">Brand</th><th>Description</th><th style="width:12mm" class="c">Unit</th><th style="width:12mm" class="num">Qty</th>
       {% if show_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
@@ -232,16 +310,17 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
         <td class="c">{{ l.unit }}</td><td class="num">{{ l.qty }}</td>
         {% if show_prices %}<td class="num">{{ "{:,.2f}".format(l.price) }}</td><td class="num">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
     {% endfor %}
-      <tr class="total"><td colspan="{{ 5 if show_prices else 3 }}">Total — {{ s.title }} ({{ q.currency }}, VAT excluded)</td>
-        <td class="num" colspan="2">{{ "{:,.2f}".format(s.total) }}</td></tr>
+      {% if show_totals %}<tr class="total"><td colspan="{{ 5 if show_prices else 3 }}">Total — {{ s.title }} ({{ q.currency }}, VAT excluded)</td>
+        <td class="num" colspan="2">{{ "{:,.2f}".format(s.total) }}</td></tr>{% endif %}
     </tbody>
   </table>
 </div>
 {% endfor %}
 
-<!-- ===== SUBMISSION SUMMARY: A FULL PAGE ===== -->
+<!-- ===== SUBMISSION SUMMARY / CONCLUSION: A FULL PAGE ===== -->
+{% if show_totals %}
 <div class="summary-page">
-  <div class="kicker">Submission summary</div>
+  <div class="kicker">{{ 'Conclusion' if full else 'Submission summary' }}</div>
   <h2 class="sum-title">{{ q.subject or 'Home Automation' }}</h2>
   <div class="sum-sub muted">{{ q.project.name if q.project else q.customer.name }} · {{ q.quote_number }} · {{ q.created_at.strftime('%d %B %Y') }}</div>
   <table class="sum">
@@ -271,6 +350,7 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
   </div>
   {% endif %}
 </div>
+{% endif %}
 
 <!-- ===== DESIGN MATRIX: ONE TABLE, ALL FLOORS ===== -->
 {% for part in p.matrix %}
@@ -292,21 +372,16 @@ Thank you for the opportunity to quote for your home automation. We are pleased 
 </div>
 {% endfor %}
 
-<!-- ===== IMAGES: A PAGE PER SECTION ===== -->
-{% for g in (p.gallery if full else []) %}
-<div class="gal-page gal-{{ g.size }}">
-  <div class="gal-title">{{ (g.group or 'Products')|upper }}</div>
-  <div class="gal">{% for ph in g.photos %}<div class="gal-card"><div class="gal-img"><img src="{{ ph.src }}"></div>{% if ph.caption %}<div class="gal-cap">{{ ph.caption }}</div>{% endif %}</div>{% endfor %}</div>
-</div>
-{% endfor %}
-
 <!-- ===== TERMS & APPROVAL ===== -->
 {% if full %}
 <div class="terms-block new-page">
   <div class="kicker">Agreement</div>
-  <h2 style="margin-bottom:6mm">Scope, terms &amp; approval</h2>
-  {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-  {% if p.exclusions or p.not_included %}<div class="tsec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li><strong>{{ n }}</strong> — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  <h2 style="margin-bottom:4mm">Payment terms &amp; conditions</h2>
+  <div class="integrator"><img src="{{ ent.logo }}"><div><div class="k">System integrator</div><div class="v">{{ ent.name }}</div>
+    <div class="muted" style="margin-top:1mm">Dubai, United Arab Emirates</div></div></div>
+  <div class="tsec"><h3>Prices</h3><div>All prices are in {{ 'UAE Dirhams' if q.currency == 'AED' else q.currency }} ({{ q.currency }}), VAT {{ "%g"|format(q.vat_percent) }}% applicable on all invoices.</div></div>
+  <div class="tsec"><h3>Delivery</h3><div>{{ q.delivery_time }}</div></div>
+  <div class="tsec"><h3>Validity</h3><div>{{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from the date of quotation' }}</div></div>
   <div class="sign-keep"><div class="tsec"><h3>Payment terms</h3>
     {% if p.milestones %}
     <table class="ms">{% for pct, text, amt in p.milestones %}<tr><td class="pct">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>

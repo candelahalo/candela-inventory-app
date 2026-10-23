@@ -210,6 +210,8 @@ class QuotationCreate(BaseModel):
     room_matrix: Optional[dict] = None
     proposal_photos: Optional[List[dict]] = None
     proposal_photo_size: str = "M"
+    proposal_cover: Optional[str] = None
+    proposal_remarks: Optional[dict] = None
     items: List[QuotationItemCreate]
 
 
@@ -247,6 +249,8 @@ class QuotationOut(BaseModel):
     room_matrix: Optional[dict] = None
     proposal_photos: Optional[List[dict]] = None
     proposal_photo_size: Optional[str] = "M"
+    proposal_cover: Optional[str] = None
+    proposal_remarks: Optional[dict] = None
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float
@@ -513,6 +517,23 @@ class ProposalSettings(BaseModel):
     proposal_prices: bool = True
     proposal_photos: Optional[List[dict]] = None
     proposal_photo_size: str = "M"
+    proposal_cover: Optional[str] = None
+    proposal_remarks: Optional[dict] = None
+
+    @field_validator("proposal_cover")
+    @classmethod
+    def _cover(cls, v):
+        v = (v or "").strip()
+        if v and (not v.startswith("/static/uploads/") or ".." in v):
+            raise ValueError("Cover photo must be an uploaded picture")
+        return v or None
+
+    @field_validator("proposal_remarks")
+    @classmethod
+    def _remarks(cls, v):
+        if not v:
+            return None
+        return {str(k)[:200]: str(t or "")[:5000] for k, t in v.items()}
 
     @field_validator("proposal_photo_size")
     @classmethod

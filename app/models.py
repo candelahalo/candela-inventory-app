@@ -183,6 +183,10 @@ class Quotation(Base):
     # Photos page of the proposal: None = the line photos; else [{"path", "caption", "group"}]
     proposal_photos = Column(JSON)
     proposal_photo_size = Column(String(4), default="M", nullable=False)  # S / M / L / OFF
+    # Full proposal: cover photo (/static/... path) and the general remarks per system,
+    # {"SECTION NAME": "one remark per line"}; a system not in it gets the remarks made from its lines
+    proposal_cover = Column(String(500))
+    proposal_remarks = Column(JSON)
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

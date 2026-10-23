@@ -68,38 +68,31 @@
 
 <div class="panel" id="ap-panel" style="display:none;">
   <div class="panel-head"><h2>Automation proposal</h2>
-    <span class="muted-note">Cover, the quote by system, design matrix, product images, terms and approval — from one of this project's quotations.</span></div>
+    <span class="muted-note">Photo cover, letter, product datasheets, general remarks, scope, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
   <div id="ap-empty" class="muted" style="display:none;">Make a quotation for this project first.</div>
   <div id="ap-body">
     <div class="form-grid">
       <div class="field"><label>Quotation</label><select id="ap-quote"></select></div>
-      <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show unit prices</label></div>
+      <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show prices (system totals and conclusion)</label></div>
       <div class="field"><label>Consultant</label><input id="ap-consultant" placeholder="e.g. Signature Engineering Consultant"></div>
       <div class="field"><label>Main contractor</label><input id="ap-contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
       <div class="field span2"><label>Inclusions <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>
       <div class="field span2"><label>Exclusions <span class="muted ap-std" data-k="exclusions"></span></label><textarea id="ap-exclusions" rows="6"></textarea></div>
       <div class="field span2"><label>Payment milestones <span class="muted ap-std" data-k="milestones"></span></label><textarea id="ap-milestones" rows="3"></textarea></div>
     </div>
-    <details class="q-matrix q-photos" id="q-photos" open>
-      <summary><strong>Proposal photos</strong> <span class="muted">— a page per section, after the design matrix</span> <span class="mx-sum" id="pp-sum"></span></summary>
-      <div class="pp-bar">
-        <span class="pp-sizes" id="pp-sizes">Size
-          <label><input type="radio" name="pp_size" value="S"> Small</label>
-          <label><input type="radio" name="pp_size" value="M" checked> Medium</label>
-          <label><input type="radio" name="pp_size" value="L"> Large</label>
-          <label><input type="radio" name="pp_size" value="OFF"> No photos</label></span>
-        <button type="button" class="btn btn-ghost btn-sm" id="pp-reset" title="Undo all photo changes: back to the photos of the lines">Reset to line photos</button>
-        <input type="file" id="pp-file" accept="image/jpeg,image/png,image/webp" hidden>
+    <div class="ap-cover-row">
+      <div>
+        <label class="ap-lbl">Cover photo <span class="muted">— villa render or site photo; click, drop or paste</span></label>
+        <div class="ap-cv" id="ap-cv" tabindex="0"></div>
+        <input type="file" id="ap-cv-file" accept="image/jpeg,image/png,image/webp" hidden>
+        <button type="button" class="btn btn-ghost btn-sm" id="ap-cv-del" style="display:none">Remove photo</button>
       </div>
-      <div class="pp-note muted" id="pp-note"></div>
-      <div class="pp-grid" id="pp-grid"></div>
-      <div class="pp-pick" id="pp-pick" hidden>
-        <div class="pp-pick-head"><strong id="pp-pick-title">Change photo</strong>
-          <button type="button" class="btn btn-sm" id="pp-pick-upload">Upload from computer</button>
-          <input type="search" id="pp-pick-search" placeholder="…or search a product photo (name, brand)" autocomplete="off">
-          <button type="button" class="remove-line" id="pp-pick-close" title="Close">×</button></div>
-        <div class="pp-pick-grid" id="pp-pick-grid"></div>
-      </div>
+      <div class="ap-cover-note muted">Datasheets: the first page of each product's datasheet goes in after the letter.
+        Products marked "No datasheet needed" are left out.</div>
+    </div>
+    <details class="q-matrix" id="ap-remarks" open>
+      <summary><strong>General remarks</strong> <span class="muted">— one per line, for each system; made from the quote lines, change them as you like</span></summary>
+      <div id="ap-rm" class="ap-rm"></div>
     </details>
 
     <div class="form-actions">
@@ -360,143 +353,66 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   } catch (err) { toast(err.message, true); }
 });
 
-// ---------- Proposal photos: a page per section in the proposal ----------
-// null = the line photos (follows the lines); once anything is changed here
-// the list is kept as it is. To change a photo: click it (upload, or pick a
-// product photo), drop an image file on it, or copy an image and press Ctrl+V
-// with the mouse over it.
-var ppPhotos = null, ppTarget = null, ppHover = null, ppSig = '';
-var apDefaultPhotos = [];
-function ppDefault() { return apDefaultPhotos.map(x => ({ ...x })); }
-function ppList() { return ppPhotos || ppDefault(); }
-function ppTouch() { if (!ppPhotos) ppPhotos = ppDefault().map(x => ({ ...x })); }
-function ppSize() { return (document.querySelector('input[name="pp_size"]:checked') || {}).value || 'M'; }
-function ppReset(photos, size) {
-  ppPhotos = photos ? photos.map(x => ({ ...x })) : null;
-  const r = document.querySelector(`input[name="pp_size"][value="${size || 'M'}"]`);
-  if (r) r.checked = true;
-  document.getElementById('pp-pick').hidden = true;
-  ppSig = '';
-  renderPP();
+// ---------- Proposal cover photo and general remarks ----------
+let apCover = null, apSystems = [], apCvHover = false;
+function apRenderCover() {
+  const box = document.getElementById('ap-cv');
+  box.innerHTML = apCover ? `<img src="${esc(apCover)}" alt="">` : '<span>+ Add cover photo</span>';
+  box.classList.toggle('has', !!apCover);
+  document.getElementById('ap-cv-del').style.display = apCover ? '' : 'none';
 }
-function renderPP(onlyIfChanged) {
-  const list = ppList(), off = ppSize() === 'OFF';
-  const sig = off + '|' + JSON.stringify(list);
-  if (onlyIfChanged && sig === ppSig) return;
-  ppSig = sig;
-  document.getElementById('pp-sum').textContent = off ? 'off' : `${list.length} photo${list.length === 1 ? '' : 's'}`;
-  document.getElementById('pp-note').textContent = off ? 'No photos in the proposal.'
-    : 'Click a photo to change it (upload, or pick a product photo). Or drop an image file on it, or copy an image and press Ctrl+V with the mouse over it. A section with many photos is made smaller to fit its page.';
-  document.getElementById('pp-reset').style.display = ppPhotos ? '' : 'none';
-  document.getElementById('pp-grid').innerHTML = off ? '' : list.map((ph, i) => `
-    <div class="pp-card" data-i="${i}">
-      <div class="pp-img" onclick="ppOpen(${i})" title="Click to change · drop or paste an image"><img src="${escHtml(ph.path)}" alt=""><span class="pp-swap">Change</span></div>
-      <input class="pp-cap" data-i="${i}" value="${escHtml(ph.caption || '')}" placeholder="Caption">
-      <div class="pp-tools">
-        <button type="button" class="li-tool" onclick="ppMove(${i},-1)" title="Move left">←</button>
-        <button type="button" class="li-tool" onclick="ppMove(${i},1)" title="Move right">→</button>
-        ${ph.group ? `<span class="pp-group muted" title="${escHtml(ph.group)}">${escHtml(ph.group)}</span>` : ''}
-        <button type="button" class="remove-line" onclick="ppDel(${i})" title="Leave this photo out">×</button>
-      </div>
-    </div>`).join('') + (off ? '' : `
-    <div class="pp-card pp-new" data-i="new" onclick="ppOpen(null)" title="Add a photo or diagram: click, drop or paste">
-      <div class="pp-img"><span>+ Add image</span></div><div class="muted pp-new-hint">click, drop or paste</div>
-    </div>`);
-}
-function ppMove(i, d) { ppTouch(); const j = i + d; if (j < 0 || j >= ppPhotos.length) return; [ppPhotos[i], ppPhotos[j]] = [ppPhotos[j], ppPhotos[i]]; renderPP(); }
-function ppDel(i) { ppTouch(); ppPhotos.splice(i, 1); document.getElementById('pp-pick').hidden = true; renderPP(); }
-// The chooser: upload, or one of the product photos already in the app
-function ppOpen(i) {
-  ppTarget = i;
-  document.getElementById('pp-pick-title').textContent = i === null ? 'Add a photo' : 'Change photo ' + (i + 1);
-  document.getElementById('pp-pick').hidden = false;
-  const s = document.getElementById('pp-pick-search');
-  s.value = ''; ppPickList('');
-  document.getElementById('pp-pick').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  s.focus();
-}
-function ppPickList(qs) {
-  const words = qs.toLowerCase().split(/\s+/).filter(Boolean);
-  const inQuote = new Set(apDefaultPhotos.map(x => x.path));
-  let list = Object.values(products).filter(p => p.image_path);
-  if (words.length) list = list.filter(p => { const t = `${p.name} ${p.brand || ''} ${p.sku || ''} ${p.category || ''}`.toLowerCase(); return words.every(w => t.includes(w)); });
-  else list = list.filter(p => inQuote.has(p.image_path));
-  list = list.slice(0, 40);
-  document.getElementById('pp-pick-grid').innerHTML = list.length ? list.map(p => `
-    <button type="button" class="pp-opt" onclick="ppUse(${p.id})" title="${escHtml(p.name)}"><img src="${escHtml(p.image_path)}" alt=""><span>${escHtml(p.name)}</span></button>`).join('')
-    : `<div class="muted" style="padding:8px">${words.length ? 'No product photo matches.' : 'Type to search the product photos.'}</div>`;
-}
-function ppPut(path, caption) {
-  ppTouch();
-  const adding = ppTarget === null || ppTarget === undefined || !ppPhotos[ppTarget];
-  if (adding) {
-    const last = ppPhotos[ppPhotos.length - 1];
-    ppPhotos.push({ path, caption: caption || '', group: last ? last.group : '' });
-  } else {
-    ppPhotos[ppTarget].path = path;
-  }
-  document.getElementById('pp-pick').hidden = true;
-  renderPP();
-  toast(adding ? 'Photo added' : 'Photo changed');
-}
-function ppUse(id) {
-  const p = products[id];
-  if (p) ppPut(p.image_path, p.name);
-}
-async function ppUpload(file, target) {
+async function apUploadCover(file) {
   if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { toast('Use a JPG, PNG or WebP picture', true); return; }
-  ppTarget = target;
-  toast('Uploading picture…');
-  const fd = new FormData(); fd.append('file', file, file.name || 'pasted.png');
-  let res;
-  try { res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd }); }
-  catch (err) { toast('Upload failed: ' + err.message, true); return; }
+  toast('Uploading photo…');
+  const fd = new FormData(); fd.append('file', file, file.name || 'cover.png');
+  const res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd });
   if (res.status === 401) { signOut(); return; }
-  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (err) {} toast(d, true); return; }
-  const { path } = await res.json();
-  ppPut(path, (file.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/^(image|pasted)$/i, ''));
+  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (e) {} toast(d, true); return; }
+  apCover = (await res.json()).path; apRenderCover(); toast('Cover photo set — Save to keep it');
 }
-document.getElementById('pp-pick-upload').addEventListener('click', () => document.getElementById('pp-file').click());
-document.getElementById('pp-pick-close').addEventListener('click', () => { document.getElementById('pp-pick').hidden = true; });
-document.getElementById('pp-pick-search').addEventListener('input', e => ppPickList(e.target.value));
-document.getElementById('pp-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) ppUpload(f, ppTarget); });
-document.getElementById('pp-reset').addEventListener('click', () => { ppPhotos = null; document.getElementById('pp-pick').hidden = true; renderPP(); });
-document.getElementById('pp-sizes').addEventListener('change', () => renderPP());
-document.getElementById('q-photos').addEventListener('toggle', () => renderPP());
-document.getElementById('pp-grid').addEventListener('input', e => {
-  if (!e.target.classList.contains('pp-cap')) return;
-  ppTouch(); ppPhotos[e.target.dataset.i].caption = e.target.value; ppSig = '';
-});
-// Drop an image file on a photo (replaces it) or on "+ Add image"
-const ppGrid = document.getElementById('pp-grid');
-function ppCardIndex(el) { const c = el && el.closest && el.closest('.pp-card'); return c ? (c.dataset.i === 'new' ? null : parseInt(c.dataset.i)) : undefined; }
-ppGrid.addEventListener('dragover', e => {
-  if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
-  e.preventDefault();
-  const c = e.target.closest('.pp-card');
-  ppGrid.querySelectorAll('.pp-drop').forEach(x => { if (x !== c) x.classList.remove('pp-drop'); });
-  if (c) c.classList.add('pp-drop');
-});
-ppGrid.addEventListener('dragleave', e => { const c = e.target.closest('.pp-card'); if (c && !c.contains(e.relatedTarget)) c.classList.remove('pp-drop'); });
-ppGrid.addEventListener('drop', e => {
-  e.preventDefault();
-  ppGrid.querySelectorAll('.pp-drop').forEach(x => x.classList.remove('pp-drop'));
-  const f = e.dataTransfer.files[0], i = ppCardIndex(e.target);
-  if (f) ppUpload(f, i === undefined ? null : i);
-});
-// Paste (Ctrl+V) a copied image: replaces the photo under the mouse, otherwise adds one
-ppGrid.addEventListener('mouseover', e => { const i = ppCardIndex(e.target); ppHover = i === undefined ? null : i; });
-document.getElementById('q-photos').addEventListener('mouseleave', () => { ppHover = 'out'; });
-document.getElementById('q-photos').addEventListener('mouseenter', () => { if (ppHover === 'out') ppHover = null; });
+const apCv = document.getElementById('ap-cv');
+apCv.addEventListener('click', () => document.getElementById('ap-cv-file').click());
+document.getElementById('ap-cv-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) apUploadCover(f); });
+document.getElementById('ap-cv-del').addEventListener('click', () => { apCover = null; apRenderCover(); });
+apCv.addEventListener('dragover', e => { e.preventDefault(); apCv.classList.add('drop'); });
+apCv.addEventListener('dragleave', () => apCv.classList.remove('drop'));
+apCv.addEventListener('drop', e => { e.preventDefault(); apCv.classList.remove('drop'); const f = e.dataTransfer.files[0]; if (f) apUploadCover(f); });
+apCv.addEventListener('mouseenter', () => { apCvHover = true; });
+apCv.addEventListener('mouseleave', () => { apCvHover = false; });
 document.addEventListener('paste', e => {
-  if (!document.getElementById('q-photos').open || ppHover === 'out') return;
-  if (e.target.matches && e.target.matches('input, textarea')) return;
+  if (!apCvHover && document.activeElement !== apCv) return;
   const item = [...((e.clipboardData || {}).items || [])].find(x => x.type.startsWith('image/'));
   if (!item) return;
-  e.preventDefault();
-  ppUpload(item.getAsFile(), ppHover);
+  e.preventDefault(); apUploadCover(item.getAsFile());
 });
-
+// Remarks: a box per system, filled with the remarks made from its lines unless changed
+function apRenderRemarks(saved) {
+  saved = saved || {};
+  document.getElementById('ap-rm').innerHTML = apSystems.length ? apSystems.map((s, i) => {
+    const own = Object.prototype.hasOwnProperty.call(saved, s.name);
+    return `<div class="ap-rm-sys"><div class="ap-rm-head"><strong>${String(i + 1).padStart(2, '0')} ${esc(s.title)}</strong>
+      <span class="muted ap-rm-st" data-i="${i}"></span></div>
+      <textarea class="ap-rm-txt" data-i="${i}" rows="${Math.min(10, Math.max(3, ((own ? saved[s.name] : s.auto) || '').split('\n').length + 1))}">${esc(own ? saved[s.name] : s.auto)}</textarea></div>`;
+  }).join('') : '<div class="muted">The quotation has no lines yet.</div>';
+  apRemarkNotes();
+}
+function apRemarkNotes() {
+  document.querySelectorAll('.ap-rm-st').forEach(el => {
+    const i = el.dataset.i, v = document.querySelector(`.ap-rm-txt[data-i="${i}"]`).value.trim();
+    el.innerHTML = v === apSystems[i].auto.trim() ? '(made from the lines)'
+      : `(changed · <a href="#" onclick="apRemarkAuto(${i});return false">make from the lines again</a>)`;
+  });
+}
+function apRemarkAuto(i) { document.querySelector(`.ap-rm-txt[data-i="${i}"]`).value = apSystems[i].auto; apRemarkNotes(); }
+document.getElementById('ap-rm').addEventListener('input', apRemarkNotes);
+function apRemarksValue() {
+  const out = {};
+  document.querySelectorAll('.ap-rm-txt').forEach(t => {
+    const s = apSystems[t.dataset.i];
+    if (t.value.trim() !== s.auto.trim()) out[s.name] = t.value;
+  });
+  return Object.keys(out).length ? out : null;
+}
 
 // ---------- Automation proposal ----------
 // The proposal's own fields live on the chosen quotation; empty terms follow
@@ -523,8 +439,8 @@ async function apLoad(id) {
   document.getElementById('ap-prices').checked = d.proposal_prices !== false;
   AP_TERMS.forEach(k => { document.getElementById('ap-' + k).value = d[k] || apStd[k] || ''; });
   apStdNotes();
-  apDefaultPhotos = d.default_photos || [];
-  ppReset(d.proposal_photos, d.proposal_photo_size);
+  apCover = d.proposal_cover || null; apRenderCover();
+  apSystems = d.systems || []; apRenderRemarks(d.proposal_remarks);
   document.getElementById('ap-matrix-note').textContent = d.has_matrix ? ''
     : 'No design matrix yet — fill the Rooms table in the quotation to add it.';
 }
@@ -543,7 +459,7 @@ async function apSave(quiet) {
     consultant: document.getElementById('ap-consultant').value,
     main_contractor: document.getElementById('ap-contractor').value,
     proposal_prices: document.getElementById('ap-prices').checked,
-    proposal_photos: ppPhotos, proposal_photo_size: ppSize(),
+    proposal_cover: apCover, proposal_remarks: apRemarksValue(),
   };
   // the same as the standard terms -> saved empty, so it follows Settings
   AP_TERMS.forEach(k => { const v = document.getElementById('ap-' + k).value.trim(); body[k] = v === (apStd[k] || '').trim() ? null : v; });

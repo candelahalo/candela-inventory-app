@@ -190,7 +190,7 @@ MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 # Fields of the full automation proposal: edited on the project page, never by the quote form
 PROPOSAL_FIELDS = ("consultant", "main_contractor", "inclusions", "exclusions", "milestones",
-                   "proposal_prices", "proposal_photos", "proposal_photo_size")
+                   "proposal_prices", "proposal_photos", "proposal_photo_size", "proposal_cover", "proposal_remarks")
 
 
 def one_line(text, name=""):
@@ -278,7 +278,11 @@ def get_proposal_settings(quotation_id: int, db: Session = Depends(get_db),
     q = db.query(models.Quotation).get(quotation_id)
     if not q:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    from app.proposal import build_context
+    ctx = build_context(q, proposal_terms.get(db))
     return {**{k: getattr(q, k) for k in PROPOSAL_FIELDS},
+            "systems": [{"name": x["name"], "title": x["title"], "auto": "\n".join(x["notes"] + x["auto_remarks"])}
+                        for x in ctx["systems"]],
             "proposal_photo_size": q.proposal_photo_size or "M",
             "default_photos": default_photos(q), "standard": proposal_terms.get(db),
             "has_matrix": bool((q.room_matrix or {}).get("floors"))}
@@ -624,7 +628,8 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
                    "delivery_time", "payment_terms", "freight_charges", "transportation_charges",
                    "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals",
                    "consultant", "main_contractor", "section_notes", "inclusions", "exclusions", "milestones",
-                   "proposal_prices", "room_matrix", "proposal_photos", "proposal_photo_size"]
+                   "proposal_prices", "room_matrix", "proposal_photos", "proposal_photo_size",
+                   "proposal_cover", "proposal_remarks"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,
@@ -704,17 +709,14 @@ def quotation_proposal(quotation_id: int, token: str = Query(...), preview: bool
                        db: Session = Depends(get_db)):
     """By system (home automation): a table per section with its scope notes,
     the price summary and the design matrix. With full=1 (from the project page)
-    the whole proposal: cover, letter, the above, product images, terms and approval."""
+    the whole proposal: photo cover, letter, datasheets, general remarks, scope,
+    quantities by system, conclusion, design matrix, payment terms and approval."""
     auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    from app.entity import for_quotation
-    from app.proposal import build_context
-    from app import proposal_terms
-    html_str = templates.get_template("quotation_proposal.html").render(
-        {"q": quotation, "p": build_context(quotation, proposal_terms.get(db)), "ent": for_quotation(quotation), "full": full})
-    pdf_bytes = HTML(string=html_str, base_url=".").write_pdf()
+    from app import proposal_pdf
+    pdf_bytes = proposal_pdf.build(quotation, db, full)
     filename = f"{'Proposal' if full else 'Quotation'}-{quotation.quote_number.replace('/', '-')}.pdf"
     disposition = "inline" if preview else "attachment"
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
