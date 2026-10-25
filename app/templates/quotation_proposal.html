@@ -292,7 +292,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: our general remarks for each system, the scope, the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %}, our general remarks for each system and the scope.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -335,27 +335,6 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 
 {% endif %}
 
-{% if not full %}
-<!-- ===== GENERAL REMARKS AND SCOPE (the quote only; not in the technical submittal) ===== -->
-<div class="rm-page">
-  <div class="kicker">Our proposal</div>
-  <h2 class="rm-title">General remarks</h2>
-  {% for s in p.systems %}{% if s.remarks %}
-  <div class="rm-sys"><h3><span>{{ '%02d' % s.no }}</span>{{ s.title }}</h3>
-    <ul class="notes">{% for n in s.remarks %}<li>{{ n }}</li>{% endfor %}</ul></div>
-  {% endif %}{% endfor %}
-</div>
-
-<!-- ===== SCOPE: INCLUSIONS AND EXCLUSIONS ===== -->
-{% if p.inclusions or p.exclusions %}
-<div class="scope-page">
-  <div class="kicker">Scope</div>
-  <h2 class="scope-title" style="margin-bottom:6mm">Inclusions &amp; exclusions</h2>
-  {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-  {% if p.exclusions %}<div class="tsec"><h3>Exclusions</h3><ul>{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-</div>
-{% endif %}
-{% endif %}
 
 <!-- ===== EQUIPMENT BY SYSTEM (in the submittal the datasheets go in just before this page) ===== -->
 <div class="price-page"><div class="kicker">{{ 'Price' if (q.proposal_prices or not full) else 'Bill of quantities' }}</div>
@@ -436,6 +415,28 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
   </table>
 </div>
 {% endfor %}
+
+{% if not full %}
+<!-- ===== GENERAL REMARKS AND SCOPE: after the design matrix (the quote only; not in the technical submittal) ===== -->
+<div class="rm-page">
+  <div class="kicker">Our proposal</div>
+  <h2 class="rm-title">General remarks</h2>
+  {% for s in p.systems %}{% if s.remarks %}
+  <div class="rm-sys"><h3><span>{{ '%02d' % s.no }}</span>{{ s.title }}</h3>
+    <ul class="notes">{% for n in s.remarks %}<li>{{ n }}</li>{% endfor %}</ul></div>
+  {% endif %}{% endfor %}
+</div>
+
+<!-- ===== SCOPE: INCLUSIONS AND EXCLUSIONS ===== -->
+{% if p.inclusions or p.exclusions %}
+<div class="scope-page">
+  <div class="kicker">Scope</div>
+  <h2 class="scope-title" style="margin-bottom:6mm">Inclusions &amp; exclusions</h2>
+  {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if p.exclusions %}<div class="tsec"><h3>Exclusions</h3><ul>{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endif %}
+{% endif %}
 
 <!-- ===== TERMS & APPROVAL ===== -->
 {% if full %}
