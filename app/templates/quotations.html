@@ -66,6 +66,7 @@
       </div>
       <div class="field"><label>Attention to</label><input name="attention_to" placeholder="Mr. Aaditya Bhagra & Ms. Rashmi Gulti"></div>
       <div class="field"><label>Subject</label><input name="subject" placeholder="Quotation for Landscape Lighting"></div>
+      <div class="field"><label>Quote date <button type="button" class="link-btn" id="q-date-today" title="Set to today's date">today</button></label><input name="quote_date" type="date" id="q-date"></div>
     </div>
     <details class="q-more" id="q-more">
       <summary>Terms &amp; details <span class="muted">(filled with the usual values — open only to change)</span></summary>
@@ -919,7 +920,9 @@ function hideAddPanel() {
   showStatusBar(null);
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
 }
-document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); renderPicker(); });
+const todayISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+document.getElementById('q-date-today').addEventListener('click', () => { document.getElementById('q-date').value = todayISO(); });
+document.getElementById('show-add-btn').addEventListener('click', () => { showAddPanel('New quotation'); document.getElementById('q-date').value = todayISO(); renderPicker(); });
 document.getElementById('cancel-btn').addEventListener('click', hideAddPanel);
 
 async function editQuotation(id) {
@@ -934,6 +937,7 @@ async function editQuotation(id) {
   clearClassAuto();
   form.currency.value = q.currency;
   form.valid_until.value = q.valid_until ? q.valid_until.substring(0, 10) : '';
+  form.quote_date.value = q.created_at ? q.created_at.substring(0, 10) : '';
   form.scope.value = q.scope || '';
   form.delivery_time.value = q.delivery_time || '';
   form.payment_terms.value = q.payment_terms || '';
@@ -1353,6 +1357,7 @@ function collectQuotationPayload() {
   // Sent as a string so it can hold either a figure ("500") or words ("Included")
   payload.transportation_charges = (form.transportation_charges.value || '').trim();
   payload.items = items;
+  payload.quote_date = form.quote_date.value ? form.quote_date.value + 'T12:00:00' : null;
   payload.section_subtotals = document.getElementById('q-sec-sub').checked;
   const notes = {};
   document.querySelectorAll('#line-items > .section-block').forEach(b => {
@@ -1791,6 +1796,7 @@ function openImportedQuotation(d, fileName) {
     discount_pct: i.discount_pct, section: i.section || null,
   })));
   importedMeta = { original_number: d.original_number, date: d.date };
+  form.quote_date.value = d.date || todayISO();
   refreshQuoteCats();
   const n = d.items.length, made = (d.created_products || []).length;
   const totalOk = d.pdf_total == null || Math.abs(d.pdf_total - d.imported_total) < 0.5;

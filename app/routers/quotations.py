@@ -478,6 +478,8 @@ def update_quotation(quotation_id: int, payload: schemas.QuotationCreate, db: Se
                                        "project_name", "project_id", "quote_number", "quote_date", *PROPOSAL_FIELDS})
     for key, value in data.items():
         setattr(quotation, key, value)
+    if payload.quote_date:
+        quotation.created_at = payload.quote_date
     quotation.customer_id = customer.id
     quotation.project = project
     _fill_division_category(quotation, project, customer)
@@ -521,6 +523,8 @@ def draft_document(fmt: str, payload: schemas.QuotationCreate, editing_id: Optio
                 raise HTTPException(status_code=404, detail="Quotation not found")
             for key, value in data.items():
                 setattr(quotation, key, value)
+            if payload.quote_date:
+                quotation.created_at = payload.quote_date
             quotation.items.clear()
             db.flush()
         else:
