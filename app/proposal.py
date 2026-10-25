@@ -334,10 +334,14 @@ def cover(q):
 
 # Product image pages, laid out here so every page is filled:
 #   per row, card width and the tallest an image may be (mm)
-GAL = {"S": (4, 38.0, 40.0), "M": (3, 52.0, 52.0), "L": (2, 80.0, 80.0), "F": (1, 174.0, 104.0)}  # F: 2 a page
+# Product image pages: every picture on the same tile - white, the same size and shape,
+# the product trimmed of its own blank margins and centred with the same padding.
+#   per row, tile width (mm), tile height / width, caption lines
+GAL = {"S": (4, 38.0, 1.0, 3), "M": (3, 52.0, 1.0, 2), "L": (2, 80.0, 0.72, 2), "F": (1, 170.0, 0.58, 1)}
 GAL_PAGE_H = 247.0   # A4 297 - 24 top - 20 bottom margin, less a little to be safe
 GAL_HEAD_H = 16.0    # section title with its rule and the space above it
 GAL_GAP = 5.0        # under each row
+TILE_VERSION = "1"
 
 
 def _aspect(path):
@@ -351,24 +355,81 @@ def _aspect(path):
         return 1.0
 
 
-def _cap_h(text, width, big=False):
-    if not text:
-        return 0.0
-    per_line = max(8, int(width / (2.0 if big else 1.55)))
-    lines = min(3, -(-len(text) // per_line))
-    return 2.0 + lines * (4.2 if big else 3.1)
+def _trim(img):
+    """Cut the blank margin around the product (white, or the plain colour of the corners)."""
+    from PIL import ImageChops, Image
+    w, h = img.size
+    corners = [img.getpixel((0, 0)), img.getpixel((w - 1, 0)), img.getpixel((0, h - 1)), img.getpixel((w - 1, h - 1))]
+    bg = tuple(sorted(c[i] for c in corners)[1] for i in range(3))
+    if max(max(abs(c[i] - bg[i]) for i in range(3)) for c in corners) > 40:
+        return img  # the corners differ: a photo with a scene, keep it whole
+    diff = ImageChops.difference(img, Image.new("RGB", img.size, bg)).convert("L").point(lambda v: 255 if v > 22 else 0)
+    box = diff.getbbox()
+    if not box:
+        return img
+    bw, bh = box[2] - box[0], box[3] - box[1]
+    if bw * bh < 0.04 * w * h:
+        return img
+    m = int(max(bw, bh) * 0.02)
+    return img.crop((max(0, box[0] - m), max(0, box[1] - m), min(w, box[2] + m), min(h, box[3] + m)))
+
+
+def _tile(disk, ratio):
+    """The picture as a tile of the given height/width: trimmed, centred on white with even
+    padding, sharpened when it had to be enlarged. Cached; None when it can't be read."""
+    import hashlib
+    from app.utils import UPLOAD_ROOT
+    try:
+        st = os.stat(disk)
+    except OSError:
+        return None
+    key = hashlib.sha1(f"{disk}|{st.st_mtime}|{st.st_size}|{ratio}|{TILE_VERSION}".encode()).hexdigest()[:20]
+    out_dir = UPLOAD_ROOT / "proposal_tiles"
+    out = out_dir / f"{key}.jpg"
+    if out.exists():
+        return out
+    try:
+        from PIL import Image, ImageFilter, ImageOps
+        with Image.open(disk) as im:
+            im.load()
+            im = ImageOps.exif_transpose(im)
+            if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+                im = im.convert("RGBA")
+                bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+                im = Image.alpha_composite(bg, im).convert("RGB")
+            else:
+                im = im.convert("RGB")
+        im = _trim(im)
+        W = 1200
+        H = int(round(W * ratio))
+        pad = 0.10
+        bw, bh = W * (1 - 2 * pad), H * (1 - 2 * pad)
+        k = min(bw / im.width, bh / im.height)
+        nw, nh = max(1, int(im.width * k)), max(1, int(im.height * k))
+        small = im.resize((nw, nh), Image.LANCZOS)
+        if k > 1.3:
+            small = small.filter(ImageFilter.UnsharpMask(radius=1.6, percent=70, threshold=2))
+        canvas = Image.new("RGB", (W, H), (255, 255, 255))
+        canvas.paste(small, ((W - nw) // 2, (H - nh) // 2))
+        out_dir.mkdir(parents=True, exist_ok=True)
+        canvas.save(out, "JPEG", quality=90, optimize=True)
+        return out
+    except Exception:
+        return None
 
 
 def gallery(q):
     """Product images grouped by system and laid out in pages:
-    [{"rows": [{"group"?: title, "h": image height, "pad": extra space under, "photos": [{src, caption}]}]}].
-    Rows run on from one section to the next; the space left at the foot of a page
-    goes between its rows (images grow first, up to their box), so no page is half empty."""
+    [{"cw", "th", "ch", "rows": [{"group"?: title, "photos": [{src, caption}]}]}].
+    Every picture is the same tile; rows run on from one section to the next and a full
+    page's rows are spread over the page, so no page is half empty."""
     size = (q.proposal_photo_size or "M").upper()
     if size == "OFF":
         return []
     size = size if size in GAL else "M"
-    cols, cw, maxh = GAL[size]
+    cols, cw, ratio, cap_lines = GAL[size]
+    th = round(cw * ratio, 1)
+    ch = round(4.0 + cap_lines * (4.6 if size == "F" else 3.2), 1)   # caption band
     photos = q.proposal_photos if q.proposal_photos is not None else default_photos(q)
     groups = []
     for ph in photos:
@@ -376,25 +437,19 @@ def gallery(q):
         disk = url_to_disk_path(path) if path.startswith("/static/") and ".." not in path else ""
         if not disk or not os.path.exists(disk):
             continue
+        tile = _tile(disk, ratio)
+        src = str(tile) if tile else "app" + path
         g = (ph.get("group") or "").strip()
         if not groups or groups[-1]["group"] != g:
             groups.append({"group": g, "photos": []})
-        groups[-1]["photos"].append({"src": "app" + path, "caption": (ph.get("caption") or "").strip(),
-                                     "ar": _aspect(disk)})
-    # rows of each section, with their natural height
+        groups[-1]["photos"].append({"src": src, "caption": (ph.get("caption") or "").strip()})
     rows = []
     for g in groups:
         for i in range(0, len(g["photos"]), cols):
-            ps = g["photos"][i:i + cols]
-            ih = max(min(maxh, cw * p["ar"]) for p in ps)
-            ch = max(_cap_h(p["caption"], cw, size == "F") for p in ps)
-            rows.append({"group": (g["group"] or "Products") if i == 0 else None, "img": ih, "cap": ch,
-                         "full": max(cw * p["ar"] for p in ps),
-                         "photos": [{"src": p["src"], "caption": p["caption"]} for p in ps]})
-    # pages
+            rows.append({"group": (g["group"] or "Products") if i == 0 else None, "photos": g["photos"][i:i + cols]})
     pages, cur, used = [], [], 0.0
     for r in rows:
-        need = r["img"] + r["cap"] + GAL_GAP + (GAL_HEAD_H if r["group"] else 0.0)
+        need = th + ch + GAL_GAP + (GAL_HEAD_H if r["group"] else 0.0)
         if cur and used + need > GAL_PAGE_H:
             pages.append((cur, used))
             cur, used = [], 0.0
@@ -404,19 +459,9 @@ def gallery(q):
         pages.append((cur, used))
     out = []
     for n, (rs, used) in enumerate(pages):
-        spare = max(0.0, GAL_PAGE_H - used)
         last = n == len(pages) - 1
-        if last and used < GAL_PAGE_H * 0.55:
-            spare = 0.0   # a short last page stays as it is
-        # let the images grow into the spare space (not past their box width / the size cap)
-        for r in rs:
-            room = min(r["full"], maxh * 1.3, GAL_PAGE_H - r["cap"] - GAL_GAP - GAL_HEAD_H) - r["img"]
-            grow = max(0.0, min(room, spare / len(rs)))
-            r["img"] += grow
-        used2 = sum(r["img"] + r["cap"] + GAL_GAP + (GAL_HEAD_H if r["group"] else 0.0) for r in rs)
-        pad = max(0.0, GAL_PAGE_H - used2) / len(rs) if spare else 0.0
-        out.append({"cw": cw, "size": size.lower(), "fill": bool(spare), "rows": [{"group": r["group"], "h": round(r["img"], 1), "pad": 0,
-                              "photos": r["photos"]} for r in rs]})
+        out.append({"cw": cw, "th": th, "ch": ch, "size": size.lower(),
+                    "fill": not (last and used < GAL_PAGE_H * 0.55), "rows": rs})
     return out
 
 
