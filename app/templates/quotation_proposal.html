@@ -237,7 +237,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 .rm-sys h3 span { color: #C77D0A; margin-right: 2.5mm; }
 .rm-sys li { break-inside: avoid; }
 .price-page { page-break-before: always; }
-.scope-page { margin-top: 9mm; padding-top: 6mm; border-top: 1px solid #E6DFCC; }  /* runs on right after the general remarks */
+.scope-page { page-break-before: always; }
 .price-page .sys:first-of-type { margin-top: 6mm; }
 .integrator { display: flex; align-items: center; gap: 8mm; padding: 5mm 0 6mm; border-bottom: 0.75px solid #E6DFCC; margin-bottom: 7mm; }
 .integrator img { width: 44mm; }
@@ -293,7 +293,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %}, our general remarks for each system and the scope.{% endif %}</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and the scope.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -345,6 +345,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 {% for s in p.systems %}
 <div class="sys{% if s.lines|length <= 4 %} keep{% endif %}">
   <div class="sys-head"><div class="sys-no">{{ '%02d' % s.no }}</div><div class="sys-name">{{ s.name }}</div></div>
+  {% if s.notes and not full %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   <table class="boq">
     <thead><tr><th style="width:8mm" class="c">#</th><th style="width:30mm">Brand</th><th>Description</th><th style="width:12mm" class="c">Unit</th><th style="width:12mm" class="num">Qty</th>
       {% if show_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>
@@ -418,16 +419,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 {% endfor %}
 
 {% if not full %}
-<!-- ===== GENERAL REMARKS AND SCOPE: after the design matrix (the quote only; not in the technical submittal) ===== -->
-<div class="rm-page">
-  <div class="kicker">Our proposal</div>
-  <h2 class="rm-title">General remarks</h2>
-  {% for s in p.systems %}{% if s.remarks %}
-  <div class="rm-sys"><h3><span>{{ '%02d' % s.no }}</span>{{ s.title }}</h3>
-    <ul class="notes">{% for n in s.remarks %}<li>{{ n }}</li>{% endfor %}</ul></div>
-  {% endif %}{% endfor %}
-</div>
-
+<!-- ===== SCOPE: after the design matrix (the quote only; not in the technical submittal) ===== -->
 <!-- ===== SCOPE: INCLUSIONS AND EXCLUSIONS ===== -->
 {% if p.inclusions or p.exclusions %}
 <div class="scope-page">

@@ -99,10 +99,6 @@
         <button type="button" class="btn btn-ghost btn-sm" onclick="bpAdd('bleed')">Full-page photo</button></div>
       <input type="file" id="bp-file" accept="image/jpeg,image/png,image/webp" hidden>
     </details>
-    <details class="q-matrix" id="ap-remarks" open>
-      <summary><strong>General remarks</strong> <span class="muted">— in the quotation (By system), not in the technical submittal; one per line, made from the quote lines, change them as you like</span></summary>
-      <div id="ap-rm" class="ap-rm"></div>
-    </details>
 
     <details class="q-matrix q-photos" id="q-photos" open>
       <summary><strong>Product images</strong> <span class="muted">— touch screens, keypads, intercom… shown after the brochure pages, before the datasheets; add, change or remove</span> <span class="mx-sum" id="pp-sum"></span></summary>
@@ -621,6 +617,8 @@ document.addEventListener('paste', e => {
 });
 // Remarks: a box per system, filled with the remarks made from its lines unless changed
 function apRenderRemarks(saved) {
+  apSavedRemarks = saved || null;
+  if (!document.getElementById('ap-rm')) return;   // remarks are no longer printed
   saved = saved || {};
   document.getElementById('ap-rm').innerHTML = apSystems.length ? apSystems.map((s, i) => {
     const own = Object.prototype.hasOwnProperty.call(saved, s.name);
@@ -638,8 +636,10 @@ function apRemarkNotes() {
   });
 }
 function apRemarkAuto(i) { document.querySelector(`.ap-rm-txt[data-i="${i}"]`).value = apSystems[i].auto; apRemarkNotes(); }
-document.getElementById('ap-rm').addEventListener('input', apRemarkNotes);
+if (document.getElementById('ap-rm')) document.getElementById('ap-rm').addEventListener('input', apRemarkNotes);
+let apSavedRemarks = null;
 function apRemarksValue() {
+  if (!document.getElementById('ap-rm')) return apSavedRemarks;
   const out = {};
   document.querySelectorAll('.ap-rm-txt').forEach(t => {
     const s = apSystems[t.dataset.i];
