@@ -253,8 +253,9 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
   {% if not p.cover %}<div class="cv-band"></div>{% endif %}
   <div class="cv-logo"><img src="{{ ent.logo }}"></div>
   <div class="cv-box">
-    <div class="cv-kick">Technical Submittal</div>
-    <div class="cv-title">{{ (q.subject or 'Home Automation System')|replace('Quotation for ', '') }}</div>
+    {% set cv_sub = (q.subject or '')|replace('Quotation for ', '')|trim %}
+    {% if cv_sub and cv_sub|lower != 'home automation' %}<div class="cv-kick">{{ cv_sub }}</div>{% endif %}
+    <div class="cv-title">Home Automation<br>Technical Submittal</div>
     <div class="cv-meta">
       {% if q.project %}<div class="k">Project</div><div class="v">{{ q.project.name }}</div>{% endif %}
       <div class="k">Client</div><div class="v">{{ q.customer.company or q.customer.name }}</div>
@@ -268,7 +269,8 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 </div>
 {% endif %}
 
-<!-- ===== COVER LETTER (quote by system) ===== -->
+<!-- ===== COVER LETTER (quote by system only; the full submittal has its photo cover instead) ===== -->
+{% if not full %}
 <div class="qc-brand"><img src="{{ ent.logo }}"></div>
 {% if full %}{% set subj = (q.subject or '')|replace('Quotation for ', '')|trim %}
 <div class="qc-kicker">Technical Submittal</div>
@@ -299,6 +301,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 </div>
 {% if not full %}<div class="qc-closing">We trust this proposal meets your requirements and look forward to your confirmation. Orders and payments should be issued to our legal entity as stated below.</div>{% endif %}
 <div class="page-break-after"></div>
+{% endif %}
 
 {% if full %}
 <!-- ===== BROCHURE PAGES ===== -->
