@@ -247,7 +247,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 </head>
 <body>
 {% set show_prices = not full %}{# full proposal: quantities only; system totals when prices are on #}
-{% set show_totals = q.proposal_prices or not full %}
+{% set show_totals = not full %}{# the technical submittal carries no prices: quantities only #}
 
 {% if full %}
 <!-- ===== PHOTO COVER (full proposal) ===== -->
@@ -340,7 +340,7 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 
 
 <!-- ===== EQUIPMENT BY SYSTEM (in the submittal the datasheets go in just before this page) ===== -->
-<div class="price-page"><div class="kicker">{{ 'Price' if (q.proposal_prices or not full) else 'Bill of quantities' }}</div>
+<div class="price-page"><div class="kicker">{{ 'Bill of quantities' if full else 'Price' }}</div>
   <h2 class="price-title">Equipment by system</h2></div>
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
@@ -433,8 +433,8 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 {% endif %}
 {% endif %}
 
-<!-- ===== TERMS & APPROVAL ===== -->
-{% if full %}
+<!-- ===== TERMS & APPROVAL: no longer in the technical submittal (no prices / terms there) ===== -->
+{% if false %}
 <div class="terms-block new-page">
   <div class="kicker">Agreement</div>
   <h2 style="margin-bottom:4mm">Payment terms &amp; conditions</h2>

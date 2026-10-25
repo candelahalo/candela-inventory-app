@@ -68,7 +68,7 @@
 
 <div class="panel" id="ap-panel" style="display:none;">
   <div class="panel-head"><h2>Automation proposal</h2>
-    <span class="muted-note">Technical submittal: photo cover, brochure pages, product images, datasheets, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
+    <span class="muted-note">Technical submittal (no prices): photo cover, brochure pages, product images, datasheets, equipment list with quantities, design matrix — from one of this project's quotations.</span></div>
   <div id="ap-empty" class="muted" style="display:none;">Make a quotation for this project first.</div>
   <div id="ap-body">
     <div class="form-grid">
@@ -76,7 +76,7 @@
       <div class="field"><label>Layout</label><select id="ap-layout">
         <option value="portrait">Portrait document (A4)</option>
         <option value="landscape">Landscape presentation (slides)</option></select></div>
-      <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show prices</label></div>
+      <div class="field" hidden><label class="chk"><input type="checkbox" id="ap-prices" checked> Show prices</label></div>
       <div class="field"><label>Consultant</label><input id="ap-consultant" placeholder="e.g. Signature Engineering Consultant"></div>
       <div class="field"><label>Main contractor</label><input id="ap-contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
       <div class="field span2"><label>Inclusions <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>

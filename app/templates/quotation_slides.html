@@ -156,12 +156,12 @@ table.mx tr.total td { background: #201E1A; color: #fff; font-weight: 700; }
 </div>
 {% endif %}
 
-<!-- 3. PROPOSAL -->
-{% set prices = q.proposal_prices %}
-<div class="slide"><div class="st">PROPOSAL</div>
+<!-- 3. BILL OF QUANTITIES (no prices in the technical submittal) -->
+{% set prices = false %}{# technical submittal: quantities only, no prices #}
+<div class="slide"><div class="st">BILL OF QUANTITIES</div>
   <div class="boq-head">
     <div>{{ q.created_at.strftime('%B %d, %Y') }}<br><strong>{{ q.project.name if q.project else '' }}</strong>
-      <div class="t">{{ (q.subject or 'Home Automation Quotation')|replace('Quotation for Home Automation', 'Home Automation Quotation') }}</div></div>
+      <div class="t">Home Automation — Bill of Quantities</div></div>
     <div><strong>Reference: {{ q.quote_number }}</strong></div>
   </div>
   {% for s in p.systems %}
@@ -230,27 +230,6 @@ table.mx tr.total td { background: #201E1A; color: #fff; font-weight: 700; }
   <div class="tiles{% if g.photos|length <= 4 %} few{% endif %}">{% for ph in g.photos %}<div class="tile"><div class="ti"><img src="{{ ph.src }}"></div><div class="tc">{{ ph.caption }}</div></div>{% endfor %}</div>
 </div>
 {% endfor %}
-
-<!-- 6. AGREEMENT -->
-<div class="slide"><div class="st">AGREEMENT</div>
-  <div class="agr">
-    {% if p.inclusions %}<div class="sec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-    {% if p.exclusions or p.not_included %}<div class="sec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li>{{ n }} — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-    {% if q.notes %}<div class="sec"><h3>Notes</h3><div style="white-space:pre-line">{{ q.notes }}</div></div>{% endif %}
-    <div class="sec"><h3>Prices, delivery &amp; validity</h3><ul>
-      <li>All prices are in {{ q.currency }}; VAT {{ "%g"|format(q.vat_percent) }}% is applicable on all invoices.</li>
-      <li>Delivery: {{ q.delivery_time }}</li>
-      <li>Validity: {{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from the date of quotation' }}</li></ul></div>
-    <div class="sec"><h3>Payment terms</h3>
-      {% if p.milestones %}<table>{% for pct, text, amt in p.milestones %}<tr><td class="p">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>
-        <td class="a">{{ (q.currency ~ ' ' ~ "{:,.2f}".format(amt)) if (amt is not none and prices) else '' }}</td></tr>{% endfor %}</table>
-      {% else %}{{ q.payment_terms }}{% endif %}</div>
-  </div>
-  <div class="sign">
-    <div>For {{ ent.name }}<div class="ln"><strong>{{ q.prepared_by_name or '' }}</strong>{% if q.prepared_by_title %} — {{ q.prepared_by_title }}{% endif %}<br>Signature, stamp &amp; date</div></div>
-    <div>Client approval<div class="ln"><strong>&nbsp;</strong><br>Name, signature, stamp &amp; date</div></div>
-  </div>
-</div>
 
 </body>
 </html>
