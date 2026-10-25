@@ -14,7 +14,7 @@
   margin: 24mm 18mm 20mm 18mm;
   @top-left { content: "{{ ent.name|upper }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .08em; color: #9A9382; }
   @top-right { content: "{{ q.quote_number }}"; font-family: 'Inter'; font-size: 7.5px; letter-spacing: .06em; color: #9A9382; }
-  @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '') }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
+  @bottom-left { content: "Confidential — prepared for {{ (q.customer.name if q.customer else '')|replace('"', '')|replace('\\', '')|replace('<', '')|replace('>', '')|safe }}"; font-family: 'Inter'; font-size: 7.5px; color: #B3AC9A; }
   {% if not full %}@bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'Inter'; font-size: 7.5px; color: #9A9382; }{% endif %}
 }
 @page cover { margin: 0; @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-center { content: ""; } }
@@ -63,7 +63,8 @@ h1.qc-title { font-size: 34px; font-weight: 600; margin: 0 0 2mm; letter-spacing
 .page-break-after { page-break-after: always; }
 {% if full %}/* the full proposal's first page also has the consultant, contractor and brands */
 .qc-brand { margin-bottom: 12mm; } .qc-subject { margin-bottom: 7mm; } .qc-meta { padding: 5mm 0; gap: 4.5mm 12mm; margin-bottom: 7mm; }
-.qc-intro { margin-bottom: 5mm; } .qc-systems { margin-bottom: 5mm; } .qc-terms { row-gap: 2.6mm; }{% endif %}
+.qc-intro { margin-bottom: 5mm; } .qc-systems { margin-bottom: 5mm; } .qc-terms { row-gap: 2.6mm; }
+h1.qc-title { font-size: 28px; line-height: 1.2; }{% endif %}
 
 /* Submission summary: a full page */
 .summary-page { page-break-before: always; }
@@ -252,7 +253,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
   {% if not p.cover %}<div class="cv-band"></div>{% endif %}
   <div class="cv-logo"><img src="{{ ent.logo }}"></div>
   <div class="cv-box">
-    <div class="cv-kick">Commercial Proposal</div>
+    <div class="cv-kick">Technical Submittal</div>
     <div class="cv-title">{{ (q.subject or 'Home Automation System')|replace('Quotation for ', '') }}</div>
     <div class="cv-meta">
       {% if q.project %}<div class="k">Project</div><div class="v">{{ q.project.name }}</div>{% endif %}
@@ -269,9 +270,15 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 
 <!-- ===== COVER LETTER (quote by system) ===== -->
 <div class="qc-brand"><img src="{{ ent.logo }}"></div>
+{% if full %}{% set subj = (q.subject or '')|replace('Quotation for ', '')|trim %}
+<div class="qc-kicker">Technical Submittal</div>
+<h1 class="qc-title">Home Automation Technical Submittal</h1>
+{% if subj and subj|lower != 'home automation' %}<div class="qc-subject">{{ subj }}</div>{% else %}<div style="height:6mm"></div>{% endif %}
+{% else %}
 <div class="qc-kicker">Commercial Proposal</div>
 <h1 class="qc-title">Quotation</h1>
 <div class="qc-subject">{{ q.subject or 'Quotation for Home Automation' }}</div>
+{% endif %}
 <div class="qc-meta">
   <div><div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div></div>
   <div><div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
@@ -281,7 +288,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our proposal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>

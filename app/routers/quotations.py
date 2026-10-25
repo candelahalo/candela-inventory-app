@@ -717,7 +717,7 @@ def quotation_proposal(quotation_id: int, token: str = Query(...), preview: bool
         raise HTTPException(status_code=404, detail="Quotation not found")
     from app import proposal_pdf
     pdf_bytes = proposal_pdf.build(quotation, db, full)
-    filename = f"{'Proposal' if full else 'Quotation'}-{quotation.quote_number.replace('/', '-')}.pdf"
+    filename = f"{'Technical-Submittal' if full else 'Quotation'}-{quotation.quote_number.replace('/', '-')}.pdf"
     disposition = "inline" if preview else "attachment"
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
                              headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})
