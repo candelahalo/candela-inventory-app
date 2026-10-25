@@ -287,8 +287,10 @@ h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 <div class="qc-meta">
   <div><div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div></div>
   <div><div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div></div>
-  <div><div class="k">Prepared For</div><div class="v">{{ q.attention_to or q.customer.name }}</div></div>
-  <div><div class="k">{{ 'Project' if q.project else 'Company' }}</div><div class="v">{{ q.project.name if q.project else (q.customer.company or q.customer.name) }}</div></div>
+  {% set cust = q.customer.company or q.customer.name %}
+  <div><div class="k">Customer</div><div class="v">{{ cust }}</div></div>
+  {% if q.attention_to and q.attention_to != cust %}<div><div class="k">Attention</div><div class="v">{{ q.attention_to }}</div></div>{% endif %}
+  {% if q.project %}<div><div class="k">Project</div><div class="v">{{ q.project.name }}</div></div>{% endif %}
   {% if full and q.consultant %}<div><div class="k">Consultant</div><div class="v">{{ q.consultant }}</div></div>{% endif %}
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>

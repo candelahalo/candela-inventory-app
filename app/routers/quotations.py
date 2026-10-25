@@ -837,12 +837,16 @@ def _quotation_excel_response(quotation, db: Session):
     cover.row_dimensions[r].height = 6
     r += 1
 
-    meta = [
-        ("QUOTATION NO.", quotation.quote_number, "DATE", quotation.created_at.strftime("%d %B %Y")),
-        ("PREPARED FOR", quotation.attention_to or quotation.customer.name,
-         "PROJECT" if quotation.project else "COMPANY",
-         quotation.project.name if quotation.project else (quotation.customer.company or "—")),
-    ]
+    cust = quotation.customer.company or quotation.customer.name
+    pairs = [("CUSTOMER", cust)]
+    if quotation.attention_to and quotation.attention_to != cust:
+        pairs.append(("ATTENTION", quotation.attention_to))
+    if quotation.project:
+        pairs.append(("PROJECT", quotation.project.name))
+    if len(pairs) % 2:
+        pairs.append(("", ""))
+    meta = [("QUOTATION NO.", quotation.quote_number, "DATE", quotation.created_at.strftime("%d %B %Y"))] + \
+        [(pairs[i][0], pairs[i][1], pairs[i + 1][0], pairs[i + 1][1]) for i in range(0, len(pairs), 2)]
     for left_label, left_val, right_label, right_val in meta:
         cover.merge_cells(f"B{r}:C{r}")
         cover[f"B{r}"] = left_label
