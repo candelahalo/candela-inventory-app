@@ -190,6 +190,9 @@ class Quotation(Base):
     proposal_datasheets = Column(Boolean, default=True, nullable=False)  # first page of each datasheet
     # Brochure pages after the letter: [{"layout": "bleed"|"one"|"two", "title", "text", "images": [path, ...]}]
     proposal_pages = Column(JSON)
+    # "portrait" (A4 document) or "landscape" (slides, like a presentation); hero = 3 photos for slide 2
+    proposal_layout = Column(String(12), default="portrait", nullable=False)
+    proposal_hero = Column(JSON)
     items = relationship("QuotationItem", back_populates="quotation", cascade="all, delete-orphan", order_by="QuotationItem.id")
 
     @property

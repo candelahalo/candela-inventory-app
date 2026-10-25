@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{{ q.quote_number }} - Home Automation</title>
+<style>
+@font-face { font-family: 'Inter'; font-weight: 400; src: url('app/static/fonts/Inter-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 500; src: url('app/static/fonts/Inter-Medium.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 600; src: url('app/static/fonts/Inter-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-weight: 700; src: url('app/static/fonts/Inter-Bold.ttf') format('truetype'); }
+
+/* Landscape slides, 16:9 like a presentation */
+@page {
+  size: 338.7mm 190.5mm;
+  margin: 26mm 18mm 13mm 18mm;
+  @top-center { content: string(stitle); font-family: 'Inter'; font-size: 17px; font-weight: 600; letter-spacing: .14em;
+                color: #201E1A; vertical-align: bottom; padding-bottom: 6mm; }
+  @top-left { content: ""; }
+  @bottom-left { content: "{{ ent.name|upper }}  ·  {{ q.quote_number }}"; font-family: 'Inter'; font-size: 7px; letter-spacing: .08em; color: #9A9382; }
+  @bottom-right { content: counter(page) " / " counter(pages); font-family: 'Inter'; font-size: 7px; color: #9A9382; }
+}
+@page full { margin: 0; @top-center { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; } }
+
+* { box-sizing: border-box; }
+body { font-family: 'Inter', Arial, sans-serif; font-size: 9px; color: #201E1A; line-height: 1.45; margin: 0; }
+.st { string-set: stitle content(); font-size: 0; line-height: 0; height: 0; overflow: hidden; }
+.slide { page-break-before: always; }
+.rule { width: 16mm; height: 1.2mm; background: #C77D0A; margin: 0 auto 6mm; }
+
+/* ---- 1. cover ---- */
+.cover { page: full; position: relative; width: 338.7mm; height: 190.5mm; background: #fff; overflow: hidden; }
+.cover .cv-photo { position: absolute; right: 0; top: 0; width: 140mm; height: 190.5mm; background-size: cover; background-position: center; }
+.cover .cv-logo { position: absolute; left: 22mm; top: 18mm; }
+.cover .cv-logo img { width: 58mm; }
+.cover .cv-block { position: absolute; left: 22mm; top: 62mm; width: 150mm; }
+.cover.nophoto .cv-block { left: 50%; margin-left: -85mm; width: 170mm; text-align: center; }
+.cover .cv-box { border: 1.6px solid #201E1A; padding: 7mm 8mm 6mm; }
+.cover .cv-title { font-size: 34px; font-weight: 700; letter-spacing: .04em; line-height: 1.1; }
+.cover .cv-sub { font-size: 12px; font-weight: 600; letter-spacing: .26em; color: #C77D0A; margin-top: 2.5mm; }
+.cover .cv-band { background: #201E1A; color: #fff; font-size: 17px; font-weight: 700; letter-spacing: .1em; padding: 3mm 8mm; text-align: center; }
+.cover .cv-meta { margin-top: 9mm; display: grid; grid-template-columns: 34mm 1fr; row-gap: 1.6mm; font-size: 9.5px; }
+.cover.nophoto .cv-meta { width: 120mm; margin-left: auto; margin-right: auto; text-align: left; }
+.cover .cv-meta .k { color: #9A9382; letter-spacing: .06em; text-transform: uppercase; font-size: 8px; padding-top: .4mm; }
+.cover .cv-meta .v { font-weight: 600; }
+.cover .cv-tag { position: absolute; left: 22mm; bottom: 12mm; font-size: 9px; font-style: italic; color: #9A9382; }
+
+/* ---- 2. hero: photos + the systems band ---- */
+.hero { page: full; position: relative; width: 338.7mm; height: 190.5mm; background: #201E1A; overflow: hidden; }
+.hero .hp { position: absolute; top: 0; height: 130mm; background-size: cover; background-position: center; }
+.hero .band { position: absolute; left: 12mm; right: 12mm; top: 140mm; border-top: 0.8px solid rgba(255,255,255,.7); padding-top: 4mm; display: flex; justify-content: space-between; }
+.hero .band div { color: #fff; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; line-height: 1.25; max-width: 44mm; }
+.hero .band div:first-letter { color: #E9A43A; }
+
+/* ---- 3. proposal: the BOQ ---- */
+.boq-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3mm; font-size: 9px; }
+.boq-head .t { font-size: 12px; font-weight: 700; margin-top: 1mm; }
+table.boq { width: 100%; border-collapse: collapse; margin-bottom: 5mm; font-size: 8.3px; }
+table.boq th { background: #201E1A; color: #fff; font-weight: 600; font-size: 7.6px; text-align: left; padding: 1.4mm 2mm; letter-spacing: .04em; }
+table.boq th.n, table.boq td.n { text-align: right; }
+table.boq th.c, table.boq td.c { text-align: center; }
+table.boq tr.sysrow td { background: #C77D0A; color: #fff; font-weight: 700; font-size: 8.4px; letter-spacing: .04em; text-transform: uppercase; padding: 1.2mm 2mm; }
+table.boq td { padding: 1.1mm 2mm; border-bottom: 0.5px solid #E3DCCB; vertical-align: top; }
+table.boq tr { break-inside: avoid; }
+table.boq tr:nth-child(even) td { background: #FAF8F2; }
+table.boq td .d { color: #6B6555; }
+table.boq tr.tot td { background: #F3EEE2; font-weight: 700; border-bottom: 0; }
+table.boq tr.tot td.lbl { text-align: right; }
+.grand { width: 110mm; margin-left: auto; break-inside: avoid; font-size: 9.5px; }
+.grand div { display: flex; justify-content: space-between; padding: 1.4mm 2mm; border-bottom: 0.5px solid #E3DCCB; }
+.grand .g { background: #201E1A; color: #fff; font-weight: 700; font-size: 11px; border: 0; }
+.words { width: 110mm; margin-left: auto; margin-top: 2mm; font-size: 8.5px; color: #56503F; }
+
+/* ---- 4. design matrix ---- */
+table.mx { border-collapse: collapse; font-size: 8px; width: 100%; }
+table.mx th { background: #201E1A; color: #fff; font-weight: 600; font-size: 7.4px; padding: 1.2mm 1mm; vertical-align: middle; border: 0.5px solid #4A463D; }
+table.mx th.sl, table.mx td.sl { width: 8mm; text-align: center; }
+table.mx th.room { text-align: left; width: 48mm; }
+table.mx th.vh { height: 30mm; padding: 0; position: relative; vertical-align: bottom; }
+table.mx th.vh.fl { background: #3A352B; }
+table.mx th .vt { position: absolute; left: 50%; bottom: 1.5mm; width: 27mm; height: 6.6mm; margin-left: -3.3mm; transform-origin: 0 100%;
+  transform: rotate(-90deg) translateY(100%); text-align: left; line-height: 1.12; font-size: 7px; overflow: hidden; }
+table.mx th .vt b { color: #E9A43A; }
+table.mx td { border: 0.5px solid #C9C0AB; padding: 0.4mm 1mm; text-align: center; height: 3.8mm; font-weight: 500; }
+table.mx td.room { text-align: left; }
+table.mx td.flc { background: #F3EEE2; }
+table.mx tr.fl-row td.fv { text-align: center; background: #A86808; }
+table.mx tr.fl-row td { background: #C77D0A; color: #fff; font-weight: 700; font-size: 8.4px; text-align: left; letter-spacing: .05em; text-transform: uppercase; border-color: #C77D0A; }
+table.mx tr { break-inside: avoid; }
+table.mx tr.fl-row { break-after: avoid; }
+table.mx tr.total td { background: #201E1A; color: #fff; font-weight: 700; }
+
+/* ---- 5. product slides ---- */
+.pslide { text-align: center; }
+.pslide .row { display: flex; justify-content: center; gap: 10mm; align-items: center; height: 118mm; }
+.pslide .im { height: 118mm; display: flex; align-items: center; justify-content: center; }
+.pslide .im img { max-width: 100%; max-height: 118mm; }
+.pslide .tx { font-size: 11px; color: #3A372F; margin-top: 5mm; white-space: pre-line; }
+.bleed { page: full; position: relative; width: 338.7mm; height: 190.5mm; overflow: hidden; background: #201E1A; }
+.bleed .bp { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.bleed .bb { position: absolute; left: 16mm; bottom: 14mm; background: rgba(23,22,27,.8); color: #fff; padding: 4mm 7mm; border-left: 2.5px solid #E39A1E; max-width: 160mm; }
+.bleed .bb .t { font-size: 18px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.bleed .bb .x { font-size: 10px; margin-top: 1mm; white-space: pre-line; }
+.tiles { font-size: 0; text-align: center; }
+.tile { display: inline-block; vertical-align: top; width: 54mm; margin: 0 2.5mm 5mm; border: 0.75px solid #E3DCCB; border-radius: 2mm; overflow: hidden; background: #fff; }
+.tile .ti { height: 50mm; }
+.tile .ti img { display: block; width: 100%; height: 100%; }
+.tile .tc { background: #F6F2E9; border-top: 0.75px solid #ECE5D4; padding: 1.6mm 2mm; height: 10mm; font-size: 7.4px; font-weight: 600; line-height: 1.3;
+  text-transform: uppercase; letter-spacing: .02em; overflow: hidden; color: #3A372F; }
+.tiles.few .tile { width: 64mm; } .tiles.few .tile .ti { height: 60mm; }
+
+/* ---- 6. agreement ---- */
+.agr { columns: 2; column-gap: 14mm; font-size: 8.6px; }
+.agr .sec { break-inside: avoid; margin-bottom: 4.5mm; }
+.agr h3 { font-size: 8.4px; letter-spacing: .14em; text-transform: uppercase; color: #C77D0A; margin: 0 0 1.6mm; }
+.agr ul { margin: 0; padding-left: 4mm; }
+.agr li { margin-bottom: .8mm; }
+.agr table { width: 100%; border-collapse: collapse; }
+.agr td { padding: 1mm 1.5mm; border-bottom: 0.5px solid #E3DCCB; }
+.agr td.p { width: 13mm; font-weight: 700; color: #C77D0A; }
+.agr td.a { text-align: right; white-space: nowrap; }
+.sign { display: flex; gap: 20mm; margin-top: 8mm; break-inside: avoid; }
+.sign div { flex: 1; font-size: 8px; color: #9A9382; letter-spacing: .1em; text-transform: uppercase; }
+.sign .ln { border-top: 0.75px solid #201E1A; margin-top: 12mm; padding-top: 1.5mm; color: #201E1A; letter-spacing: 0; text-transform: none; font-size: 8.5px; }
+</style>
+</head>
+<body>
+
+<!-- 1. COVER -->
+<div class="cover{% if not p.cover %} nophoto{% endif %}">
+  {% if p.cover %}<div class="cv-photo" style="background-image: url('{{ p.cover }}')"></div>{% endif %}
+  <div class="cv-logo"><img src="{{ ent.logo }}"></div>
+  <div class="cv-block">
+    <div class="cv-box"><div class="cv-title">HOME AUTOMATION</div><div class="cv-sub">TECHNICAL SUBMITTAL</div></div>
+    <div class="cv-band">{{ (q.project.name if q.project else q.quote_number)|upper }}</div>
+    <div class="cv-meta">
+      <div class="k">Client</div><div class="v">{{ q.customer.company or q.customer.name }}</div>
+      {% if q.consultant %}<div class="k">Consultant</div><div class="v">{{ q.consultant }}</div>{% endif %}
+      {% if q.main_contractor %}<div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div>{% endif %}
+      <div class="k">Quotation No.</div><div class="v">{{ q.quote_number }}</div>
+      <div class="k">Date</div><div class="v">{{ q.created_at.strftime('%d %B %Y') }}</div>
+    </div>
+  </div>
+  <div class="cv-tag">We Light Your Dreams…</div>
+</div>
+
+<!-- 2. HERO: photos and the systems in this proposal -->
+{% if p.hero %}
+{% set n = p.hero|length %}
+<div class="hero">
+  {% for h in p.hero %}
+  {% if n == 1 %}<div class="hp" style="left: 0; width: 338.7mm; background-image: url('{{ h }}')"></div>
+  {% elif n == 2 %}<div class="hp" style="left: {{ 0 if loop.first else 172.35 }}mm; width: 166.35mm; background-image: url('{{ h }}')"></div>
+  {% else %}<div class="hp" style="left: {{ [0, 116, 232][loop.index0] }}mm; width: {{ 106.7 if loop.last else 110 }}mm; background-image: url('{{ h }}')"></div>{% endif %}
+  {% endfor %}
+  <div class="band">{% for s in p.systems if not (s.title|lower).startswith(('testing', 'installation', 'professional')) %}<div>{{ s.title }}</div>{% endfor %}</div>
+</div>
+{% endif %}
+
+<!-- 3. PROPOSAL -->
+{% set prices = q.proposal_prices %}
+<div class="slide"><div class="st">PROPOSAL</div>
+  <div class="boq-head">
+    <div>{{ q.created_at.strftime('%B %d, %Y') }}<br><strong>{{ q.project.name if q.project else '' }}</strong>
+      <div class="t">{{ (q.subject or 'Home Automation Quotation')|replace('Quotation for Home Automation', 'Home Automation Quotation') }}</div></div>
+    <div><strong>Reference: {{ q.quote_number }}</strong></div>
+  </div>
+  {% for s in p.systems %}
+  <table class="boq">
+    <thead><tr><th style="width:10mm" class="c">S. No.</th><th style="width:30mm">Brand</th><th>Description</th>
+      <th style="width:15mm" class="c">Quantity</th><th style="width:12mm" class="c">Unit</th>
+      {% if prices %}<th style="width:25mm" class="n">Price ({{ q.currency }})</th><th style="width:28mm" class="n">Amount ({{ q.currency }})</th>{% endif %}</tr></thead>
+    <tbody>
+      <tr class="sysrow"><td colspan="{{ 7 if prices else 5 }}">{{ s.title }}</td></tr>
+      {% for l in s.lines %}<tr><td class="c">{{ loop.index }}</td><td>{{ l.brand or '' }}</td>
+        <td>{{ l.title }}{% if l.detail %} <span class="d">— {{ l.detail }}</span>{% endif %}</td>
+        <td class="c">{{ '%g'|format(l.qty) }}</td><td class="c">{{ l.unit }}</td>
+        {% if prices %}<td class="n">{{ "{:,.2f}".format(l.price) }}</td><td class="n">{{ "{:,.2f}".format(l.total) }}</td>{% endif %}</tr>
+      {% endfor %}
+      {% if prices %}<tr class="tot"><td colspan="6" class="lbl">Total cost — {{ s.title }}</td><td class="n">{{ "{:,.2f}".format(s.total) }}</td></tr>{% endif %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% if prices %}
+  <div class="grand">
+    <div><span>Total of all systems</span><span>{{ "{:,.2f}".format(q.subtotal_before_discount) }}</span></div>
+    {% if q.total_discount|abs >= 0.01 %}<div><span>Special discount</span><span>− {{ "{:,.2f}".format(q.total_discount) }}</span></div>{% endif %}
+    {% set delivery = (q.freight_charges or 0) + q.transportation_amount %}
+    {% if delivery %}<div><span>Delivery</span><span>{{ "{:,.2f}".format(delivery) }}</span></div>{% endif %}
+    <div><span>Total excluding VAT</span><span>{{ "{:,.2f}".format(q.grand_total) }}</span></div>
+    <div><span>VAT {{ "%g"|format(q.vat_percent) }}%</span><span>{{ "{:,.2f}".format(q.vat_amount) }}</span></div>
+    <div class="g"><span>Total including VAT</span><span>{{ q.currency }} {{ "{:,.2f}".format(q.total_with_vat) }}</span></div>
+  </div>
+  <div class="words">{{ p.total_words }}</div>
+  {% endif %}
+</div>
+
+<!-- 4. DESIGN MATRIX -->
+{% for part in p.matrix %}
+<div class="slide"><div class="st">DESIGN MATRIX{% if part.part %} ({{ part.part }}){% endif %}</div>
+  <table class="mx">
+    <thead><tr><th class="sl">Sl.</th><th class="room">Proposed locations</th>
+      {% for c in part.cols %}<th class="vh{% if c.floor %} fl{% endif %}"><div class="vt"><b>{{ c.ref }}</b> {{ c.title }}</div></th>{% endfor %}</tr></thead>
+    {% for f in part.floors %}
+    <tbody>
+      <tr class="fl-row"><td></td><td>{{ f.name }}</td>{% for c in part.cols %}<td{% if c.floor %} class="fv"{% endif %}>{{ (f.fq[c.key] or '') if c.floor else '' }}</td>{% endfor %}</tr>
+      {% for r in f.rows %}<tr><td class="sl">{{ r.sl }}</td><td class="room">{{ r.name }}</td>
+        {% for c in r.cells %}<td{% if c.floor %} class="flc"{% endif %}>{{ c.v if c.v else '' }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+    {% endfor %}
+    <tbody><tr class="total"><td></td><td class="room">Total</td>{% for n in part.totals %}<td>{{ n }}</td>{% endfor %}</tr></tbody>
+  </table>
+</div>
+{% endfor %}
+
+<!-- 5. PRODUCT SLIDES: brochure pages, then the product pictures -->
+{% for b in p.pages %}
+{% if b.layout == 'bleed' %}
+<div class="bleed"><div class="bp"{% if b.images %} style="background-image: url('{{ b.images[0] }}')"{% endif %}></div>
+  {% if b.title or b.text %}<div class="bb">{% if b.title %}<div class="t">{{ b.title }}</div>{% endif %}{% if b.text %}<div class="x">{{ b.text }}</div>{% endif %}</div>{% endif %}</div>
+{% else %}
+<div class="slide pslide"><div class="st">{{ (b.title or '')|upper }}</div>
+  <div class="row">{% for im in b.images %}<div class="im" style="width: {{ 300 if b.images|length == 1 else 145 }}mm"><img src="{{ im }}"></div>{% endfor %}</div>
+  {% if b.text %}<div class="tx">{{ b.text }}</div>{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+{% for g in p.slide_gallery %}
+<div class="slide"><div class="st">{{ g.title|upper }}</div>
+  <div class="tiles{% if g.photos|length <= 4 %} few{% endif %}">{% for ph in g.photos %}<div class="tile"><div class="ti"><img src="{{ ph.src }}"></div><div class="tc">{{ ph.caption }}</div></div>{% endfor %}</div>
+</div>
+{% endfor %}
+
+<!-- 6. AGREEMENT -->
+<div class="slide"><div class="st">AGREEMENT</div>
+  <div class="agr">
+    {% if p.inclusions %}<div class="sec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+    {% if p.exclusions or p.not_included %}<div class="sec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li>{{ n }} — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+    {% if q.notes %}<div class="sec"><h3>Notes</h3><div style="white-space:pre-line">{{ q.notes }}</div></div>{% endif %}
+    <div class="sec"><h3>Prices, delivery &amp; validity</h3><ul>
+      <li>All prices are in {{ q.currency }}; VAT {{ "%g"|format(q.vat_percent) }}% is applicable on all invoices.</li>
+      <li>Delivery: {{ q.delivery_time }}</li>
+      <li>Validity: {{ q.valid_until.strftime('%d %B %Y') if q.valid_until else '30 days from the date of quotation' }}</li></ul></div>
+    <div class="sec"><h3>Payment terms</h3>
+      {% if p.milestones %}<table>{% for pct, text, amt in p.milestones %}<tr><td class="p">{{ ('%g%%' % pct) if pct is not none else '' }}</td><td>{{ text }}</td>
+        <td class="a">{{ (q.currency ~ ' ' ~ "{:,.2f}".format(amt)) if (amt is not none and prices) else '' }}</td></tr>{% endfor %}</table>
+      {% else %}{{ q.payment_terms }}{% endif %}</div>
+  </div>
+  <div class="sign">
+    <div>For {{ ent.name }}<div class="ln"><strong>{{ q.prepared_by_name or '' }}</strong>{% if q.prepared_by_title %} — {{ q.prepared_by_title }}{% endif %}<br>Signature, stamp &amp; date</div></div>
+    <div>Client approval<div class="ln"><strong>&nbsp;</strong><br>Name, signature, stamp &amp; date</div></div>
+  </div>
+</div>
+
+</body>
+</html>

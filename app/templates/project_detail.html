@@ -73,11 +73,14 @@
   <div id="ap-body">
     <div class="form-grid">
       <div class="field"><label>Quotation</label><select id="ap-quote"></select></div>
-      <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show prices (system totals and conclusion)</label></div>
+      <div class="field"><label>Layout</label><select id="ap-layout">
+        <option value="portrait">Portrait document (A4)</option>
+        <option value="landscape">Landscape presentation (slides)</option></select></div>
+      <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show prices</label></div>
       <div class="field"><label>Consultant</label><input id="ap-consultant" placeholder="e.g. Signature Engineering Consultant"></div>
       <div class="field"><label>Main contractor</label><input id="ap-contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
-      <div class="field span2"><label>Inclusions <span class="muted">(in the quotation)</span> <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>
-      <div class="field span2"><label>Exclusions <span class="muted">(in the quotation)</span> <span class="muted ap-std" data-k="exclusions"></span></label><textarea id="ap-exclusions" rows="6"></textarea></div>
+      <div class="field span2"><label>Inclusions <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>
+      <div class="field span2"><label>Exclusions <span class="muted ap-std" data-k="exclusions"></span></label><textarea id="ap-exclusions" rows="6"></textarea></div>
       <div class="field span2"><label>Payment milestones <span class="muted ap-std" data-k="milestones"></span></label><textarea id="ap-milestones" rows="3"></textarea></div>
     </div>
     <div class="ap-cover-row">
@@ -87,11 +90,16 @@
         <input type="file" id="ap-cv-file" accept="image/jpeg,image/png,image/webp" hidden>
         <button type="button" class="btn btn-ghost btn-sm" id="ap-cv-del" style="display:none">Remove photo</button>
       </div>
-      <div class="ap-cover-note muted"><label class="chk" style="color:var(--ink,#14161A);font-weight:600"><input type="checkbox" id="ap-ds" checked> Product datasheet pages</label>
+      <div class="ap-hero" id="ap-hero-box">
+        <label class="ap-lbl">Slide 2 photos <span class="muted">— up to 3, with the system names under them; click, drop or paste</span></label>
+        <div class="ap-hero-row" id="ap-hero"></div>
+        <input type="file" id="ap-hero-file" accept="image/jpeg,image/png,image/webp" hidden>
+      </div>
+      <div class="ap-cover-note muted" id="ap-ds-box"><label class="chk" style="color:var(--ink,#14161A);font-weight:600"><input type="checkbox" id="ap-ds" checked> Product datasheet pages</label>
         The first page of each product's datasheet, after the product images. Products marked "No datasheet needed" are left out.</div>
     </div>
     <details class="q-matrix" id="ap-pages" open>
-      <summary><strong>Brochure pages</strong> <span class="muted">— after the letter: a title, one or two pictures and a line of text, or a full-page photo</span> <span class="mx-sum" id="bp-sum"></span></summary>
+      <summary><strong>Brochure pages</strong> <span class="muted">— product slides: a title, one or two pictures and a line of text, or a full-page photo</span> <span class="mx-sum" id="bp-sum"></span></summary>
       <div class="bp-list" id="bp-list"></div>
       <div class="bp-add"><span class="muted">Add a page:</span>
         <button type="button" class="btn btn-ghost btn-sm" onclick="bpAdd('one')">Title + 1 picture</button>
@@ -583,6 +591,44 @@ document.addEventListener('paste', e => {
   e.preventDefault(); e.stopImmediatePropagation(); bpUpload(item.getAsFile(), ...bpHover);
 }, true);
 
+// ---------- Layout and the slide 2 photos (landscape only) ----------
+let apHero = [], apHeroTarget = 0, apHeroHover = null;
+function apLayoutShow() {
+  const land = document.getElementById('ap-layout').value === 'landscape';
+  document.getElementById('ap-hero-box').style.display = land ? '' : 'none';
+  document.getElementById('ap-ds-box').style.display = land ? 'none' : '';
+}
+document.getElementById('ap-layout').addEventListener('change', apLayoutShow);
+function apRenderHero() {
+  document.getElementById('ap-hero').innerHTML = [0, 1, 2].map(k => `
+    <div class="bp-slot ap-hs${apHero[k] ? ' has' : ''}" data-k="${k}" title="Click, drop or paste a photo">
+      ${apHero[k] ? `<img src="${esc(apHero[k])}" alt=""><button type="button" class="bp-x" onclick="event.stopPropagation();apHero.splice(${k},1);apRenderHero()" title="Remove">×</button>` : '<span>+ Photo</span>'}
+    </div>`).join('');
+}
+async function apHeroUpload(file, k) {
+  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { toast('Use a JPG, PNG or WebP picture', true); return; }
+  toast('Uploading photo…');
+  const fd = new FormData(); fd.append('file', file, file.name || 'photo.png');
+  const res = await fetch('/quotations/proposal-image', { method: 'POST', headers: authHeaders(), body: fd });
+  if (res.status === 401) { signOut(); return; }
+  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (e) {} toast(d, true); return; }
+  apHero[Math.min(k, apHero.length)] = (await res.json()).path; apRenderHero(); toast('Photo added');
+}
+const apHeroEl = document.getElementById('ap-hero');
+apHeroEl.addEventListener('click', e => { const s = e.target.closest('.ap-hs'); if (!s) return; apHeroTarget = +s.dataset.k; document.getElementById('ap-hero-file').click(); });
+document.getElementById('ap-hero-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) apHeroUpload(f, apHeroTarget); });
+apHeroEl.addEventListener('dragover', e => { const s = e.target.closest('.ap-hs'); if (!s) return; e.preventDefault(); s.classList.add('drop'); });
+apHeroEl.addEventListener('dragleave', e => { const s = e.target.closest('.ap-hs'); if (s) s.classList.remove('drop'); });
+apHeroEl.addEventListener('drop', e => { const s = e.target.closest('.ap-hs'); if (!s) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) apHeroUpload(f, +s.dataset.k); });
+apHeroEl.addEventListener('mouseover', e => { const s = e.target.closest('.ap-hs'); apHeroHover = s ? +s.dataset.k : null; });
+apHeroEl.addEventListener('mouseleave', () => { apHeroHover = null; });
+document.addEventListener('paste', e => {
+  if (apHeroHover === null) return;
+  const item = [...((e.clipboardData || {}).items || [])].find(x => x.type.startsWith('image/'));
+  if (!item) return;
+  e.preventDefault(); e.stopImmediatePropagation(); apHeroUpload(item.getAsFile(), apHeroHover);
+}, true);
+
 // ---------- Proposal cover photo and general remarks ----------
 let apCover = null, apSystems = [], apCvHover = false;
 function apRenderCover() {
@@ -674,6 +720,8 @@ async function apLoad(id) {
   AP_TERMS.forEach(k => { document.getElementById('ap-' + k).value = d[k] || apStd[k] || ''; });
   apStdNotes();
   apCover = d.proposal_cover || null; apRenderCover();
+  document.getElementById('ap-layout').value = d.proposal_layout === 'landscape' ? 'landscape' : 'portrait';
+  apHero = [...(d.proposal_hero || [])]; apRenderHero(); apLayoutShow();
   bpPages = (d.proposal_pages || []).map(x => ({ ...x, images: [...(x.images || [])] })); bpRender();
   document.getElementById('ap-ds').checked = d.proposal_datasheets !== false;
   apDefaultPhotos = d.default_photos || [];
@@ -698,6 +746,8 @@ async function apSave(quiet) {
     main_contractor: document.getElementById('ap-contractor').value,
     proposal_prices: document.getElementById('ap-prices').checked,
     proposal_cover: apCover, proposal_remarks: apRemarksValue(),
+    proposal_layout: document.getElementById('ap-layout').value,
+    proposal_hero: apHero.filter(Boolean).length ? apHero.filter(Boolean) : null,
     proposal_datasheets: document.getElementById('ap-ds').checked,
     proposal_pages: bpPages.length ? bpPages.map(x => ({ layout: x.layout, title: x.title || '', text: x.text || '', images: x.images.filter(Boolean) })) : null,
     proposal_photos: ppPhotos, proposal_photo_size: ppSize(),

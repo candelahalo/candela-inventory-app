@@ -206,7 +206,7 @@ def build_context(q, standard=None):
     not_included = [title for sec, title in std if sec not in names] if any(sec in names for sec, _t in std) else []
     return {"systems": out, "brands": brands, "matrix": room_matrix(q, order), "not_included": not_included,
             "total_words": amount_in_words(q.total_with_vat, q.currency),
-            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(), "cover": cover(q), "pages": brochure_pages(q),
+            "gallery": gallery(q), "photo_size": (q.proposal_photo_size or "M").upper(), "cover": cover(q), "pages": brochure_pages(q), "hero": hero(q),
             "milestones": milestones(q.milestones or standard.get("milestones"), q.grand_total),
             "inclusions": [l.strip().lstrip("•-* ") for l in (q.inclusions or standard.get("inclusions") or "").splitlines() if l.strip()],
             "exclusions": [l.strip().lstrip("•-* ") for l in (q.exclusions or standard.get("exclusions") or "").splitlines() if l.strip()]}
@@ -322,6 +322,40 @@ def brochure_pages(q):
         out.append({"layout": layout, "title": (pg.get("title") or "").strip(),
                     "text": (pg.get("text") or "").strip(), "images": imgs})
     return out
+
+
+def hero(q):
+    """Slide 2 of the landscape proposal: up to 3 photos (paths WeasyPrint opens)."""
+    out = []
+    for path in q.proposal_hero or []:
+        if path and path.startswith("/static/") and ".." not in path and os.path.exists(url_to_disk_path(path)):
+            out.append("app" + path)
+    return out
+
+
+def slide_gallery(q, per_slide=10):
+    """Product images for the landscape slides: by section, up to 10 square tiles a slide."""
+    if (q.proposal_photo_size or "M").upper() == "OFF":
+        return []
+    photos = q.proposal_photos if q.proposal_photos is not None else default_photos(q)
+    groups = []
+    for ph in photos:
+        path = (ph or {}).get("path") or ""
+        disk = url_to_disk_path(path) if path.startswith("/static/") and ".." not in path else ""
+        if not disk or not os.path.exists(disk):
+            continue
+        g = (ph.get("group") or "").strip() or "Products"
+        tile = _tile(disk, 1.0)
+        item = {"src": str(tile) if tile else "app" + path, "caption": (ph.get("caption") or "").strip()}
+        if not groups or groups[-1]["group"] != g:
+            groups.append({"group": g, "photos": []})
+        groups[-1]["photos"].append(item)
+    slides = []
+    for g in groups:
+        for i in range(0, len(g["photos"]), per_slide):
+            chunk = g["photos"][i:i + per_slide]
+            slides.append({"title": g["group"], "photos": chunk, "cols": min(5, len(chunk))})
+    return slides
 
 
 def cover(q):

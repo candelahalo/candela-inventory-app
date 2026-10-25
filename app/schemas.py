@@ -214,6 +214,8 @@ class QuotationCreate(BaseModel):
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: bool = True
     proposal_pages: Optional[List[dict]] = None
+    proposal_layout: str = "portrait"
+    proposal_hero: Optional[List[str]] = None
     items: List[QuotationItemCreate]
 
 
@@ -255,6 +257,8 @@ class QuotationOut(BaseModel):
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: Optional[bool] = True
     proposal_pages: Optional[List[dict]] = None
+    proposal_layout: Optional[str] = "portrait"
+    proposal_hero: Optional[List[str]] = None
     created_at: datetime
     items: List[QuotationItemOut]
     gross_total: float
@@ -525,6 +529,19 @@ class ProposalSettings(BaseModel):
     proposal_remarks: Optional[dict] = None
     proposal_datasheets: bool = True
     proposal_pages: Optional[List[dict]] = None
+    proposal_layout: str = "portrait"
+    proposal_hero: Optional[List[str]] = None
+
+    @field_validator("proposal_layout")
+    @classmethod
+    def _layout(cls, v):
+        return v if v in ("portrait", "landscape") else "portrait"
+
+    @field_validator("proposal_hero")
+    @classmethod
+    def _hero(cls, v):
+        v = [str(x) for x in (v or []) if isinstance(x, str) and x.startswith("/static/uploads/") and ".." not in x][:3]
+        return v or None
 
     @field_validator("proposal_pages")
     @classmethod

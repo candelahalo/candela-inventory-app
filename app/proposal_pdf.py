@@ -95,7 +95,21 @@ def _numbers(n, skip=()):
     return PdfReader(io.BytesIO(HTML(string=doc, base_url=".").write_pdf())).pages
 
 
+def _slides(q, db):
+    """The landscape technical submittal: slides like a presentation (no datasheets)."""
+    from app.entity import for_quotation
+    from app.proposal import build_context, slide_gallery
+    from app import proposal_terms
+    from app.routers.quotations import templates
+    p = build_context(q, proposal_terms.get(db))
+    p["slide_gallery"] = slide_gallery(q)
+    html = templates.get_template("quotation_slides.html").render({"q": q, "p": p, "ent": for_quotation(q)})
+    return HTML(string=html, base_url=".").write_pdf()
+
+
 def build(q, db, full=False):
+    if full and (getattr(q, "proposal_layout", None) or "portrait") == "landscape":
+        return _slides(q, db)
     doc = _render(q, db, full)
     if not full:
         return doc.write_pdf()

@@ -190,7 +190,8 @@ MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 # Fields of the full automation proposal: edited on the project page, never by the quote form
 PROPOSAL_FIELDS = ("consultant", "main_contractor", "inclusions", "exclusions", "milestones",
-                   "proposal_prices", "proposal_photos", "proposal_photo_size", "proposal_cover", "proposal_remarks", "proposal_datasheets", "proposal_pages")
+                   "proposal_prices", "proposal_photos", "proposal_photo_size", "proposal_cover", "proposal_remarks", "proposal_datasheets", "proposal_pages",
+                   "proposal_layout", "proposal_hero")
 
 
 def one_line(text, name=""):
@@ -629,7 +630,8 @@ def revise_quotation(quotation_id: int, db: Session = Depends(get_db), current: 
                    "vat_percent", "prepared_by_name", "prepared_by_title", "section_subtotals",
                    "consultant", "main_contractor", "section_notes", "inclusions", "exclusions", "milestones",
                    "proposal_prices", "room_matrix", "proposal_photos", "proposal_photo_size",
-                   "proposal_cover", "proposal_remarks", "proposal_datasheets", "proposal_pages"]
+                   "proposal_cover", "proposal_remarks", "proposal_datasheets", "proposal_pages",
+                   "proposal_layout", "proposal_hero"]
     new_quote = models.Quotation(
         quote_number=f"{base}-R{rev}",
         version=(original.version or 1) + 1,
