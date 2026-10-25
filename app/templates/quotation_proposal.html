@@ -325,9 +325,9 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 
 <!-- ===== PRODUCT IMAGES (the product datasheets are put in before them) ===== -->
 {% for pg in p.gallery %}
-<div class="gal-pg gal-{{ pg.size }}{% if pg.fill %} fill{% endif %}{% if loop.first %} first{% endif %}">
+<div class="gal-pg gal-{{ pg.size }}{% if loop.first %} first{% endif %}">
   {% for r in pg.rows %}<div class="gal-blk">{% if r.group %}<div class="gal-title">{{ r.group|upper }}</div>{% endif %}
-  <div class="gal-row" style="margin-bottom: 5mm">{% for ph in r.photos %}<div class="gal-card" style="width: {{ pg.cw }}mm"><div class="gal-img" style="height: {{ pg.th }}mm"><img src="{{ ph.src }}"></div><div class="gal-cap" style="height: {{ pg.ch }}mm">{{ ph.caption }}</div></div>{% endfor %}</div></div>
+  <div class="gal-row" style="margin-bottom: {{ pg.gap }}mm">{% for ph in r.photos %}<div class="gal-card" style="width: {{ pg.cw }}mm"><div class="gal-img" style="height: {{ pg.th }}mm"><img src="{{ ph.src }}"></div><div class="gal-cap" style="height: {{ pg.ch }}mm">{{ ph.caption }}</div></div>{% endfor %}</div></div>
   {% endfor %}
 </div>
 {% endfor %}

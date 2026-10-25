@@ -341,6 +341,7 @@ GAL = {"S": (4, 38.0, 1.0, 3), "M": (3, 52.0, 1.0, 2), "L": (2, 80.0, 0.72, 2), 
 GAL_PAGE_H = 247.0   # A4 297 - 24 top - 20 bottom margin, less a little to be safe
 GAL_HEAD_H = 16.0    # section title with its rule and the space above it
 GAL_GAP = 5.0        # under each row
+GAL_MAX_RATIO = 1.3  # how tall a tile may grow to fill a page (x its width)
 TILE_VERSION = "1"
 
 
@@ -437,12 +438,10 @@ def gallery(q):
         disk = url_to_disk_path(path) if path.startswith("/static/") and ".." not in path else ""
         if not disk or not os.path.exists(disk):
             continue
-        tile = _tile(disk, ratio)
-        src = str(tile) if tile else "app" + path
         g = (ph.get("group") or "").strip()
         if not groups or groups[-1]["group"] != g:
             groups.append({"group": g, "photos": []})
-        groups[-1]["photos"].append({"src": src, "caption": (ph.get("caption") or "").strip()})
+        groups[-1]["photos"].append({"disk": disk, "path": path, "caption": (ph.get("caption") or "").strip()})
     rows = []
     for g in groups:
         for i in range(0, len(g["photos"]), cols):
@@ -460,8 +459,20 @@ def gallery(q):
     out = []
     for n, (rs, used) in enumerate(pages):
         last = n == len(pages) - 1
-        out.append({"cw": cw, "th": th, "ch": ch, "size": size.lower(),
-                    "fill": not (last and used < GAL_PAGE_H * 0.55), "rows": rs})
+        spare = max(0.0, GAL_PAGE_H - used)
+        if last and used < GAL_PAGE_H * 0.55:
+            spare = 0.0   # a short last page stays as it is
+        # the tiles grow taller into the spare space (same width), so rows don't drift apart
+        grow = min(spare / len(rs), cw * GAL_MAX_RATIO - th) if spare else 0.0
+        pth = round(th + max(0.0, grow), 1)
+        pr = round(pth / cw, 2)
+        left = max(0.0, spare - (pth - th) * len(rs))
+        gap = round(GAL_GAP + min(6.0, left / len(rs)), 1)
+        for r in rs:
+            for ph in r["photos"]:
+                tile = _tile(ph["disk"], pr)
+                ph["src"] = str(tile) if tile else "app" + ph["path"]
+        out.append({"cw": cw, "th": pth, "ch": ch, "gap": gap, "size": size.lower(), "rows": rs})
     return out
 
 
