@@ -323,7 +323,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 {% endif %}
 {% endfor %}
 
-<!-- ===== PRODUCT IMAGES (the product datasheets are put in before them) ===== -->
+<!-- ===== PRODUCT IMAGES (the product datasheets are put in after them) ===== -->
 {% for pg in p.gallery %}
 <div class="gal-pg gal-{{ pg.size }}{% if loop.first %} first{% endif %}">
   {% for r in pg.rows %}<div class="gal-blk">{% if r.group %}<div class="gal-title">{{ r.group|upper }}</div>{% endif %}

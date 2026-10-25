@@ -2,8 +2,8 @@
 
 By system (full=0): the template as it is.
 Full proposal (full=1): the template, then the first page of each product's
-datasheet put in after the covering letter (before the product images and the
-general remarks; can be turned off), and
+datasheet put in after the product images, before the general remarks (can be
+turned off), and
 the page numbers stamped on at the end so they count the datasheet pages too.
 """
 import io
@@ -99,8 +99,7 @@ def build(q, db, full=False):
     doc = _render(q, db, full)
     if not full:
         return doc.write_pdf()
-    at = _marker_page(doc, "Product images")
-    at = at if at is not None else _marker_page(doc, "General remarks")
+    at = _marker_page(doc, "General remarks")   # datasheets go after the product images
     main = list(PdfReader(io.BytesIO(doc.write_pdf())).pages)
     at = at if at is not None else min(2, len(main))
     sheets = _sheet_pages(q, db) if getattr(q, "proposal_datasheets", True) is not False else []
