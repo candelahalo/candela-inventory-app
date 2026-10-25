@@ -1658,7 +1658,16 @@ function mxFull(on) {
   document.body.classList.toggle('mx-noscroll', on);
   document.getElementById('mx-full').textContent = on ? '✕ Close full screen' : '⤢ Full screen';
   if (on) box.open = true;
+  mxFit();
 }
+// In full screen the table gets the rest of the window, so its rows scroll (headers stay put)
+function mxFit() {
+  const box = document.getElementById('q-matrix'), wrap = document.getElementById('mx-wrap');
+  if (!box.classList.contains('mx-full')) { wrap.style.height = ''; wrap.style.maxHeight = ''; return; }
+  const h = Math.max(200, window.innerHeight - wrap.getBoundingClientRect().top - 16);
+  wrap.style.height = h + 'px'; wrap.style.maxHeight = h + 'px';
+}
+window.addEventListener('resize', mxFit);
 document.getElementById('mx-full').addEventListener('click', () => mxFull(!document.getElementById('q-matrix').classList.contains('mx-full')));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('q-matrix').classList.contains('mx-full')) mxFull(false); });
 document.getElementById('mx-add-floor').addEventListener('click', () => {
@@ -1669,7 +1678,7 @@ document.getElementById('mx-add-floor').addEventListener('click', () => {
 });
 document.getElementById('mx-cols-btn').addEventListener('click', () => {
   const box = document.getElementById('mx-cols');
-  if (!box.hidden) { box.hidden = true; return; }
+  if (!box.hidden) { box.hidden = true; mxFit(); return; }
   const lines = mxLines(); mxColumns(lines);
   if (!lines.size) { toast('Add product lines to the quote first', true); return; }
   box.innerHTML = [...lines].map(([k, l]) => {
@@ -1678,6 +1687,7 @@ document.getElementById('mx-cols-btn').addEventListener('click', () => {
       <label class="chk mx-perfloor" title="One number for the whole floor (gateways, actuators, power supplies, WAPs…)"><input type="checkbox" data-fk="${k}"${mxIsFloor(k) ? ' checked' : ''}> per floor</label></div>`;
   }).join('');
   box.hidden = false;
+  mxFit();
 });
 document.getElementById('mx-cols').addEventListener('change', e => {
   const fk = e.target.dataset.fk;

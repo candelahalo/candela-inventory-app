@@ -1247,7 +1247,7 @@ label.chk { display: flex; align-items: center; gap: 6px; font-weight: 400; font
 /* Room matrix: full screen, bigger */
 .q-matrix.mx-full { position: fixed; inset: 0; z-index: 900; margin: 0; border-radius: 0; padding: 14px 20px; overflow: hidden; display: flex; flex-direction: column; }
 .q-matrix.mx-full > summary { pointer-events: none; font-size: 16px; }
-.q-matrix.mx-full .mx-wrap { max-height: none; flex: 1; }
+.q-matrix.mx-full .mx-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }  /* height set in mxFit() so it scrolls */
 .q-matrix.mx-full .mx-grid { font-size: 15px; }
 .q-matrix.mx-full .mx-grid th { width: 96px; min-width: 96px; max-width: 96px; font-size: 12px; }
 .q-matrix.mx-full .mx-grid th img { width: 44px; height: 44px; }
@@ -1325,3 +1325,4 @@ body.mx-noscroll { overflow: hidden; }
 .bp-txt { flex: 1; min-width: 240px; display: grid; gap: 6px; align-content: start; }
 .bp-txt textarea { font-family: inherit; }
 .bp-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; }
+.q-matrix.mx-full .mx-cols { max-height: 35vh; overflow: auto; }
