@@ -739,16 +739,34 @@ def submittal_check(quotation_id: int, db: Session = Depends(get_db)):
     return {"missing": submittal.missing(quotation, db)}
 
 
+def _is_automation(q):
+    """An automation quote: its division says so, or (division not set) most of its products are automation."""
+    if (q.division or "") == "automation":
+        return True
+    if q.division:
+        return False
+    from app.categories import AUTOMATION_CATEGORIES
+    cats = [it.product.category for it in q.items if it.product]
+    return bool(cats) and sum(c in AUTOMATION_CATEGORIES for c in cats) * 2 > len(cats)
+
+
 @download_router.get("/{quotation_id}/submittal")
 def quotation_submittal(quotation_id: int, token: str = Query(...), preview: bool = False,
                         db: Session = Depends(get_db)):
-    """The quotation followed by every product's datasheet, stamped."""
+    """Lighting: the quotation followed by every product's datasheet, stamped.
+    Automation: the technical submittal (no prices), as made from the project page."""
     auth.get_download_user_from_token(token, db)
     quotation = db.query(models.Quotation).get(quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
-    pdf_bytes = submittal.build(quotation, db, _quotation_pdf_bytes(quotation, db))
-    filename = f"Submittal-{quotation.quote_number.replace('/', '-')}.pdf"
+    if _is_automation(quotation):
+        # automation: the technical submittal (no prices), the same as the project's "Make proposal PDF"
+        from app import proposal_pdf
+        pdf_bytes = proposal_pdf.build(quotation, db, True)
+        filename = f"Technical-Submittal-{quotation.quote_number.replace('/', '-')}.pdf"
+    else:
+        pdf_bytes = submittal.build(quotation, db, _quotation_pdf_bytes(quotation, db))
+        filename = f"Submittal-{quotation.quote_number.replace('/', '-')}.pdf"
     disposition = "inline" if preview else "attachment"
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
                              headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})

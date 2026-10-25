@@ -896,7 +896,7 @@ function setHeaderButtons(q) {
     { text: 'Preview PDF', onclick: `downloadDoc(${q.id}, 'preview')` },
     { text: 'Download PDF', onclick: `downloadDoc(${q.id}, 'pdf')` },
     { text: 'Download Excel', onclick: `downloadDoc(${q.id}, 'excel')` },
-    { text: 'Submittal PDF (quote + datasheets)', onclick: `submittalPdf(${q.id})` },
+    { text: q.division === 'automation' ? 'Technical submittal PDF (no prices)' : 'Submittal PDF (quote + datasheets)', onclick: `submittalPdf(${q.id})` },
     { text: 'By system + design matrix (PDF)', onclick: `proposalPdf(${q.id})` },
   ] }]);
 }
