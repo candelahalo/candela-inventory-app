@@ -230,7 +230,8 @@ table.ms td.num { text-align: right; white-space: nowrap; }
 /* ---- General remarks ---- */
 .rm-page { page-break-before: always; }
 h2.rm-title { bookmark-level: 1; bookmark-label: "General remarks"; }
-h2.price-title, h2.scope-title { bookmark-level: none; }
+h2.scope-title { bookmark-level: none; }
+h2.price-title { bookmark-level: 1; bookmark-label: "Equipment by system"; }
 .rm-sys { margin-top: 7mm; break-inside: auto; }
 .rm-sys h3 { font-size: 11.5px; font-weight: 700; margin: 0 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1px solid #E6DFCC; break-after: avoid; }
 .rm-sys h3 span { color: #C77D0A; margin-right: 2.5mm; }
@@ -291,7 +292,7 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
   {% if full and q.main_contractor %}<div><div class="k">Main contractor</div><div class="v">{{ q.main_contractor }}</div></div>{% endif %}
 </div>
 <div class="qc-intro">Dear {{ q.attention_to or q.customer.name }},<br><br>
-{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
+{% if full %}Thank you for the opportunity to propose the home automation for this project. We are pleased to enclose our technical submittal: the product datasheets{% if p.gallery %} and images{% endif %}, our general remarks for each system, the scope, the equipment for each system{% if q.proposal_prices %} with its price and the conclusion{% endif %}{% if p.matrix %}, the design matrix showing what goes in each room{% endif %} and our payment terms.{% else %}Thank you for the opportunity to quote for your home automation. We are pleased to enclose our proposal: our general remarks for each system, the scope, the equipment for each system, a submission summary with the price{% if p.matrix %} and the design matrix showing what goes in each room{% endif %}.{% endif %}</div>
 {% if full and p.brands %}<div class="qc-systems"><span class="k">Brands proposed</span>{% for b in p.brands %}<span class="chip">{{ b|upper }}</span>{% endfor %}</div>{% endif %}
 <div class="qc-terms">
   <div class="tk">Currency</div><div class="tv">United Arab Emirates Dirhams ({{ q.currency }})</div>
@@ -332,7 +333,10 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 </div>
 {% endfor %}
 
-<!-- ===== GENERAL REMARKS (product datasheets and images come before this page) ===== -->
+{% endif %}
+
+{% if not full %}
+<!-- ===== GENERAL REMARKS AND SCOPE (the quote only; not in the technical submittal) ===== -->
 <div class="rm-page">
   <div class="kicker">Our proposal</div>
   <h2 class="rm-title">General remarks</h2>
@@ -343,23 +347,24 @@ h2.price-title, h2.scope-title { bookmark-level: none; }
 </div>
 
 <!-- ===== SCOPE: INCLUSIONS AND EXCLUSIONS ===== -->
-{% if p.inclusions or p.exclusions or p.not_included %}
+{% if p.inclusions or p.exclusions %}
 <div class="scope-page">
   <div class="kicker">Scope</div>
   <h2 class="scope-title" style="margin-bottom:6mm">Inclusions &amp; exclusions</h2>
   {% if p.inclusions %}<div class="tsec"><h3>Inclusions</h3><ul>{% for x in p.inclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
-  {% if p.exclusions or p.not_included %}<div class="tsec"><h3>Exclusions</h3><ul>{% for n in p.not_included %}<li><strong>{{ n }}</strong> — not included in this proposal.</li>{% endfor %}{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if p.exclusions %}<div class="tsec"><h3>Exclusions</h3><ul>{% for x in p.exclusions %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
 </div>
 {% endif %}
-<div class="price-page"><div class="kicker">{{ 'Price' if q.proposal_prices else 'Bill of quantities' }}</div>
-  <h2 class="price-title">Equipment by system</h2></div>
 {% endif %}
+
+<!-- ===== EQUIPMENT BY SYSTEM (in the submittal the datasheets go in just before this page) ===== -->
+<div class="price-page"><div class="kicker">{{ 'Price' if (q.proposal_prices or not full) else 'Bill of quantities' }}</div>
+  <h2 class="price-title">Equipment by system</h2></div>
 
 <!-- ===== ONE PAGE PER SYSTEM ===== -->
 {% for s in p.systems %}
 <div class="sys{% if s.lines|length <= 4 %} keep{% endif %}">
   <div class="sys-head"><div class="sys-no">{{ '%02d' % s.no }}</div><div class="sys-name">{{ s.name }}</div></div>
-  {% if s.notes and not full %}<ul class="notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   <table class="boq">
     <thead><tr><th style="width:8mm" class="c">#</th><th style="width:30mm">Brand</th><th>Description</th><th style="width:12mm" class="c">Unit</th><th style="width:12mm" class="num">Qty</th>
       {% if show_prices %}<th style="width:22mm" class="num">Price</th><th style="width:25mm" class="num">Amount</th>{% endif %}</tr></thead>

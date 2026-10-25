@@ -68,7 +68,7 @@
 
 <div class="panel" id="ap-panel" style="display:none;">
   <div class="panel-head"><h2>Automation proposal</h2>
-    <span class="muted-note">Photo cover, letter, brochure pages, product datasheets and images, general remarks, scope, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
+    <span class="muted-note">Technical submittal: photo cover, brochure pages, product images, datasheets, equipment by system, conclusion, design matrix, payment terms — from one of this project's quotations.</span></div>
   <div id="ap-empty" class="muted" style="display:none;">Make a quotation for this project first.</div>
   <div id="ap-body">
     <div class="form-grid">
@@ -76,8 +76,8 @@
       <div class="field"><label class="chk" style="margin-top:26px"><input type="checkbox" id="ap-prices" checked> Show prices (system totals and conclusion)</label></div>
       <div class="field"><label>Consultant</label><input id="ap-consultant" placeholder="e.g. Signature Engineering Consultant"></div>
       <div class="field"><label>Main contractor</label><input id="ap-contractor" placeholder="e.g. Al Fikree Contracting LLC"></div>
-      <div class="field span2"><label>Inclusions <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>
-      <div class="field span2"><label>Exclusions <span class="muted ap-std" data-k="exclusions"></span></label><textarea id="ap-exclusions" rows="6"></textarea></div>
+      <div class="field span2"><label>Inclusions <span class="muted">(in the quotation)</span> <span class="muted ap-std" data-k="inclusions"></span></label><textarea id="ap-inclusions" rows="4"></textarea></div>
+      <div class="field span2"><label>Exclusions <span class="muted">(in the quotation)</span> <span class="muted ap-std" data-k="exclusions"></span></label><textarea id="ap-exclusions" rows="6"></textarea></div>
       <div class="field span2"><label>Payment milestones <span class="muted ap-std" data-k="milestones"></span></label><textarea id="ap-milestones" rows="3"></textarea></div>
     </div>
     <div class="ap-cover-row">
@@ -100,7 +100,7 @@
       <input type="file" id="bp-file" accept="image/jpeg,image/png,image/webp" hidden>
     </details>
     <details class="q-matrix" id="ap-remarks" open>
-      <summary><strong>General remarks</strong> <span class="muted">— one per line, for each system; made from the quote lines, change them as you like</span></summary>
+      <summary><strong>General remarks</strong> <span class="muted">— in the quotation (By system), not in the technical submittal; one per line, made from the quote lines, change them as you like</span></summary>
       <div id="ap-rm" class="ap-rm"></div>
     </details>
 
