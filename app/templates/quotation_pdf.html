@@ -146,6 +146,9 @@
   table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   table.items tbody td.center { text-align: center; }
   table.items tbody tr:nth-child(even) { background: #FBF9F4; }
+  /* a line never splits over two pages (picture and description stay together) */
+  table.items tbody tr { break-inside: avoid; page-break-inside: avoid; }
+  tr.sec-head { break-after: avoid; page-break-after: avoid; }
 
   tr.sec-head td { background: #F3EEE2; font-weight: 700; letter-spacing: 0.04em; font-size: 8.5pt; padding: 6px 8px; text-transform: uppercase; }
   tr.sec-sub td { font-weight: 600; font-size: 8.5pt; padding: 5px 8px; border-top: 0.75px solid #CFC5AE; text-align: right; }
