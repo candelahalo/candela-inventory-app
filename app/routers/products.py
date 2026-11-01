@@ -316,7 +316,7 @@ def bill_apply(payload: BillApply, db: Session = Depends(get_db), current: model
         data = _standardise(db, {"sku": "", "name": name, "brand": (ln.brand or "").strip().upper() or None,
                                  "category": ln.category, "supplier": supplier, "unit": (ln.unit or "pcs")[:32],
                                  "spec_summary": spec})
-        p = models.Product(**data, cost_amount=round(ln.unit_price, 4), cost_currency=cur, landed_pct=0.0,
+        p = models.Product(**data, cost_amount=round(ln.unit_price, 4), cost_currency=cur, landed_pct=20.0,
                            selling_price=0.0, reorder_level=0, is_active=True,
                            datasheet_mode="none" if ln.category == "Testing & Commissioning" else "supplier",
                            no_datasheet=ln.category == "Testing & Commissioning")

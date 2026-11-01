@@ -54,7 +54,7 @@ class Product(Base):
     # supplier price (cost_amount).
     cost_currency = Column(String(3), default="AED")
     cost_amount = Column(Float)
-    landed_pct = Column(Float, default=0.0)
+    landed_pct = Column(Float, default=20.0)
     cost_price = Column(Float, default=0.0)
     selling_price = Column(Float, default=0.0)
     reorder_level = Column(Integer, default=0)
