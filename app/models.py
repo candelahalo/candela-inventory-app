@@ -339,6 +339,20 @@ class QuotationItem(Base):
         return self.description
 
     @property
+    def print_description_flow(self):
+        """The spec as one flowing paragraph for the quotation PDF ("10W · 3000K ·
+        CRI>90"), so it fills the description column instead of a short line each."""
+        text = self.print_description
+        if not text:
+            return text
+        parts = []
+        for line in text.splitlines():
+            line = line.strip().lstrip("•-–*·").strip().rstrip(",;")
+            if line:
+                parts.append(line)
+        return "  ·  ".join(parts)
+
+    @property
     def runs_text(self):
         """Runs for the quotation: "9 m + 10 m + 15 m = 34 m" (or as typed)."""
         return format_runs(self.runs, self.unit or (self.product.unit if self.product else None))

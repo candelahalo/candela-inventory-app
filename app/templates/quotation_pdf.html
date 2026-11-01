@@ -164,7 +164,7 @@
   .item-type { font-family: 'Inter', sans-serif; font-size: 8px; color: #C77D0A; font-weight: 700; letter-spacing: 0.04em; }
   .item-name { font-weight: 600; font-size: 9.9px; line-height: 1.35; margin: 1px 0 3px; }
   .ds-link { color: inherit; text-decoration: none; }
-  .item-spec { color: #56503F; font-size: 8.4px; line-height: 1.45; white-space: pre-line; }
+  .item-spec { color: #56503F; font-size: 8.4px; line-height: 1.5; }
   .item-runs { color: #14161A; font-weight: 600; margin-top: 2px; }
 
   /* ---------- Totals ---------- */
@@ -283,7 +283,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
           {% set ds_link = datasheet_links.get(item.product_id) if datasheet_links else None %}
           {% if ds_link %}<a class="ds-link" href="{{ ds_link }}">{{ item.product.name if item.product else '' }}</a>{% else %}{{ item.product.name if item.product else '' }}{% endif %}
         </div>
-        {% if item.print_description %}<div class="item-spec">{{ item.print_description }}</div>{% endif %}
+        {% if item.print_description %}<div class="item-spec">{{ item.print_description_flow }}</div>{% endif %}
         {% if item.runs %}<div class="item-spec item-runs">Runs: {{ item.runs_text }}</div>{% endif %}
       </td>
       <td class="center fig">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
