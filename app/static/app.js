@@ -339,10 +339,10 @@ function costNoteText(amount, currency, rates, pct) {
   if (currency === 'AED' && !pct) return '';
   const aed = costToAED(amount, currency, rates, pct);
   if (aed == null) return `<span class="cost-warn">Set the ${currency} rate in Settings first</span>`;
-  const how = [`${currency} ${fmtNum(amount || 0, 2)}`];
-  if (currency !== 'AED') how.push(`× ${rates[currency]}`);
-  if (pct) how.push(`+ ${pct}%`);
-  return `= <strong>${fmtMoney(aed)}</strong> landed cost <span class="cost-how">(${how.join(' ')})</span>`;
+  let how = `${currency} ${fmtNum(amount || 0, 2)}` + (currency !== 'AED' ? ` × ${rates[currency]}` : '');
+  how = `(${how})`;
+  if (pct) how += ` × ${+(1 + pct / 100).toFixed(4)}`;
+  return `= <strong>${fmtMoney(aed)}</strong> landed cost <span class="cost-how">${how}</span>`;
 }
 
 // Wires the cost amount / currency / landed % inputs of a product form so the
