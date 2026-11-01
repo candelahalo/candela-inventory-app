@@ -15,8 +15,7 @@ DATASHEET_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 CANVAS_SIZE = 1200  # every product photo becomes a 1200x1200 square, regardless of source shape
-TARGET_IMAGE_BYTES = 160 * 1024  # aim for ~160 KB per saved product photo
-MIN_JPEG_QUALITY = 84           # never go below this, even if the target isn't met - clarity wins
+TARGET_IMAGE_BYTES = 50 * 1024   # every saved product photo is 50 KB or less
 Image.MAX_IMAGE_PIXELS = 80_000_000  # big camera photos are fine; refuse absurd "pixel bomb" files
 
 
@@ -125,21 +124,27 @@ def save_product_image(file: UploadFile) -> str:
 
 def _compress_jpeg(img: Image.Image) -> bytes:
     """
-    Encode as JPEG at the highest quality that still fits TARGET_IMAGE_BYTES.
+    Encode as JPEG at 50 KB or less (TARGET_IMAGE_BYTES).
 
-    Starts high and steps down only as far as needed, so a simple product shot
-    on a white background stays near-lossless while a busy photo gets squeezed
-    harder. Quality never drops below MIN_JPEG_QUALITY: past that point JPEG
-    starts to look blocky, so a slightly bigger file is the better trade.
+    Tries the highest quality first and steps down only as far as needed. If a
+    busy photo still won't fit at quality 60, the square is made smaller
+    (800 -> 700 -> 600 px ...) rather than letting JPEG go blocky.
     """
-    best = None
-    for quality in (92, 90, 88, 86, MIN_JPEG_QUALITY):
+    def encode(im, q):
         buf = io.BytesIO()
-        img.save(buf, "JPEG", quality=quality, optimize=True, progressive=True, subsampling="4:2:0")
-        best = buf.getvalue()
-        if len(best) <= TARGET_IMAGE_BYTES:
-            break
-    return best
+        im.save(buf, "JPEG", quality=q, optimize=True, progressive=True, subsampling="4:2:0")
+        return buf.getvalue()
+
+    size = img.width
+    while True:
+        im = img if size == img.width else img.resize((size, size), Image.LANCZOS)
+        for quality in (90, 85, 80, 75, 70, 65, 60):
+            data = encode(im, quality)
+            if len(data) <= TARGET_IMAGE_BYTES:
+                return data
+        if size <= 300:
+            return encode(im, 50)
+        size -= 100
 
 
 MAX_DATASHEET_BYTES = 60 * 1024 * 1024
