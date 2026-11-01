@@ -116,54 +116,60 @@
   .schedule-sub { font-size: 9.5px; color: #9A9382; margin-bottom: 18px; }
 
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  table.items col.c-idx { width: 22px; }
-  table.items col.c-img { width: 96px; }
+  table.items col.c-idx { width: 20px; }
+  table.items col.c-img { width: 82px; }
   table.items col.c-desc { width: auto; }
-  table.items col.c-unit { width: 34px; }
-  table.items col.c-qty { width: 32px; }
-  table.items col.c-price { width: 58px; }
-  table.items col.c-total { width: 64px; }
+  table.items col.c-unit { width: 40px; }
+  table.items col.c-qty { width: 42px; }
+  table.items col.c-price { width: 70px; }
+  table.items col.c-total { width: 78px; }
 
   table.items thead th {
-    font-size: 8px;
+    font-size: 7.6px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: #56503F;
     font-weight: 600;
     text-align: left;
-    padding: 0 6px 8px;
+    padding: 0 7px 7px;
     border-bottom: 1.25px solid #201E1A;
+    vertical-align: bottom;
+    line-height: 1.3;
   }
   table.items thead th.num { text-align: right; }
   table.items thead th.center { text-align: center; }
+  table.items thead th .cur { display: block; font-weight: 500; color: #9A9382; letter-spacing: 0.04em; }
 
   table.items tbody td {
-    padding: 11px 6px;
+    padding: 9px 7px;
     border-bottom: 0.75px solid #EAE3D2;
     vertical-align: middle;
-    font-size: 9.7px;
+    font-size: 9.6px;
   }
+  /* the figures sit in their own ruled block, so the description never seems to float away from them */
+  table.items tbody td.fig { border-left: 0.75px solid #EAE3D2; }
   table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.items tbody td.center { text-align: center; }
-  table.items tbody tr:nth-child(even) { background: #FBF9F4; }
+  table.items tbody td.center { text-align: center; white-space: nowrap; }
+  table.items tbody td.idx { color: #9A9382; font-size: 8.5px; padding-left: 0; padding-right: 0; }
+  table.items tbody td.amt { font-weight: 600; }
   /* a line never splits over two pages (picture and description stay together) */
   table.items tbody tr { break-inside: avoid; page-break-inside: avoid; }
   tr.sec-head { break-after: avoid; page-break-after: avoid; }
 
-  tr.sec-head td { background: #F3EEE2; font-weight: 700; letter-spacing: 0.04em; font-size: 8.5pt; padding: 6px 8px; text-transform: uppercase; }
-  tr.sec-sub td { font-weight: 600; font-size: 8.5pt; padding: 5px 8px; border-top: 0.75px solid #CFC5AE; text-align: right; }
+  tr.sec-head td { background: #F3EEE2; font-weight: 700; letter-spacing: 0.06em; font-size: 8px; padding: 6px 7px; text-transform: uppercase; }
+  tr.sec-sub td { font-weight: 600; font-size: 8.6px; padding: 6px 7px; border-top: 0.75px solid #CFC5AE; border-bottom: 1.25px solid #CFC5AE; text-align: right; background: #FBF9F4; }
   tr.sec-sub td.num { white-space: nowrap; }
-  .item-img { width: 84px; height: 84px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; }
-  .item-img-empty { width: 84px; height: 84px; border: 0.75px dashed #DED6C2; border-radius: 3px; }
-  .item-type { font-family: 'Inter', sans-serif; font-size: 8.5px; color: #C77D0A; font-weight: 600; letter-spacing: 0.02em; }
-  .item-name { font-weight: 600; font-size: 10px; margin: 2px 0 4px; }
+  .item-img { width: 72px; height: 72px; object-fit: contain; border: 0.75px solid #EAE3D2; border-radius: 3px; background: #fff; padding: 3px; display: block; margin: 0 auto; }
+  .item-img-empty { width: 72px; height: 72px; border: 0.75px dashed #DED6C2; border-radius: 3px; margin: 0 auto; }
+  .item-type { font-family: 'Inter', sans-serif; font-size: 8px; color: #C77D0A; font-weight: 700; letter-spacing: 0.04em; }
+  .item-name { font-weight: 600; font-size: 9.9px; line-height: 1.35; margin: 1px 0 3px; }
   .ds-link { color: inherit; text-decoration: none; }
-  .item-spec { color: #56503F; font-size: 8.5px; line-height: 1.5; white-space: pre-line; }
+  .item-spec { color: #56503F; font-size: 8.4px; line-height: 1.45; white-space: pre-line; }
   .item-runs { color: #14161A; font-weight: 600; margin-top: 2px; }
 
   /* ---------- Totals ---------- */
-  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 4px; }
-  .totals-box { width: 62mm; }
+  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .totals-box { width: 68mm; padding-right: 7px; }
   .totals-box .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px; color: #56503F; }
   .totals-box .row.discount { color: #2E7D52; font-weight: 600; }
   .totals-box .row.grand { border-top: 1.25px solid #201E1A; margin-top: 4px; padding-top: 9px; font-size: 12.5px; font-weight: 700; color: #201E1A; }
@@ -247,7 +253,7 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
   </colgroup>
   <thead>
     <tr>
-      <th class="center">#</th><th class="center">Image</th><th>Description</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th>
+      <th class="center">#</th><th class="center">Image</th><th>Description</th><th class="center">Unit</th><th class="center">Qty</th><th class="num">Unit Price<span class="cur">{{ q.currency }}</span></th><th class="num">Amount<span class="cur">{{ q.currency }}</span></th>
     </tr>
   </thead>
   <tbody>
@@ -262,13 +268,13 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
     {% endif %}
     {% set ns.sub = ns.sub + item.quantity * item.unit_price %}
     <tr>
-      <td class="center">{{ loop.index }}</td>
+      <td class="center idx">{{ loop.index }}</td>
       <td class="center">
         {% set img = item.image_path or (item.product.image_path if item.product else None) %}
         {% if img %}
         <img class="item-img" src="app{{ img }}">
         {% else %}
-        <div class="item-img-empty" style="margin: 0 auto;"></div>
+        <div class="item-img-empty"></div>
         {% endif %}
       </td>
       <td>
@@ -280,10 +286,10 @@ Thank you for the opportunity to quote for your requirements. We are pleased to 
         {% if item.print_description %}<div class="item-spec">{{ item.print_description }}</div>{% endif %}
         {% if item.runs %}<div class="item-spec item-runs">Runs: {{ item.runs_text }}</div>{% endif %}
       </td>
-      <td class="num">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
-      <td class="num">{{ item.quantity }}</td>
-      <td class="num">{{ "{:,.2f}".format(item.unit_price) }}</td>
-      <td class="num">{{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
+      <td class="center fig">{{ item.unit or (item.product.unit if item.product else 'pcs') }}</td>
+      <td class="center fig">{{ "%g"|format(item.quantity) }}</td>
+      <td class="num fig">{{ "{:,.2f}".format(item.unit_price) }}</td>
+      <td class="num fig amt">{{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
     </tr>
     {% if loop.last and ns.sec and q.section_subtotals %}
     <tr class="sec-sub"><td colspan="6">Subtotal — {{ ns.sec }}</td><td class="num">{{ "{:,.2f}".format(ns.sub) }}</td></tr>
