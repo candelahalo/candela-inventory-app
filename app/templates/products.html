@@ -50,6 +50,14 @@
       <div class="field"><label>Cost price</label><div class="cost-row"><input name="cost_amount" type="number" step="0.01" min="0" value="0"><select name="cost_currency"><option>AED</option><option>USD</option><option>EUR</option></select></div><div class="cost-note"></div></div>
       <div class="field"><label>Landed cost % <span style="font-weight:400;color:var(--muted)">(freight, duty, clearing)</span></label><input name="landed_pct" type="number" step="0.1" min="0" value="0"></div>
       <div class="field"><label>Selling price (AED)</label><input name="selling_price" type="number" step="0.01" value="0"></div>
+      <div class="field span2"><label>Photo <span style="font-weight:400;color:var(--muted)">(optional — auto-cropped onto a white square)</span></label>
+        <div class="photo-pick" id="photo-pick" tabindex="0" title="Click to choose, drop an image here, or paste (Ctrl+V)">
+          <input type="file" id="photo-file" accept="image/*" hidden>
+          <img id="photo-prev" alt="" style="display:none">
+          <div class="photo-pick-text" id="photo-pick-text"><strong>Choose photo</strong><span>or drop / paste an image here</span></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="photo-clear" style="display:none">Remove</button>
+        </div>
+      </div>
       <div class="field span2" id="spec-field"><label id="spec-label">Spec summary (used as default quotation description)</label><textarea name="spec_summary" rows="3" placeholder="Source : LED&#10;CCT : 3000K&#10;Power : 12W&#10;IP Rating : IP65"></textarea></div>
     </div>
     <div class="dup-warn" id="dup-warn" style="display:none"></div>
@@ -58,7 +66,7 @@
       <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
     </div>
     <p id="add-note" style="color:var(--muted); font-size:12.5px; margin-top:10px;">
-      Photo and datasheets are added on the product's own page after saving.
+      Datasheets are added on the product's own page after saving.
     </p>
   </form>
 </div>
@@ -179,6 +187,7 @@ document.getElementById('cancel-btn').addEventListener('click', () => {
   document.getElementById('product-form').reset();
   document.getElementById('product-form')._updateCost();
   dsStart = null;
+  setPickedPhoto(null);
   document.getElementById('ds-start').style.display = 'none';
   document.getElementById('ds-start-found').style.display = 'none';
   document.getElementById('add-title').textContent = 'Add a product';
@@ -417,6 +426,12 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   }
   try {
     const product = await api('/products/', { method: 'POST', body: JSON.stringify(payload) });
+    if (pickedPhoto) {
+      const fd = new FormData();
+      fd.append('file', pickedPhoto);
+      const r = await fetch(`/products/${product.id}/image`, { method: 'POST', body: fd, headers: authHeaders() });
+      if (!r.ok) flashNext('Product added, but the photo upload failed - add it on this page');
+    }
     if (dsStart) {
       toast('Product added — attaching the photo and datasheet…');
       try {
@@ -425,11 +440,41 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
         flashNext('Product added from the datasheet' + (acc ? ` + ${acc} accessories` : ''));
       } catch (err) { flashNext(err.message); }
     } else {
-      flashNext('Product added — add a photo and datasheet on this page');
+      flashNext(pickedPhoto ? 'Product added with its photo' : 'Product added — add a photo and datasheet on this page');
     }
     location.href = '/products/view/' + product.id;
   } catch (err) { toast(err.message, true); }
 });
+
+// ---------- Photo on the Add form: click, drop or paste ----------
+let pickedPhoto = null;
+function setPickedPhoto(file) {
+  pickedPhoto = file && file.type.startsWith('image/') ? file : null;
+  const img = document.getElementById('photo-prev');
+  if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  img.src = pickedPhoto ? URL.createObjectURL(pickedPhoto) : '';
+  img.style.display = pickedPhoto ? '' : 'none';
+  document.getElementById('photo-clear').style.display = pickedPhoto ? '' : 'none';
+  document.getElementById('photo-pick-text').innerHTML = pickedPhoto
+    ? `<strong>${escHtml(pickedPhoto.name || 'Pasted image')}</strong><span>Click to change</span>`
+    : '<strong>Choose photo</strong><span>or drop / paste an image here</span>';
+  document.getElementById('photo-pick').classList.toggle('has-photo', !!pickedPhoto);
+}
+(function () {
+  const box = document.getElementById('photo-pick'), input = document.getElementById('photo-file');
+  box.addEventListener('click', e => { if (e.target.id !== 'photo-clear') input.click(); });
+  box.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  input.addEventListener('change', () => { setPickedPhoto(input.files[0]); input.value = ''; });
+  document.getElementById('photo-clear').addEventListener('click', e => { e.stopPropagation(); setPickedPhoto(null); });
+  box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drag'); });
+  box.addEventListener('dragleave', () => box.classList.remove('drag'));
+  box.addEventListener('drop', e => { e.preventDefault(); box.classList.remove('drag'); setPickedPhoto(e.dataTransfer.files[0]); });
+  document.addEventListener('paste', e => {
+    if (document.getElementById('add-panel').style.display === 'none') return;
+    const item = [...(e.clipboardData || {}).items || []].find(i => i.type.startsWith('image/'));
+    if (item) { e.preventDefault(); setPickedPhoto(item.getAsFile()); }
+  });
+})();
 
 loadProducts();
 wireCostFields(document.getElementById('product-form'));
@@ -616,7 +661,7 @@ async function addTickedAccessories() {
 // After the product is saved: its photo (from the PDF) and the PDF itself
 async function dsAttach(productId) {
   if (!dsStart) return;
-  if (dsStart.read.photo) {
+  if (dsStart.read.photo && !pickedPhoto) {
     try {
       const blob = await (await fetch(dsStart.read.photo)).blob();
       const fd = new FormData();
