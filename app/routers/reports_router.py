@@ -105,7 +105,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             {"key": "warehouse", "label": "Warehouse"},
             {"key": "movement_type", "label": "Type"},
             {"key": "quantity", "label": "Qty", "kind": "number"},
-            {"key": "project", "label": "Project"},
+            {"key": "project", "label": "Project #"}, {"key": "project_name", "label": "Project name"},
             {"key": "reference", "label": "Reference"},
         ]
         rows = []
@@ -121,6 +121,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
                 "movement_type": m.movement_type.value,
                 "quantity": m.quantity,
                 "project": projects[m.project_id].project_number if m.project_id in projects else "",
+                "project_name": projects[m.project_id].name if m.project_id in projects else "",
                 "reference": m.reference or "",
             })
         return "Stock Movements" + _cat_suffix(category) + _type_suffix(ptype), columns, rows
@@ -201,7 +202,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         columns = [
             {"key": "quote_number", "label": "Quote #"},
             {"key": "customer", "label": "Customer"},
-            {"key": "project", "label": "Project"},
+            {"key": "project", "label": "Project #"}, {"key": "project_name", "label": "Project name"},
             {"key": "division", "label": "Division"},
             {"key": "category", "label": "Category"},
             {"key": "status", "label": "Status"},
@@ -216,6 +217,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
                 "quote_number": q.quote_number,
                 "customer": customers[q.customer_id].name if q.customer_id in customers else "",
                 "project": projects[q.project_id].project_number if q.project_id in projects else "",
+                "project_name": projects[q.project_id].name if q.project_id in projects else "",
                 "division": DIVISION_LABELS.get(q.division, ""),
                 "category": CATEGORY_LABELS.get(q.category, ""),
                 "status": q.status.value,
@@ -239,7 +241,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
         columns = [
             {"key": "po_number", "label": "PO #"},
             {"key": "supplier", "label": "Supplier"},
-            {"key": "project", "label": "Project"},
+            {"key": "project", "label": "Project #"}, {"key": "project_name", "label": "Project name"},
             {"key": "status", "label": "Stage"},
             {"key": "next", "label": "Next step"},
             {"key": "due", "label": "Due", "kind": "date"},
@@ -257,6 +259,7 @@ def _gather(kind: str, db: Session, admin: bool, category: Optional[str] = None,
             rows.append({
                 "po_number": o.po_number, "supplier": o.supplier,
                 "project": projects[o.project_id].project_number if o.project_id in projects else "",
+                "project_name": projects[o.project_id].name if o.project_id in projects else "",
                 "status": o.status + (" (late)" if o.is_overdue else ""),
                 "next": nxt["label"] if nxt else "",
                 "due": datetime.fromisoformat(nxt["due"]) if nxt and nxt["due"] else None,
@@ -446,7 +449,7 @@ def product_report(product_id: int, fmt: str, token: str = Query(...), preview: 
         {"key": "warehouse", "label": "Warehouse"},
         {"key": "movement_type", "label": "Type"},
         {"key": "quantity", "label": "Qty", "kind": "number"},
-        {"key": "project", "label": "Project"},
+        {"key": "project", "label": "Project #"}, {"key": "project_name", "label": "Project name"},
         {"key": "reference", "label": "Reference"},
     ]
     moves = (db.query(models.StockMovement).filter(models.StockMovement.product_id == p.id)
@@ -456,6 +459,7 @@ def product_report(product_id: int, fmt: str, token: str = Query(...), preview: 
         "warehouse": warehouses[m.warehouse_id].name if m.warehouse_id in warehouses else "",
         "movement_type": m.movement_type.value, "quantity": m.quantity,
         "project": projects[m.project_id].project_number if m.project_id in projects else "",
+                "project_name": projects[m.project_id].name if m.project_id in projects else "",
         "reference": m.reference,
     } for m in moves]
 

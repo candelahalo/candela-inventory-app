@@ -16,8 +16,13 @@ const DataTable = (() => {
       if (!saved) return columns;
       const byKey = Object.fromEntries(columns.map(c => [c.key, c]));
       const ordered = saved.filter(k => byKey[k]).map(k => byKey[k]);
-      const missing = columns.filter(c => !saved.includes(c.key));
-      return [...ordered, ...missing];
+      // a column added later goes in next to the one before it in the default order (not at the end)
+      columns.forEach((c, i) => {
+        if (saved.includes(c.key)) return;
+        const prev = i > 0 ? ordered.indexOf(columns[i - 1]) : -1;
+        ordered.splice(prev + 1, 0, c);
+      });
+      return ordered;
     } catch (e) {
       return columns;
     }
