@@ -225,7 +225,7 @@ function renderMovements() {
           return p ? `<a class="mono panel-link" href="/products/view/${p.id}">${p.sku}</a> ${p.name}` : '—';
         } },
       { key: 'warehouse', label: 'Warehouse', value: m => { const w = warehousesCache.find(x => x.id === m.warehouse_id); return w ? w.name : ''; }, render: m => { const w = warehousesCache.find(x => x.id === m.warehouse_id); return w ? w.name : '—'; } },
-      { key: 'project', label: 'Project #', value: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? p.project_number : ''; }, render: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}">${p.project_number}</a>` : '—'; } },
+      { key: 'project', label: 'Project #', value: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? p.project_number : ''; }, render: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? `<a class="panel-link nowrap" href="/projects/view/${p.id}">${p.project_number}</a>` : '—'; } },
       { key: 'project_name', label: 'Project name', value: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? p.name : ''; }, render: m => { const p = projectsCache.find(x => x.id === m.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}">${escHtml(p.name || '')}</a>` : '—'; } },
       { key: 'reference', label: 'Reference', value: m => m.reference || '', render: m => m.reference || '—' },
       { key: 'qty', label: 'Qty', numeric: true, value: m => m.quantity, render: m => m.quantity },

@@ -1119,7 +1119,7 @@ async function loadQuotations() {
   const columns = [
       { key: 'quote_number', label: 'Quote #', value: q => q.quote_number || '', render: q => `<a href="#" class="panel-link mono nowrap" title="Open quotation" onclick="editQuotation(${q.id}); return false;">${q.quote_number}</a>${classBadges(q)}` },
       { key: 'customer', label: 'Customer', value: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : ''; }, render: q => { const c = customersCache.find(x => x.id === q.customer_id); return c ? c.name : '—'; } },
-      { key: 'project', label: 'Project #', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.project_number}</a>` : '—'; } },
+      { key: 'project', label: 'Project #', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.project_number : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? `<a class="panel-link nowrap" href="/projects/view/${p.id}" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.project_number}</a>` : '—'; } },
       { key: 'project_name', label: 'Project name', value: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? p.name : ''; }, render: q => { const p = projectsCache.find(x => x.id === q.project_id); return p ? `<a class="panel-link" href="/projects/view/${p.id}">${escHtml(p.name || '')}</a>` : '—'; } },
       { key: 'status', label: 'Status', value: q => q.status, render: q => `
         <select class="status-select st-${q.status}" onchange="changeStatus(${q.id}, this.value)" title="Change status">
@@ -1153,8 +1153,8 @@ async function loadQuotations() {
       () => { DataTable.clearSelection('quotations'); loadQuotations(); }) },
     actions: q => `
       <button class="btn btn-ghost btn-sm" onclick="editQuotation(${q.id})">${q.status === 'accepted' ? 'Open' : 'Edit'}</button>
-      <button class="btn btn-ghost btn-sm" title="Open the quotation PDF in a new tab (download or print it from there)" onclick="downloadDoc(${q.id}, 'preview')">Preview</button>
-      <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">Delete</button>
+      <button class="btn btn-ghost btn-sm" title="Open the quotation PDF in a new tab (download or print it from there)" onclick="downloadDoc(${q.id}, 'preview')">PDF</button>
+      <button class="btn btn-ghost btn-sm btn-danger btn-x" title="Delete this quotation" onclick="deleteQuotation(${q.id}, '${q.quote_number}')">×</button>
     `,
   });
 }

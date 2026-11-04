@@ -1338,3 +1338,23 @@ body.mx-noscroll { overflow: hidden; }
 .photo-pick-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; flex: 1; min-width: 0; }
 .photo-pick-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .photo-pick-text span { color: var(--muted); font-size: 12px; }
+/* Lists fit the screen: long names wrap onto a second line instead of widening the table */
+table.dt td { max-width: 240px; overflow-wrap: break-word; }
+table.dt td .panel-link, table.dt td a:not(.mono) { white-space: normal; }
+table.dt td.num, table.dt td.row-actions, table.dt td.td-check { max-width: none; overflow-wrap: normal; }
+@media (max-width: 1600px) {
+  table.dt th, table.dt td { padding-left: 8px; padding-right: 8px; }
+  table.dt td { max-width: 190px; }
+  table.dt td.row-actions .btn-sm { padding: 5px 9px; margin-left: 2px; }
+}
+.btn-x { font-size: 16px; line-height: 1; padding-left: 9px; padding-right: 9px; }
+@media (max-width: 1500px) {
+  .content { padding: 32px 24px; }
+  table.dt th, table.dt td { padding-left: 6px; padding-right: 6px; }
+  table.dt td { max-width: 160px; font-size: 13px; }
+  table.dt td select { max-width: 104px; }
+}
+@media (min-width: 901px) and (max-width: 1440px) {
+  .sidebar { width: 236px; padding: 24px 16px; }
+}
+table.dt td .nowrap, table.dt td .mono { white-space: nowrap; }
